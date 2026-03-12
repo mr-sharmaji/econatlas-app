@@ -135,17 +135,16 @@ class StockListTile extends StatelessWidget {
   }
 
   /// Format market cap in Indian crore notation.
+  /// [value] is already in Crores (from Screener.in / API).
   static String _formatMarketCap(double value) {
-    // value is assumed to be in absolute rupees
-    final crore = value / 1e7;
-    if (crore >= 100000) {
-      return '\u20b9${(crore / 100000).toStringAsFixed(1)} L Cr';
-    } else if (crore >= 1) {
+    if (value >= 100000) {
+      return '\u20b9${(value / 100000).toStringAsFixed(1)} L Cr';
+    } else if (value >= 1) {
       // Format with commas for Indian numbering
-      final rounded = crore.round();
+      final rounded = value.round();
       return '\u20b9${_indianNumber(rounded)} Cr';
     }
-    return '\u20b9${crore.toStringAsFixed(1)} Cr';
+    return '\u20b9${value.toStringAsFixed(1)} Cr';
   }
 
   /// Formats an integer with Indian-style comma grouping (e.g. 12,45,000).

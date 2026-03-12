@@ -77,6 +77,32 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               ),
               const SizedBox(height: 8),
 
+              // Quick nav: All Stocks / All MFs
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _QuickNavChip(
+                        icon: Icons.bar_chart_rounded,
+                        label: 'All Stocks',
+                        onTap: () => context.push('/discover/stocks'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _QuickNavChip(
+                        icon: Icons.account_balance_rounded,
+                        label: 'All Mutual Funds',
+                        onTap: () =>
+                            context.push('/discover/mutual-funds'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+
               // Tab bar
               const TabBar(
                 tabs: [
@@ -493,6 +519,57 @@ class _ViewAllButton extends StatelessWidget {
                   color: AppTheme.accentBlue,
                   fontWeight: FontWeight.w600,
                 ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Quick nav chip (top shortcuts)
+// =============================================================================
+
+class _QuickNavChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickNavChip({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: AppTheme.accentBlue),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 11,
+                color: Colors.white.withValues(alpha: 0.4),
+              ),
+            ],
           ),
         ),
       ),

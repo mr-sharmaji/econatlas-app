@@ -63,6 +63,30 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   }
 
   Widget _buildContent(ThemeData theme, DiscoverMutualFundItem item) {
+    final historyAsync = ref.watch(
+      discoverMfHistoryProvider(
+        (schemeCode: item.schemeCode, days: _selectedDays),
+      ),
+    );
+
+    // Compute period change % from chart data
+    double? periodChange;
+    List<double> chartPrices = [];
+    List<DateTime> chartTimestamps = [];
+    historyAsync.whenData((history) {
+      if (history.points.length >= 2) {
+        chartPrices = history.points.map((p) => p.value).toList();
+        chartTimestamps = history.points.map((p) => p.date).toList();
+        final first = chartPrices.first;
+        final last = chartPrices.last;
+        if (first > 0) periodChange = ((last - first) / first) * 100;
+      }
+    });
+
+    final isPositive = (periodChange ?? 0) >= 0;
+    final changeColor =
+        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Fund Detail')),
       body: SingleChildScrollView(
@@ -78,11 +102,76 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
             // ── Header ──
             _buildHeader(theme),
-            const SizedBox(height: 16),
-
-            // ── NAV Chart ──
-            _buildNavChart(theme),
             const SizedBox(height: 12),
+
+            // ── NAV Price + Period Change ──
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '₹ ${Formatters.fullPrice(item.nav)}',
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(width: 10),
+                if (periodChange != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: changeColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${isPositive ? "+" : ""}${periodChange!.toStringAsFixed(2)}%',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: changeColor,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // ── Period Selector + Chart ──
+            _buildPeriodSelector(theme),
+            const SizedBox(height: 10),
+            historyAsync.when(
+              data: (history) {
+                if (history.points.isEmpty) {
+                  return const SizedBox(
+                    height: 180,
+                    child: Center(child: Text('No chart data')),
+                  );
+                }
+                return PriceLineChart(
+                  key: ValueKey('mf_chart_$_selectedDays'),
+                  prices: chartPrices,
+                  timestamps: chartTimestamps,
+                  isShortRange: _selectedDays <= 90,
+                  pricePrefix: '₹ ',
+                );
+              },
+              loading: () => const SizedBox(
+                height: 180,
+                child: Center(
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+              error: (e, _) => SizedBox(
+                height: 120,
+                child: Center(
+                  child: Text(
+                    'Failed to load chart',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white38),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // ── Score ──
             _buildScoreCard(theme),
@@ -249,102 +338,31 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── NAV Chart ───────────────────────────────────────────────────────────
+  // ── Period Selector ─────────────────────────────────────────────────────
 
-  Widget _buildNavChart(ThemeData theme) {
-    final historyAsync = ref.watch(
-      discoverMfHistoryProvider(
-        (schemeCode: item.schemeCode, days: _selectedDays),
-      ),
-    );
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('NAV History', style: theme.textTheme.titleSmall),
-                Text(
-                  '₹ ${Formatters.fullPrice(item.nav)}',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // Period selector pills
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _periodOptions.map((opt) {
-                  final isSelected = opt.days == _selectedDays;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(opt.label),
-                      selected: isSelected,
-                      onSelected: (_) => setState(() => _selectedDays = opt.days),
-                      visualDensity: VisualDensity.compact,
-                      labelStyle: theme.textTheme.labelSmall?.copyWith(
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? Colors.white : Colors.white60,
-                      ),
-                      selectedColor: AppTheme.primaryColor,
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                    ),
-                  );
-                }).toList(),
+  Widget _buildPeriodSelector(ThemeData theme) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _periodOptions.map((opt) {
+          final isSelected = opt.days == _selectedDays;
+          return Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: ChoiceChip(
+              label: Text(opt.label),
+              selected: isSelected,
+              onSelected: (_) => setState(() => _selectedDays = opt.days),
+              visualDensity: VisualDensity.compact,
+              labelStyle: theme.textTheme.labelSmall?.copyWith(
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? Colors.white : Colors.white60,
               ),
+              selectedColor: AppTheme.primaryColor,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             ),
-            const SizedBox(height: 12),
-            // Chart
-            historyAsync.when(
-              data: (history) {
-                if (history.points.isEmpty) {
-                  return const SizedBox(
-                    height: 120,
-                    child: Center(child: Text('No history data')),
-                  );
-                }
-                final prices =
-                    history.points.map((p) => p.value).toList();
-                final timestamps =
-                    history.points.map((p) => p.date).toList();
-                return PriceLineChart(
-                  key: ValueKey('mf_chart_$_selectedDays'),
-                  prices: prices,
-                  timestamps: timestamps,
-                  isShortRange: _selectedDays <= 90,
-                  pricePrefix: '₹ ',
-                );
-              },
-              loading: () => const SizedBox(
-                height: 180,
-                child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
-              error: (e, _) => SizedBox(
-                height: 120,
-                child: Center(
-                  child: Text(
-                    'Failed to load chart',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white38),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -708,10 +726,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             const SizedBox(height: 12),
             MetricGrid(
               items: [
-                MetricItem(
-                  label: 'NAV',
-                  value: Formatters.fullPrice(item.nav),
-                ),
                 MetricItem(
                   label: 'AUM',
                   value: item.aumCr != null

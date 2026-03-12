@@ -145,48 +145,44 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               children: [
                 // Search field
                 Expanded(
-                  child: SizedBox(
-                    height: 40,
-                    child: TextField(
-                      controller: _searchController,
-                      style: theme.textTheme.bodySmall,
-                      decoration: InputDecoration(
-                        hintText: 'Search...',
-                        hintStyle: theme.textTheme.bodySmall
-                            ?.copyWith(color: Colors.white38),
-                        prefixIcon: const Icon(Icons.search, size: 18),
-                        prefixIconConstraints:
-                            const BoxConstraints(minWidth: 36),
-                        suffixIcon: _searchController.text.isNotEmpty
-                            ? GestureDetector(
-                                onTap: () {
-                                  _searchController.clear();
-                                  setState(() {});
-                                  ref
-                                      .read(discoverMutualFundFiltersProvider
-                                          .notifier)
-                                      .setFilters(ref
-                                          .read(
-                                              discoverMutualFundFiltersProvider)
-                                          .copyWith(search: ''));
-                                },
-                                child: const Icon(Icons.clear, size: 16),
-                              )
-                            : null,
-                        suffixIconConstraints:
-                            const BoxConstraints(minWidth: 32),
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 0),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        filled: true,
-                        fillColor: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.10),
-                        isDense: true,
+                  child: TextField(
+                    controller: _searchController,
+                    style: theme.textTheme.bodyMedium,
+                    decoration: InputDecoration(
+                      hintText: 'Search funds...',
+                      hintStyle: theme.textTheme.bodyMedium
+                          ?.copyWith(color: Colors.white38),
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      prefixIconConstraints:
+                          const BoxConstraints(minWidth: 40),
+                      suffixIcon: _searchController.text.isNotEmpty
+                          ? GestureDetector(
+                              onTap: () {
+                                _searchController.clear();
+                                setState(() {});
+                                ref
+                                    .read(discoverMutualFundFiltersProvider
+                                        .notifier)
+                                    .setFilters(ref
+                                        .read(
+                                            discoverMutualFundFiltersProvider)
+                                        .copyWith(search: ''));
+                              },
+                              child: const Icon(Icons.clear, size: 18),
+                            )
+                          : null,
+                      suffixIconConstraints:
+                          const BoxConstraints(minWidth: 36),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      onChanged: _onSearchChanged,
+                      filled: true,
+                      fillColor: theme.colorScheme.surfaceContainerHighest
+                          .withValues(alpha: 0.10),
                     ),
+                    onChanged: _onSearchChanged,
                   ),
                 ),
                 const SizedBox(width: 8),

@@ -56,13 +56,28 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
   }
 
   Widget _buildContent(ThemeData theme, DiscoverStockItem item) {
-    final isPositive = (item.percentChange ?? 0) >= 0;
-    final changeColor =
-        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
-
     final historyAsync = ref.watch(
       discoverStockHistoryProvider((symbol: item.symbol, days: _selectedDays)),
     );
+
+    // Compute period change % from chart data
+    double? periodChange;
+    List<double> chartPrices = [];
+    List<DateTime> chartTimestamps = [];
+    historyAsync.whenData((history) {
+      if (history.points.length >= 2) {
+        chartPrices = history.points.map((p) => p.value).toList();
+        chartTimestamps = history.points.map((p) => p.date).toList();
+        final first = chartPrices.first;
+        final last = chartPrices.last;
+        if (first > 0) periodChange = ((last - first) / first) * 100;
+      }
+    });
+
+    final displayChange = periodChange ?? item.percentChange;
+    final isPositive = (displayChange ?? 0) >= 0;
+    final changeColor =
+        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Scaffold(
       appBar: AppBar(title: Text(item.symbol)),
@@ -124,21 +139,22 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(width: 10),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: changeColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    Formatters.changeTag(item.percentChange),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: changeColor,
-                      fontWeight: FontWeight.w600,
+                if (displayChange != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: changeColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${isPositive ? "+" : ""}${displayChange.toStringAsFixed(2)}%',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: changeColor,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -156,8 +172,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 }
                 return PriceLineChart(
                   key: ValueKey('chart_$_selectedDays'),
-                  prices: history.points.map((p) => p.value).toList(),
-                  timestamps: history.points.map((p) => p.date).toList(),
+                  prices: chartPrices,
+                  timestamps: chartTimestamps,
                   isShortRange: _selectedDays <= 90,
                   pricePrefix: '\u20B9 ',
                 );

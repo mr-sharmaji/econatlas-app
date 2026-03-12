@@ -68,6 +68,23 @@ class _PriceLineChartState extends State<PriceLineChart> {
     final yMax = maxY + padding;
     final yStep = (yMax - yMin) / 3;
 
+    // Dynamically compute reservedSize for y-axis based on widest label.
+    final yLabelStyle = TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+      color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+    );
+    double maxLabelWidth = 0;
+    for (int i = 0; i <= 3; i++) {
+      final label = Formatters.price(yMin + yStep * i, unit: widget.unit);
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: yLabelStyle),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      if (tp.width > maxLabelWidth) maxLabelWidth = tp.width;
+    }
+    final yAxisReservedSize = (maxLabelWidth + 10).clamp(32.0, 100.0);
+
     final touchedIndex = _touchedSpotIndex;
     final showIndicators = touchedIndex != null &&
         touchedIndex >= 0 &&
@@ -201,26 +218,17 @@ class _PriceLineChartState extends State<PriceLineChart> {
                       leftTitles: AxisTitles(
                         sideTitles: SideTitles(
                           showTitles: true,
-                          reservedSize: 84,
+                          reservedSize: yAxisReservedSize,
                           interval: yStep,
                           getTitlesWidget: (value, meta) {
                             final label =
                                 Formatters.price(value, unit: widget.unit);
                             return Padding(
                               padding: const EdgeInsets.only(right: 6),
-                              child: FittedBox(
-                                fit: BoxFit.scaleDown,
-                                alignment: Alignment.centerRight,
-                                child: Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w500,
-                                    color: theme.colorScheme.onSurface
-                                        .withValues(alpha: 0.5),
-                                  ),
-                                  textAlign: TextAlign.right,
-                                ),
+                              child: Text(
+                                label,
+                                style: yLabelStyle,
+                                textAlign: TextAlign.right,
                               ),
                             );
                           },
