@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BR square badge">
+  <rect x="0" y="0" width="64" height="64" fill="#009C3B"/>
+  <polygon points="32,11 52,32 32,53 12,32" fill="#FFDF00"/>
+  <circle cx="32" cy="32" r="8.5" fill="#002776"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

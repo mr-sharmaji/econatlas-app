@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nifty 500 logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#2F4F93"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#8CB8FF" opacity="0.26"/>
+  <circle cx="32" cy="32" r="15" fill="none" stroke="#F8FAFC" stroke-width="3"/>
+  <path d="M32 32L32 17A15 15 0 0 1 45 25Z" fill="#8CB8FF"/>
+  <path d="M32 32L45 25A15 15 0 0 1 38 46Z" fill="#F8FAFC" opacity="0.42"/>
+</svg>

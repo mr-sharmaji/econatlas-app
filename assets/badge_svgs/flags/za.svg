@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ZA square badge">
+  <rect x="0" y="0" width="64" height="32" fill="#DE3831"/>
+  <rect x="0" y="32" width="64" height="32" fill="#002395"/>
+  <polygon points="0,0 24,20 64,20 64,28 24,28 0,8" fill="#FFFFFF"/>
+  <polygon points="0,64 24,44 64,44 64,36 24,36 0,56" fill="#FFFFFF"/>
+  <polygon points="0,6 24,24 64,24 64,40 24,40 0,58 0,48 16,32 0,16" fill="#007A4D"/>
+  <polygon points="0,0 16,16 16,48 0,64" fill="#000000"/>
+  <polygon points="0,6 12,18 12,46 0,58" fill="#FFB81C"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

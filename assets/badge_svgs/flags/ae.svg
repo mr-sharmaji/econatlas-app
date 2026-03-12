@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="AE square badge">
+  <rect x="0" y="0" width="18" height="64" fill="#FF0000"/>
+  <rect x="18" y="0" width="46" height="21.4" fill="#00732F"/>
+  <rect x="18" y="21.4" width="46" height="21.2" fill="#FFFFFF"/>
+  <rect x="18" y="42.6" width="46" height="21.4" fill="#000000"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

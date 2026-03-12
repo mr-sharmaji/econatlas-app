@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NASDAQ logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#284B89"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#8FBCFF" opacity="0.26"/>
+  <path d="M14 35C18 27 22 27 26 35C30 43 34 43 38 35C42 27 46 27 50 35" stroke="#F8FAFC" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <circle cx="50" cy="35" r="2.8" fill="#8FBCFF"/>
+</svg>

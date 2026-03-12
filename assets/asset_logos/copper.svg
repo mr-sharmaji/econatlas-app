@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="copper logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#8A4D2A"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#E88B5B" opacity="0.26"/>
+  <path d="M18 28H36C39 28 41 26 42 23H48C48 30 43 34 36 34H26L22 40H16L20 34H18Z" fill="#E88B5B"/>
+  <rect x="24" y="40" width="16" height="4" rx="2" fill="#F8FAFC"/>
+  <path d="M18 28H36C39 28 41 26 42 23H48" stroke="#F8FAFC" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+</svg>

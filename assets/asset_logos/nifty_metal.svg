@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Nifty Metal logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#60656D"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#B7C0CC" opacity="0.26"/>
+  <rect x="16" y="30" width="32" height="16" rx="2" fill="#F8FAFC"/>
+  <path d="M16 30L24 25L30 30L36 25L42 30" fill="#B7C0CC"/>
+  <rect x="42" y="21" width="6" height="11" rx="2" fill="#B7C0CC"/>
+  <rect x="20" y="35" width="5" height="7" rx="1" fill="#B7C0CC"/>
+  <rect x="28" y="35" width="5" height="7" rx="1" fill="#B7C0CC"/>
+  <rect x="36" y="35" width="5" height="7" rx="1" fill="#B7C0CC"/>
+</svg>

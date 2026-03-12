@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="S&P 500 Energy logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#7A4F2A"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#F1AE69" opacity="0.26"/>
+  <path d="M35 15C35 22 28 24 28 31C28 35 31 39 35 39C40 39 43 35 43 31C43 25 39 22 39 16C39 16 37 17 35 15Z" fill="#F1AE69"/>
+  <path d="M29 32C29 39 34 45 41 45C47 45 52 40 52 33C52 26 47 22 43 17C41 22 37 24 37 28C37 31 39 34 42 34" fill="none" stroke="#F8FAFC" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M24 33C24 27 29 22 33 17" stroke="#F8FAFC" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

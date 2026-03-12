@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NPR/INR logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#2A4D72"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#9FC5FF" opacity="0.26"/>
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#F8FAFC" stroke-width="2.8"/>
+  <ellipse cx="32" cy="32" rx="6" ry="14" fill="none" stroke="#9FC5FF" stroke-width="2"/>
+  <path d="M18 27H46" stroke="#9FC5FF" stroke-width="2"/>
+  <path d="M18 37H46" stroke="#9FC5FF" stroke-width="2"/>
+</svg>

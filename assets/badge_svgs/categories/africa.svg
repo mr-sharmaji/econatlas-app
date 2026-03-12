@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="africa square badge">
+  <rect x="0" y="0" width="64" height="64" fill="#7A5520"/>
+  <circle cx="48" cy="16" r="8" fill="#F3C88E"/>
+  <circle cx="32" cy="32" r="9.5" fill="#F3C88E"/>
+  <path d="M32 14V20M32 44V50M14 32H20M44 32H50M20 20L24 24M44 44L40 40M20 44L24 40M44 20L40 24" fill="none" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

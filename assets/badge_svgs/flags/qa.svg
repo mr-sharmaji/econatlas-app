@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="QA square badge">
+  <rect x="0" y="0" width="64" height="64" fill="#8D1B3D"/>
+  <rect x="0" y="0" width="18" height="64" fill="#FFFFFF"/>
+  <polygon points="18,0 24,4 18,8" fill="#8D1B3D"/>
+  <polygon points="18,8 24,12 18,16" fill="#8D1B3D"/>
+  <polygon points="18,16 24,20 18,24" fill="#8D1B3D"/>
+  <polygon points="18,24 24,28 18,32" fill="#8D1B3D"/>
+  <polygon points="18,32 24,36 18,40" fill="#8D1B3D"/>
+  <polygon points="18,40 24,44 18,48" fill="#8D1B3D"/>
+  <polygon points="18,48 24,52 18,56" fill="#8D1B3D"/>
+  <polygon points="18,56 24,60 18,64" fill="#8D1B3D"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

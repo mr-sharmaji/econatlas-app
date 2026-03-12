@@ -1,0 +1,454 @@
+{
+  "assets": {
+    "aed_inr": {
+      "asset_key": "AED/INR",
+      "logo_path": "assets/asset_logos/aed_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "aud_inr": {
+      "asset_key": "AUD/INR",
+      "logo_path": "assets/asset_logos/aud_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "bdt_inr": {
+      "asset_key": "BDT/INR",
+      "logo_path": "assets/asset_logos/bdt_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "bhd_inr": {
+      "asset_key": "BHD/INR",
+      "logo_path": "assets/asset_logos/bhd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "brl_inr": {
+      "asset_key": "BRL/INR",
+      "logo_path": "assets/asset_logos/brl_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "cac_40": {
+      "asset_key": "CAC 40",
+      "logo_path": "assets/asset_logos/cac_40.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "cad_inr": {
+      "asset_key": "CAD/INR",
+      "logo_path": "assets/asset_logos/cad_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "cboe_vix": {
+      "asset_key": "CBOE VIX",
+      "logo_path": "assets/asset_logos/cboe_vix.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "chf_inr": {
+      "asset_key": "CHF/INR",
+      "logo_path": "assets/asset_logos/chf_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "cny_inr": {
+      "asset_key": "CNY/INR",
+      "logo_path": "assets/asset_logos/cny_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "dax": {
+      "asset_key": "DAX",
+      "logo_path": "assets/asset_logos/dax.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "dkk_inr": {
+      "asset_key": "DKK/INR",
+      "logo_path": "assets/asset_logos/dkk_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "dow_jones": {
+      "asset_key": "Dow Jones",
+      "logo_path": "assets/asset_logos/dow_jones.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "eur_inr": {
+      "asset_key": "EUR/INR",
+      "logo_path": "assets/asset_logos/eur_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "euro_stoxx_50": {
+      "asset_key": "Euro Stoxx 50",
+      "logo_path": "assets/asset_logos/euro_stoxx_50.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "ftse_100": {
+      "asset_key": "FTSE 100",
+      "logo_path": "assets/asset_logos/ftse_100.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "gbp_inr": {
+      "asset_key": "GBP/INR",
+      "logo_path": "assets/asset_logos/gbp_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "germany_10y_bond_yield": {
+      "asset_key": "Germany 10Y Bond Yield",
+      "logo_path": "assets/asset_logos/germany_10y_bond_yield.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "gift_nifty": {
+      "asset_key": "Gift Nifty",
+      "logo_path": "assets/asset_logos/gift_nifty.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "hkd_inr": {
+      "asset_key": "HKD/INR",
+      "logo_path": "assets/asset_logos/hkd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "idr_inr": {
+      "asset_key": "IDR/INR",
+      "logo_path": "assets/asset_logos/idr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "ils_inr": {
+      "asset_key": "ILS/INR",
+      "logo_path": "assets/asset_logos/ils_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "india_10y_bond_yield": {
+      "asset_key": "India 10Y Bond Yield",
+      "logo_path": "assets/asset_logos/india_10y_bond_yield.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "india_vix": {
+      "asset_key": "India VIX",
+      "logo_path": "assets/asset_logos/india_vix.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "jpy_inr": {
+      "asset_key": "JPY/INR",
+      "logo_path": "assets/asset_logos/jpy_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "japan_10y_bond_yield": {
+      "asset_key": "Japan 10Y Bond Yield",
+      "logo_path": "assets/asset_logos/japan_10y_bond_yield.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "krw_inr": {
+      "asset_key": "KRW/INR",
+      "logo_path": "assets/asset_logos/krw_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "kwd_inr": {
+      "asset_key": "KWD/INR",
+      "logo_path": "assets/asset_logos/kwd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "lkr_inr": {
+      "asset_key": "LKR/INR",
+      "logo_path": "assets/asset_logos/lkr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "mxn_inr": {
+      "asset_key": "MXN/INR",
+      "logo_path": "assets/asset_logos/mxn_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "myr_inr": {
+      "asset_key": "MYR/INR",
+      "logo_path": "assets/asset_logos/myr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nasdaq": {
+      "asset_key": "NASDAQ",
+      "logo_path": "assets/asset_logos/nasdaq.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nok_inr": {
+      "asset_key": "NOK/INR",
+      "logo_path": "assets/asset_logos/nok_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "npr_inr": {
+      "asset_key": "NPR/INR",
+      "logo_path": "assets/asset_logos/npr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nzd_inr": {
+      "asset_key": "NZD/INR",
+      "logo_path": "assets/asset_logos/nzd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nasdaq_100": {
+      "asset_key": "Nasdaq 100",
+      "logo_path": "assets/asset_logos/nasdaq_100.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_50": {
+      "asset_key": "Nifty 50",
+      "logo_path": "assets/asset_logos/nifty_50.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_500": {
+      "asset_key": "Nifty 500",
+      "logo_path": "assets/asset_logos/nifty_500.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_auto": {
+      "asset_key": "Nifty Auto",
+      "logo_path": "assets/asset_logos/nifty_auto.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_bank": {
+      "asset_key": "Nifty Bank",
+      "logo_path": "assets/asset_logos/nifty_bank.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_it": {
+      "asset_key": "Nifty IT",
+      "logo_path": "assets/asset_logos/nifty_it.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_metal": {
+      "asset_key": "Nifty Metal",
+      "logo_path": "assets/asset_logos/nifty_metal.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_midcap_150": {
+      "asset_key": "Nifty Midcap 150",
+      "logo_path": "assets/asset_logos/nifty_midcap_150.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_pharma": {
+      "asset_key": "Nifty Pharma",
+      "logo_path": "assets/asset_logos/nifty_pharma.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nifty_smallcap_250": {
+      "asset_key": "Nifty Smallcap 250",
+      "logo_path": "assets/asset_logos/nifty_smallcap_250.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "nikkei_225": {
+      "asset_key": "Nikkei 225",
+      "logo_path": "assets/asset_logos/nikkei_225.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "omr_inr": {
+      "asset_key": "OMR/INR",
+      "logo_path": "assets/asset_logos/omr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "php_inr": {
+      "asset_key": "PHP/INR",
+      "logo_path": "assets/asset_logos/php_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "pkr_inr": {
+      "asset_key": "PKR/INR",
+      "logo_path": "assets/asset_logos/pkr_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "pln_inr": {
+      "asset_key": "PLN/INR",
+      "logo_path": "assets/asset_logos/pln_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "qar_inr": {
+      "asset_key": "QAR/INR",
+      "logo_path": "assets/asset_logos/qar_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "s_p_500_energy": {
+      "asset_key": "S&P 500 Energy",
+      "logo_path": "assets/asset_logos/s_p_500_energy.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "s_p_500_financials": {
+      "asset_key": "S&P 500 Financials",
+      "logo_path": "assets/asset_logos/s_p_500_financials.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "s_p_500_tech": {
+      "asset_key": "S&P 500 Tech",
+      "logo_path": "assets/asset_logos/s_p_500_tech.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "s_p500": {
+      "asset_key": "S&P500",
+      "logo_path": "assets/asset_logos/s_p500.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "sar_inr": {
+      "asset_key": "SAR/INR",
+      "logo_path": "assets/asset_logos/sar_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "sek_inr": {
+      "asset_key": "SEK/INR",
+      "logo_path": "assets/asset_logos/sek_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "sgd_inr": {
+      "asset_key": "SGD/INR",
+      "logo_path": "assets/asset_logos/sgd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "sensex": {
+      "asset_key": "Sensex",
+      "logo_path": "assets/asset_logos/sensex.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "thb_inr": {
+      "asset_key": "THB/INR",
+      "logo_path": "assets/asset_logos/thb_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "topix": {
+      "asset_key": "TOPIX",
+      "logo_path": "assets/asset_logos/topix.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "try_inr": {
+      "asset_key": "TRY/INR",
+      "logo_path": "assets/asset_logos/try_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "twd_inr": {
+      "asset_key": "TWD/INR",
+      "logo_path": "assets/asset_logos/twd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "us_10y_treasury_yield": {
+      "asset_key": "US 10Y Treasury Yield",
+      "logo_path": "assets/asset_logos/us_10y_treasury_yield.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "us_2y_treasury_yield": {
+      "asset_key": "US 2Y Treasury Yield",
+      "logo_path": "assets/asset_logos/us_2y_treasury_yield.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "usd_inr": {
+      "asset_key": "USD/INR",
+      "logo_path": "assets/asset_logos/usd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "vnd_inr": {
+      "asset_key": "VND/INR",
+      "logo_path": "assets/asset_logos/vnd_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "zar_inr": {
+      "asset_key": "ZAR/INR",
+      "logo_path": "assets/asset_logos/zar_inr.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "copper": {
+      "asset_key": "copper",
+      "logo_path": "assets/asset_logos/copper.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "crude_oil": {
+      "asset_key": "crude oil",
+      "logo_path": "assets/asset_logos/crude_oil.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "gold": {
+      "asset_key": "gold",
+      "logo_path": "assets/asset_logos/gold.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "natural_gas": {
+      "asset_key": "natural gas",
+      "logo_path": "assets/asset_logos/natural_gas.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "palladium": {
+      "asset_key": "palladium",
+      "logo_path": "assets/asset_logos/palladium.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "platinum": {
+      "asset_key": "platinum",
+      "logo_path": "assets/asset_logos/platinum.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    },
+    "silver": {
+      "asset_key": "silver",
+      "logo_path": "assets/asset_logos/silver.svg",
+      "source_type": "custom_pictogram",
+      "attribution": null
+    }
+  }
+}

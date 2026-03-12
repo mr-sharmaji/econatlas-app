@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="crude oil logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#3A281F"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#C7771E" opacity="0.26"/>
+  <path d="M32 14C32 14 21 28 21 35C21 41.6 26.4 47 33 47C39.6 47 45 41.6 45 35C45 28 32 14 32 14Z" fill="#C7771E"/>
+  <path d="M32 14C32 14 21 28 21 35C21 41.6 26.4 47 33 47C39.6 47 45 41.6 45 35C45 28 32 14 32 14Z" fill="none" stroke="#F8FAFC" stroke-width="2.6" stroke-linejoin="round"/>
+  <path d="M28 34C28 31 30 28 33 26" stroke="#F8FAFC" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+</svg>

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="S&P500 logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#254B7B"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#91BEFF" opacity="0.26"/>
+  <path d="M32 14L46 20V31C46 40 40 47 32 50C24 47 18 40 18 31V20Z" fill="#91BEFF"/>
+  <path d="M32 14L46 20V31C46 40 40 47 32 50C24 47 18 40 18 31V20Z" fill="none" stroke="#F8FAFC" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M32 19V45" stroke="#F8FAFC" stroke-width="2.4" stroke-linecap="round"/>
+</svg>

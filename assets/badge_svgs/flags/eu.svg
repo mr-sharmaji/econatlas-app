@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="EU square badge">
+  <rect x="0" y="0" width="64" height="64" fill="#003399"/>
+  <circle cx="32.0" cy="16.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="40.0" cy="18.14359353944898" r="1.6" fill="#FFCC00"/>
+  <circle cx="45.856406460551014" cy="24.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="48.0" cy="32.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="45.85640646055102" cy="40.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="40.00000000000001" cy="45.856406460551014" r="1.6" fill="#FFCC00"/>
+  <circle cx="32.0" cy="48.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="24.000000000000004" cy="45.85640646055102" r="1.6" fill="#FFCC00"/>
+  <circle cx="18.143593539448986" cy="40.00000000000001" r="1.6" fill="#FFCC00"/>
+  <circle cx="16.0" cy="32.0" r="1.6" fill="#FFCC00"/>
+  <circle cx="18.143593539448975" cy="24.00000000000001" r="1.6" fill="#FFCC00"/>
+  <circle cx="23.999999999999993" cy="18.143593539448986" r="1.6" fill="#FFCC00"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>

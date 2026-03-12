@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="global square badge">
+  <rect x="0" y="0" width="64" height="64" fill="#244A6D"/>
+  <circle cx="48" cy="16" r="8" fill="#9FC5FF"/>
+  <circle cx="32" cy="32" r="15" fill="none"/>
+  <path d="M32 17V47M17 32H47" fill="none" stroke="#FFFFFF" stroke-width="2.4"/>
+  <path d="M23 32C23 22 27 17 32 17C37 17 41 22 41 32C41 42 37 47 32 47C27 47 23 42 23 32Z" fill="none" stroke="#9FC5FF" stroke-width="2"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>
