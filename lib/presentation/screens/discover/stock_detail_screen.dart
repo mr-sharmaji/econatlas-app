@@ -109,7 +109,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${item.sector ?? "Equity"} · NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap! / 10000000) : "—"} Cr',
+              '${item.sector ?? "Equity"} · NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap!) : "—"} Cr',
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: Colors.white54),
             ),
@@ -235,7 +235,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               MetricItem(
                 label: 'Market Cap',
                 value: item.marketCap != null
-                    ? '\u20B9${Formatters.price(item.marketCap! / 10000000)} Cr'
+                    ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
                     : '\u2014',
                 valueColor: item.marketCap == null ? Colors.white38 : null,
               ),
