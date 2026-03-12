@@ -18,6 +18,11 @@ abstract class DiscoverRepository {
     double? maxDebtToEquity,
     int? minVolume,
     double? minTradedValue,
+    double? minMarketCap,
+    double? maxMarketCap,
+    double? minDividendYield,
+    double? minPb,
+    double? maxPb,
     String? sourceStatus,
     String sortBy,
     String sortOrder,
@@ -34,7 +39,10 @@ abstract class DiscoverRepository {
     double? minScore,
     double? minAumCr,
     double? maxExpenseRatio,
+    double? minReturn1y,
     double? minReturn3y,
+    double? minReturn5y,
+    double? minFundAge,
     String? sourceStatus,
     String sortBy,
     String sortOrder,
@@ -62,4 +70,14 @@ abstract class DiscoverRepository {
   Future<DiscoverStockItem> getStockBySymbol({required String symbol});
 
   Future<DiscoverMutualFundItem> getMfBySchemeCode({required String schemeCode});
+
+  Future<List<DiscoverStockItem>> getStockPeers({
+    required String symbol,
+    int limit,
+  });
+
+  Future<List<DiscoverMutualFundItem>> getMfPeers({
+    required String schemeCode,
+    int limit,
+  });
 }

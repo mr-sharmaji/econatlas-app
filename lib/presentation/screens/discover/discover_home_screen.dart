@@ -9,8 +9,8 @@ import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../providers/discover_providers.dart';
-import '../../providers/tab_navigation_providers.dart';
-import '../../widgets/shimmer_loading.dart';
+import 'widgets/mf_list_tile.dart';
+import 'widgets/stock_list_tile.dart';
 
 class DiscoverHomeScreen extends ConsumerStatefulWidget {
   const DiscoverHomeScreen({super.key});
@@ -21,44 +21,15 @@ class DiscoverHomeScreen extends ConsumerStatefulWidget {
 }
 
 class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
-  late final ScrollController _scrollController;
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
 
-  // Hardcoded quick category pills as fallback when API data is empty.
-  static const _defaultCategories = [
-    QuickCategory(name: 'Large Cap', segment: 'mutual_funds', preset: 'large-cap'),
-    QuickCategory(name: 'IT Sector', segment: 'stocks', filterKey: 'sector', filterValue: 'IT'),
-    QuickCategory(name: 'Flexi Cap', segment: 'mutual_funds', preset: 'flexi-cap'),
-    QuickCategory(name: 'Mid Cap', segment: 'mutual_funds', preset: 'mid-cap'),
-    QuickCategory(name: 'Low Risk', segment: 'mutual_funds', preset: 'low-risk'),
-    QuickCategory(name: 'Quality', segment: 'stocks', preset: 'quality'),
-    QuickCategory(name: 'Value', segment: 'stocks', preset: 'value'),
-    QuickCategory(name: 'High Volume', segment: 'stocks', preset: 'high-volume'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-  }
-
   @override
   void dispose() {
-    _scrollController.dispose();
     _searchController.dispose();
     _debounce?.cancel();
     super.dispose();
-  }
-
-  void _scrollToTop() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-    );
   }
 
   void _onSearchChanged(String value) {
@@ -75,95 +46,61 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     setState(() => _searchQuery = '');
   }
 
-  void _onCategoryTap(QuickCategory cat) {
-    final params = <String, String>{};
-    if (cat.preset != null) params['preset'] = cat.preset!;
-    if (cat.filterKey != null) params['filterKey'] = cat.filterKey!;
-    if (cat.filterValue != null) params['filterValue'] = cat.filterValue!;
-
-    if (cat.segment == 'mutual_funds') {
-      context.push('/discover/mutual-funds', extra: params);
-    } else {
-      context.push('/discover/stocks', extra: params);
-    }
-  }
-
-  Color _qualityColor(String? tier) {
-    switch (tier?.toLowerCase()) {
-      case 'excellent':
-        return AppTheme.accentGreen;
-      case 'good':
-        return AppTheme.accentBlue;
-      case 'average':
-        return AppTheme.accentOrange;
-      default:
-        return AppTheme.accentGray;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    ref.listen<int>(bottomTabReselectTickProvider(3), (prev, next) {
-      if (prev == null || prev == next) return;
-      _scrollToTop();
-    });
-
-    final homeAsync = ref.watch(discoverHomeDataProvider);
     final isSearchActive = _searchQuery.length >= 2;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Discover'),
-        actions: [
-          IconButton(
-            onPressed: () => context.push('/settings'),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
-      ),
-      body: GestureDetector(
-        onTap: () {
-          // Dismiss keyboard and search overlay when tapping outside
-          FocusScope.of(context).unfocus();
-          if (isSearchActive) _clearSearch();
-        },
-        behavior: HitTestBehavior.translucent,
-        child: Column(
-          children: [
-            // Search bar — always visible at top
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-              child: _buildSearchBar(),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  // Main scrollable content
-                  RefreshIndicator(
-                    onRefresh: () async {
-                      ref.invalidate(discoverHomeDataProvider);
-                    },
-                    child: ListView(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(12, 12, 12, 112),
-                      children: [
-                        _buildQuickCategories(homeAsync),
-                        const SizedBox(height: 20),
-                        _buildTopStocks(homeAsync),
-                        const SizedBox(height: 20),
-                        _buildTopMutualFunds(homeAsync),
-                        const SizedBox(height: 20),
-                        _buildTrending(homeAsync),
-                        const SizedBox(height: 24),
-                      ],
-                    ),
-                  ),
-                  // Search overlay
-                  if (isSearchActive) _buildSearchOverlay(),
-                ],
-              ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Discover'),
+          actions: [
+            IconButton(
+              onPressed: () => context.push('/settings'),
+              icon: const Icon(Icons.settings_outlined),
             ),
           ],
+        ),
+        body: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).unfocus();
+            if (isSearchActive) _clearSearch();
+          },
+          behavior: HitTestBehavior.translucent,
+          child: Column(
+            children: [
+              // Search bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                child: _buildSearchBar(),
+              ),
+              const SizedBox(height: 8),
+
+              // Tab bar
+              const TabBar(
+                tabs: [
+                  Tab(text: 'Stocks'),
+                  Tab(text: 'Mutual Funds'),
+                ],
+              ),
+
+              // Tab views
+              Expanded(
+                child: Stack(
+                  children: [
+                    TabBarView(
+                      children: [
+                        _StocksTab(),
+                        _MutualFundsTab(),
+                      ],
+                    ),
+                    if (isSearchActive) _buildSearchOverlay(),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -197,10 +134,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppTheme.accentBlue.withValues(alpha: 0.40)),
+          borderSide:
+              BorderSide(color: AppTheme.accentBlue.withValues(alpha: 0.40)),
         ),
         filled: true,
-        fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10),
+        fillColor:
+            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       ),
       textInputAction: TextInputAction.search,
@@ -236,12 +175,14 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
                 decoration: BoxDecoration(
                   color: AppTheme.cardDark,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 child: searchAsync.when(
                   loading: () => const Padding(
                     padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2)),
                   ),
                   error: (err, _) => Padding(
                     padding: const EdgeInsets.all(16),
@@ -320,7 +261,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
       visualDensity: VisualDensity.compact,
       title: Text(
         item.symbol,
-        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        style:
+            theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         item.displayName,
@@ -334,7 +276,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         children: [
           Text(
             Formatters.price(item.lastPrice),
-            style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: theme.textTheme.bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
             Formatters.changeTag(item.percentChange),
@@ -363,7 +306,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         item.schemeName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
-        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        style:
+            theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
       subtitle: Text(
         item.category ?? '',
@@ -382,392 +326,176 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
       },
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Quick category pills
-  // ---------------------------------------------------------------------------
+// =============================================================================
+// Stocks Tab
+// =============================================================================
 
-  Widget _buildQuickCategories(AsyncValue<DiscoverHomeData> homeAsync) {
-    final categories = homeAsync.valueOrNull?.quickCategories ?? [];
-    final pills = categories.isNotEmpty ? categories : _defaultCategories;
+class _StocksTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final stocksAsync = ref.watch(homeTopStocksProvider);
+    final theme = Theme.of(context);
 
-    return SizedBox(
-      height: 38,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: pills.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final cat = pills[index];
-          return FilterChip(
-            label: Text(cat.name),
-            onSelected: (_) => _onCategoryTap(cat),
-            selected: false,
-            showCheckmark: false,
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(homeTopStocksProvider);
+      },
+      child: stocksAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        error: (err, _) => ListView(
+          children: [
+            const SizedBox(height: 80),
+            Center(
+              child: Text(
+                friendlyErrorMessage(err),
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+          ],
+        ),
+        data: (response) {
+          final items = response.items;
+          if (items.isEmpty) {
+            return ListView(
+              children: [
+                const SizedBox(height: 80),
+                Center(
+                  child: Text(
+                    'No stocks available',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white54),
+                  ),
+                ),
+              ],
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+            itemCount: items.length + 1, // +1 for "View All" button
+            itemBuilder: (context, index) {
+              if (index == items.length) {
+                return _ViewAllButton(
+                  label: 'View All Stocks',
+                  onTap: () => context.push('/discover/stocks'),
+                );
+              }
+              final item = items[index];
+              return StockListTile(
+                item: item,
+                onTap: () => context.push(
+                  '/discover/stock/${item.symbol}',
+                  extra: item,
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Top Stocks
-  // ---------------------------------------------------------------------------
+// =============================================================================
+// Mutual Funds Tab
+// =============================================================================
 
-  Widget _buildTopStocks(AsyncValue<DiscoverHomeData> homeAsync) {
+class _MutualFundsTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final mfAsync = ref.watch(homeTopMutualFundsProvider);
     final theme = Theme.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('Top Stocks', onSeeAll: () => context.push('/discover/stocks')),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 130,
-          child: homeAsync.when(
-            loading: () => const ShimmerHorizontalList(
-              itemCount: 4,
-              itemWidth: 150,
-              itemHeight: 130,
-            ),
-            error: (err, _) => Center(
-              child: Text(friendlyErrorMessage(err), style: theme.textTheme.bodySmall),
-            ),
-            data: (data) {
-              if (data.topStocks.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No data available',
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-                  ),
-                );
-              }
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: data.topStocks.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) =>
-                    _buildTopStockCard(data.topStocks[index]),
-              );
-            },
-          ),
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(homeTopMutualFundsProvider);
+      },
+      child: mfAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(strokeWidth: 2),
         ),
-      ],
-    );
-  }
-
-  Widget _buildTopStockCard(DiscoverHomeStockItem item) {
-    final theme = Theme.of(context);
-    final changeColor = (item.percentChange ?? 0) >= 0
-        ? AppTheme.accentGreen
-        : AppTheme.accentRed;
-    final tierColor = _qualityColor(item.qualityTier);
-
-    return GestureDetector(
-      onTap: () => context.push('/discover/stock/${item.symbol}', extra: item),
-      child: Container(
-        width: 150,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        error: (err, _) => ListView(
           children: [
-            Text(
-              item.symbol,
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              Formatters.price(item.lastPrice),
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              Formatters.changeTag(item.percentChange),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: changeColor,
-                fontWeight: FontWeight.w700,
+            const SizedBox(height: 80),
+            Center(
+              child: Text(
+                friendlyErrorMessage(err),
+                style: theme.textTheme.bodySmall,
               ),
             ),
-            const Spacer(),
-            Row(
+          ],
+        ),
+        data: (response) {
+          final items = response.items;
+          if (items.isEmpty) {
+            return ListView(
               children: [
-                Text(
-                  item.score.toStringAsFixed(0),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w600,
+                const SizedBox(height: 80),
+                Center(
+                  child: Text(
+                    'No mutual funds available',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white54),
                   ),
                 ),
-                const Spacer(),
-                if (item.qualityTier != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: tierColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      item.qualityTier!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: tierColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Top Mutual Funds
-  // ---------------------------------------------------------------------------
-
-  Widget _buildTopMutualFunds(AsyncValue<DiscoverHomeData> homeAsync) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _sectionHeader('Top Mutual Funds',
-            onSeeAll: () => context.push('/discover/mutual-funds')),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 130,
-          child: homeAsync.when(
-            loading: () => const ShimmerHorizontalList(
-              itemCount: 4,
-              itemWidth: 170,
-              itemHeight: 130,
-            ),
-            error: (err, _) => Center(
-              child: Text(friendlyErrorMessage(err), style: theme.textTheme.bodySmall),
-            ),
-            data: (data) {
-              if (data.topMutualFunds.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No data available',
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-                  ),
+            );
+          }
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 24),
+            itemCount: items.length + 1, // +1 for "View All" button
+            itemBuilder: (context, index) {
+              if (index == items.length) {
+                return _ViewAllButton(
+                  label: 'View All Mutual Funds',
+                  onTap: () => context.push('/discover/mutual-funds'),
                 );
               }
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: data.topMutualFunds.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) =>
-                    _buildTopMfCard(data.topMutualFunds[index]),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTopMfCard(DiscoverHomeMfItem item) {
-    final theme = Theme.of(context);
-
-    return GestureDetector(
-      onTap: () => context.push('/discover/mf/${item.schemeCode}', extra: item),
-      child: Container(
-        width: 170,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.displayName ?? item.schemeName,
-              style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            if (item.category != null)
-              Text(
-                item.category!,
-                style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            const Spacer(),
-            Row(
-              children: [
-                Text(
-                  'Score ${item.score.toStringAsFixed(0)}',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w600,
-                  ),
+              final item = items[index];
+              return MfListTile(
+                item: item,
+                onTap: () => context.push(
+                  '/discover/mf/${item.schemeCode}',
+                  extra: item,
                 ),
-                const Spacer(),
-              ],
-            ),
-            if (item.qualityBadges.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 4,
-                runSpacing: 4,
-                children: item.qualityBadges.take(2).map((badge) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentTeal.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      badge,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppTheme.accentTeal,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // Trending
-  // ---------------------------------------------------------------------------
-
-  Widget _buildTrending(AsyncValue<DiscoverHomeData> homeAsync) {
-    final theme = Theme.of(context);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Trending',
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 90,
-          child: homeAsync.when(
-            loading: () => const ShimmerHorizontalList(
-              itemCount: 4,
-              itemWidth: 130,
-              itemHeight: 90,
-            ),
-            error: (err, _) => Center(
-              child: Text(friendlyErrorMessage(err), style: theme.textTheme.bodySmall),
-            ),
-            data: (data) {
-              if (data.trendingStocks.isEmpty) {
-                return Center(
-                  child: Text(
-                    'No trending data',
-                    style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-                  ),
-                );
-              }
-              return ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: data.trendingStocks.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 10),
-                itemBuilder: (context, index) =>
-                    _buildTrendingCard(data.trendingStocks[index]),
               );
             },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTrendingCard(DiscoverHomeStockItem item) {
-    final theme = Theme.of(context);
-    final changeColor = (item.percentChange ?? 0) >= 0
-        ? AppTheme.accentGreen
-        : AppTheme.accentRed;
-
-    return GestureDetector(
-      onTap: () => context.push('/discover/stock/${item.symbol}', extra: item),
-      child: Container(
-        width: 130,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              item.symbol,
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              Formatters.price(item.lastPrice),
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              Formatters.changeTag(item.percentChange),
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: changeColor,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
+}
 
-  // ---------------------------------------------------------------------------
-  // Shared helpers
-  // ---------------------------------------------------------------------------
+// =============================================================================
+// "View All" button
+// =============================================================================
 
-  Widget _sectionHeader(String title, {required VoidCallback onSeeAll}) {
-    final theme = Theme.of(context);
-    return Row(
-      children: [
-        Text(
-          title,
-          style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const Spacer(),
-        GestureDetector(
-          onTap: onSeeAll,
+class _ViewAllButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _ViewAllButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Center(
+        child: TextButton(
+          onPressed: onTap,
           child: Text(
-            'See All \u2192',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: AppTheme.accentBlue,
-              fontWeight: FontWeight.w600,
-            ),
+            '$label \u2192',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: AppTheme.accentBlue,
+                  fontWeight: FontWeight.w600,
+                ),
           ),
         ),
-      ],
+      ),
     );
   }
 }

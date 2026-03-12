@@ -1,14 +1,9 @@
-import 'dart:convert';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/constants.dart';
 import '../../data/models/discover.dart';
 import '../../domain/repositories/discover_repository.dart';
 import 'repository_providers.dart';
-import 'settings_providers.dart';
 
 enum DiscoverSegment { stocks, mutualFunds }
 
@@ -108,13 +103,37 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
 }
 
 enum DiscoverMutualFundPreset {
+  // Segments
   all,
-  largeCap,
-  flexiCap,
-  indexFund,
-  lowRisk,
-  midCap,
+  equity,
   debt,
+  hybrid,
+  // Equity sub-categories
+  largeCap,
+  midCap,
+  smallCap,
+  flexiCap,
+  multiCap,
+  elss,
+  valueMf,
+  focused,
+  sectoral,
+  indexFund,
+  // Debt sub-categories
+  shortDuration,
+  corporateBond,
+  bankingPsu,
+  gilt,
+  liquid,
+  overnight,
+  dynamicBond,
+  moneyMarket,
+  // Hybrid sub-categories
+  aggressiveHybrid,
+  balancedHybrid,
+  conservativeHybrid,
+  // Legacy
+  lowRisk,
 }
 
 extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
@@ -122,18 +141,56 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
     switch (this) {
       case DiscoverMutualFundPreset.all:
         return 'all';
-      case DiscoverMutualFundPreset.largeCap:
-        return 'large-cap';
-      case DiscoverMutualFundPreset.flexiCap:
-        return 'flexi-cap';
-      case DiscoverMutualFundPreset.indexFund:
-        return 'index';
-      case DiscoverMutualFundPreset.lowRisk:
-        return 'low-risk';
-      case DiscoverMutualFundPreset.midCap:
-        return 'mid-cap';
+      case DiscoverMutualFundPreset.equity:
+        return 'equity';
       case DiscoverMutualFundPreset.debt:
         return 'debt';
+      case DiscoverMutualFundPreset.hybrid:
+        return 'hybrid';
+      case DiscoverMutualFundPreset.largeCap:
+        return 'large-cap';
+      case DiscoverMutualFundPreset.midCap:
+        return 'mid-cap';
+      case DiscoverMutualFundPreset.smallCap:
+        return 'small-cap';
+      case DiscoverMutualFundPreset.flexiCap:
+        return 'flexi-cap';
+      case DiscoverMutualFundPreset.multiCap:
+        return 'multi-cap';
+      case DiscoverMutualFundPreset.elss:
+        return 'elss';
+      case DiscoverMutualFundPreset.valueMf:
+        return 'value-mf';
+      case DiscoverMutualFundPreset.focused:
+        return 'focused';
+      case DiscoverMutualFundPreset.sectoral:
+        return 'sectoral';
+      case DiscoverMutualFundPreset.indexFund:
+        return 'index';
+      case DiscoverMutualFundPreset.shortDuration:
+        return 'short-duration';
+      case DiscoverMutualFundPreset.corporateBond:
+        return 'corporate-bond';
+      case DiscoverMutualFundPreset.bankingPsu:
+        return 'banking-psu';
+      case DiscoverMutualFundPreset.gilt:
+        return 'gilt';
+      case DiscoverMutualFundPreset.liquid:
+        return 'liquid';
+      case DiscoverMutualFundPreset.overnight:
+        return 'overnight';
+      case DiscoverMutualFundPreset.dynamicBond:
+        return 'dynamic-bond';
+      case DiscoverMutualFundPreset.moneyMarket:
+        return 'money-market';
+      case DiscoverMutualFundPreset.aggressiveHybrid:
+        return 'aggressive-hybrid';
+      case DiscoverMutualFundPreset.balancedHybrid:
+        return 'balanced-hybrid';
+      case DiscoverMutualFundPreset.conservativeHybrid:
+        return 'conservative-hybrid';
+      case DiscoverMutualFundPreset.lowRisk:
+        return 'low-risk';
     }
   }
 
@@ -141,35 +198,148 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
     switch (this) {
       case DiscoverMutualFundPreset.all:
         return 'All';
-      case DiscoverMutualFundPreset.largeCap:
-        return 'Large Cap';
-      case DiscoverMutualFundPreset.flexiCap:
-        return 'Flexi Cap';
-      case DiscoverMutualFundPreset.indexFund:
-        return 'Index';
-      case DiscoverMutualFundPreset.lowRisk:
-        return 'Low Risk';
-      case DiscoverMutualFundPreset.midCap:
-        return 'Mid Cap';
+      case DiscoverMutualFundPreset.equity:
+        return 'Equity';
       case DiscoverMutualFundPreset.debt:
         return 'Debt';
+      case DiscoverMutualFundPreset.hybrid:
+        return 'Hybrid';
+      case DiscoverMutualFundPreset.largeCap:
+        return 'Large Cap';
+      case DiscoverMutualFundPreset.midCap:
+        return 'Mid Cap';
+      case DiscoverMutualFundPreset.smallCap:
+        return 'Small Cap';
+      case DiscoverMutualFundPreset.flexiCap:
+        return 'Flexi Cap';
+      case DiscoverMutualFundPreset.multiCap:
+        return 'Multi Cap';
+      case DiscoverMutualFundPreset.elss:
+        return 'ELSS';
+      case DiscoverMutualFundPreset.valueMf:
+        return 'Value';
+      case DiscoverMutualFundPreset.focused:
+        return 'Focused';
+      case DiscoverMutualFundPreset.sectoral:
+        return 'Sectoral & Thematic';
+      case DiscoverMutualFundPreset.indexFund:
+        return 'Index';
+      case DiscoverMutualFundPreset.shortDuration:
+        return 'Short Duration';
+      case DiscoverMutualFundPreset.corporateBond:
+        return 'Corporate Bond';
+      case DiscoverMutualFundPreset.bankingPsu:
+        return 'Banking & PSU';
+      case DiscoverMutualFundPreset.gilt:
+        return 'Gilt';
+      case DiscoverMutualFundPreset.liquid:
+        return 'Liquid';
+      case DiscoverMutualFundPreset.overnight:
+        return 'Overnight';
+      case DiscoverMutualFundPreset.dynamicBond:
+        return 'Dynamic Bond';
+      case DiscoverMutualFundPreset.moneyMarket:
+        return 'Money Market';
+      case DiscoverMutualFundPreset.aggressiveHybrid:
+        return 'Aggressive Hybrid';
+      case DiscoverMutualFundPreset.balancedHybrid:
+        return 'Balanced Hybrid';
+      case DiscoverMutualFundPreset.conservativeHybrid:
+        return 'Conservative Hybrid';
+      case DiscoverMutualFundPreset.lowRisk:
+        return 'Low Risk';
     }
   }
 
+  static List<DiscoverMutualFundPreset> get segments => [
+        DiscoverMutualFundPreset.all,
+        DiscoverMutualFundPreset.equity,
+        DiscoverMutualFundPreset.debt,
+        DiscoverMutualFundPreset.hybrid,
+      ];
+
+  static List<DiscoverMutualFundPreset> get equitySubCategories => [
+        DiscoverMutualFundPreset.largeCap,
+        DiscoverMutualFundPreset.midCap,
+        DiscoverMutualFundPreset.smallCap,
+        DiscoverMutualFundPreset.flexiCap,
+        DiscoverMutualFundPreset.multiCap,
+        DiscoverMutualFundPreset.elss,
+        DiscoverMutualFundPreset.valueMf,
+        DiscoverMutualFundPreset.focused,
+        DiscoverMutualFundPreset.sectoral,
+        DiscoverMutualFundPreset.indexFund,
+      ];
+
+  static List<DiscoverMutualFundPreset> get debtSubCategories => [
+        DiscoverMutualFundPreset.shortDuration,
+        DiscoverMutualFundPreset.corporateBond,
+        DiscoverMutualFundPreset.bankingPsu,
+        DiscoverMutualFundPreset.gilt,
+        DiscoverMutualFundPreset.liquid,
+        DiscoverMutualFundPreset.overnight,
+        DiscoverMutualFundPreset.dynamicBond,
+        DiscoverMutualFundPreset.moneyMarket,
+      ];
+
+  static List<DiscoverMutualFundPreset> get hybridSubCategories => [
+        DiscoverMutualFundPreset.aggressiveHybrid,
+        DiscoverMutualFundPreset.balancedHybrid,
+        DiscoverMutualFundPreset.conservativeHybrid,
+      ];
+
   static DiscoverMutualFundPreset fromApi(String? value) {
     switch (value) {
-      case 'large-cap':
-        return DiscoverMutualFundPreset.largeCap;
-      case 'flexi-cap':
-        return DiscoverMutualFundPreset.flexiCap;
-      case 'index':
-        return DiscoverMutualFundPreset.indexFund;
-      case 'low-risk':
-        return DiscoverMutualFundPreset.lowRisk;
-      case 'mid-cap':
-        return DiscoverMutualFundPreset.midCap;
+      case 'equity':
+        return DiscoverMutualFundPreset.equity;
       case 'debt':
         return DiscoverMutualFundPreset.debt;
+      case 'hybrid':
+        return DiscoverMutualFundPreset.hybrid;
+      case 'large-cap':
+        return DiscoverMutualFundPreset.largeCap;
+      case 'mid-cap':
+        return DiscoverMutualFundPreset.midCap;
+      case 'small-cap':
+        return DiscoverMutualFundPreset.smallCap;
+      case 'flexi-cap':
+        return DiscoverMutualFundPreset.flexiCap;
+      case 'multi-cap':
+        return DiscoverMutualFundPreset.multiCap;
+      case 'elss':
+        return DiscoverMutualFundPreset.elss;
+      case 'value-mf':
+        return DiscoverMutualFundPreset.valueMf;
+      case 'focused':
+        return DiscoverMutualFundPreset.focused;
+      case 'sectoral':
+        return DiscoverMutualFundPreset.sectoral;
+      case 'index':
+        return DiscoverMutualFundPreset.indexFund;
+      case 'short-duration':
+        return DiscoverMutualFundPreset.shortDuration;
+      case 'corporate-bond':
+        return DiscoverMutualFundPreset.corporateBond;
+      case 'banking-psu':
+        return DiscoverMutualFundPreset.bankingPsu;
+      case 'gilt':
+        return DiscoverMutualFundPreset.gilt;
+      case 'liquid':
+        return DiscoverMutualFundPreset.liquid;
+      case 'overnight':
+        return DiscoverMutualFundPreset.overnight;
+      case 'dynamic-bond':
+        return DiscoverMutualFundPreset.dynamicBond;
+      case 'money-market':
+        return DiscoverMutualFundPreset.moneyMarket;
+      case 'aggressive-hybrid':
+        return DiscoverMutualFundPreset.aggressiveHybrid;
+      case 'balanced-hybrid':
+        return DiscoverMutualFundPreset.balancedHybrid;
+      case 'conservative-hybrid':
+        return DiscoverMutualFundPreset.conservativeHybrid;
+      case 'low-risk':
+        return DiscoverMutualFundPreset.lowRisk;
       case 'all':
       default:
         return DiscoverMutualFundPreset.all;
@@ -190,6 +360,11 @@ class DiscoverStockFilters {
   final double? maxDebtToEquity;
   final int? minVolume;
   final double? minTradedValue;
+  final double? minMarketCap;
+  final double? maxMarketCap;
+  final double? minDividendYield;
+  final double? minPb;
+  final double? maxPb;
   final String sourceStatus;
   final String sortBy;
   final String sortOrder;
@@ -207,6 +382,11 @@ class DiscoverStockFilters {
     this.maxDebtToEquity,
     this.minVolume,
     this.minTradedValue,
+    this.minMarketCap,
+    this.maxMarketCap,
+    this.minDividendYield,
+    this.minPb,
+    this.maxPb,
     this.sourceStatus = 'all',
     this.sortBy = 'score',
     this.sortOrder = 'desc',
@@ -225,6 +405,11 @@ class DiscoverStockFilters {
     double? maxDebtToEquity,
     int? minVolume,
     double? minTradedValue,
+    double? minMarketCap,
+    double? maxMarketCap,
+    double? minDividendYield,
+    double? minPb,
+    double? maxPb,
     String? sourceStatus,
     String? sortBy,
     String? sortOrder,
@@ -242,6 +427,11 @@ class DiscoverStockFilters {
       maxDebtToEquity: maxDebtToEquity ?? this.maxDebtToEquity,
       minVolume: minVolume ?? this.minVolume,
       minTradedValue: minTradedValue ?? this.minTradedValue,
+      minMarketCap: minMarketCap ?? this.minMarketCap,
+      maxMarketCap: maxMarketCap ?? this.maxMarketCap,
+      minDividendYield: minDividendYield ?? this.minDividendYield,
+      minPb: minPb ?? this.minPb,
+      maxPb: maxPb ?? this.maxPb,
       sourceStatus: sourceStatus ?? this.sourceStatus,
       sortBy: sortBy ?? this.sortBy,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -261,6 +451,11 @@ class DiscoverStockFilters {
         'maxDebtToEquity': maxDebtToEquity,
         'minVolume': minVolume,
         'minTradedValue': minTradedValue,
+        'minMarketCap': minMarketCap,
+        'maxMarketCap': maxMarketCap,
+        'minDividendYield': minDividendYield,
+        'minPb': minPb,
+        'maxPb': maxPb,
         'sourceStatus': sourceStatus,
         'sortBy': sortBy,
         'sortOrder': sortOrder,
@@ -280,6 +475,11 @@ class DiscoverStockFilters {
       maxDebtToEquity: (json['maxDebtToEquity'] as num?)?.toDouble(),
       minVolume: (json['minVolume'] as num?)?.toInt(),
       minTradedValue: (json['minTradedValue'] as num?)?.toDouble(),
+      minMarketCap: (json['minMarketCap'] as num?)?.toDouble(),
+      maxMarketCap: (json['maxMarketCap'] as num?)?.toDouble(),
+      minDividendYield: (json['minDividendYield'] as num?)?.toDouble(),
+      minPb: (json['minPb'] as num?)?.toDouble(),
+      maxPb: (json['maxPb'] as num?)?.toDouble(),
       sourceStatus: json['sourceStatus'] as String? ?? 'all',
       sortBy: json['sortBy'] as String? ?? 'score',
       sortOrder: json['sortOrder'] as String? ?? 'desc',
@@ -295,7 +495,10 @@ class DiscoverMutualFundFilters {
   final double minScore;
   final double? minAumCr;
   final double? maxExpenseRatio;
+  final double? minReturn1y;
   final double? minReturn3y;
+  final double? minReturn5y;
+  final double? minFundAge;
   final String sourceStatus;
   final String sortBy;
   final String sortOrder;
@@ -308,7 +511,10 @@ class DiscoverMutualFundFilters {
     this.minScore = 40,
     this.minAumCr,
     this.maxExpenseRatio,
+    this.minReturn1y,
     this.minReturn3y,
+    this.minReturn5y,
+    this.minFundAge,
     this.sourceStatus = 'all',
     this.sortBy = 'score',
     this.sortOrder = 'desc',
@@ -322,7 +528,10 @@ class DiscoverMutualFundFilters {
     double? minScore,
     double? minAumCr,
     double? maxExpenseRatio,
+    double? minReturn1y,
     double? minReturn3y,
+    double? minReturn5y,
+    double? minFundAge,
     String? sourceStatus,
     String? sortBy,
     String? sortOrder,
@@ -335,7 +544,10 @@ class DiscoverMutualFundFilters {
       minScore: minScore ?? this.minScore,
       minAumCr: minAumCr ?? this.minAumCr,
       maxExpenseRatio: maxExpenseRatio ?? this.maxExpenseRatio,
+      minReturn1y: minReturn1y ?? this.minReturn1y,
       minReturn3y: minReturn3y ?? this.minReturn3y,
+      minReturn5y: minReturn5y ?? this.minReturn5y,
+      minFundAge: minFundAge ?? this.minFundAge,
       sourceStatus: sourceStatus ?? this.sourceStatus,
       sortBy: sortBy ?? this.sortBy,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -350,7 +562,10 @@ class DiscoverMutualFundFilters {
         'minScore': minScore,
         'minAumCr': minAumCr,
         'maxExpenseRatio': maxExpenseRatio,
+        'minReturn1y': minReturn1y,
         'minReturn3y': minReturn3y,
+        'minReturn5y': minReturn5y,
+        'minFundAge': minFundAge,
         'sourceStatus': sourceStatus,
         'sortBy': sortBy,
         'sortOrder': sortOrder,
@@ -365,7 +580,10 @@ class DiscoverMutualFundFilters {
       minScore: (json['minScore'] as num?)?.toDouble() ?? 40,
       minAumCr: (json['minAumCr'] as num?)?.toDouble(),
       maxExpenseRatio: (json['maxExpenseRatio'] as num?)?.toDouble(),
+      minReturn1y: (json['minReturn1y'] as num?)?.toDouble(),
       minReturn3y: (json['minReturn3y'] as num?)?.toDouble(),
+      minReturn5y: (json['minReturn5y'] as num?)?.toDouble(),
+      minFundAge: (json['minFundAge'] as num?)?.toDouble(),
       sourceStatus: json['sourceStatus'] as String? ?? 'all',
       sortBy: json['sortBy'] as String? ?? 'score',
       sortOrder: json['sortOrder'] as String? ?? 'desc',
@@ -374,134 +592,73 @@ class DiscoverMutualFundFilters {
 }
 
 class _DiscoverSegmentNotifier extends StateNotifier<DiscoverSegment> {
-  _DiscoverSegmentNotifier(this._prefs)
-      : super(
-          DiscoverSegmentX.fromApi(
-            _prefs.getString(AppConstants.prefDiscoverSegment),
-          ),
-        );
-
-  final SharedPreferences _prefs;
+  _DiscoverSegmentNotifier() : super(DiscoverSegment.stocks);
 
   void setSegment(DiscoverSegment segment) {
     state = segment;
-    _prefs.setString(AppConstants.prefDiscoverSegment, segment.apiValue);
   }
 }
 
 class _DiscoverStockPresetNotifier extends StateNotifier<DiscoverStockPreset> {
-  _DiscoverStockPresetNotifier(this._prefs)
-      : super(
-          DiscoverStockPresetX.fromApi(
-            _prefs.getString(AppConstants.prefDiscoverStockPreset),
-          ),
-        );
-
-  final SharedPreferences _prefs;
+  _DiscoverStockPresetNotifier() : super(DiscoverStockPreset.momentum);
 
   void setPreset(DiscoverStockPreset preset) {
     state = preset;
-    _prefs.setString(AppConstants.prefDiscoverStockPreset, preset.apiValue);
   }
 }
 
 class _DiscoverMutualFundPresetNotifier
     extends StateNotifier<DiscoverMutualFundPreset> {
-  _DiscoverMutualFundPresetNotifier(this._prefs)
-      : super(
-          DiscoverMutualFundPresetX.fromApi(
-            _prefs.getString(AppConstants.prefDiscoverMutualFundPreset),
-          ),
-        );
-
-  final SharedPreferences _prefs;
+  _DiscoverMutualFundPresetNotifier() : super(DiscoverMutualFundPreset.all);
 
   void setPreset(DiscoverMutualFundPreset preset) {
     state = preset;
-    _prefs.setString(AppConstants.prefDiscoverMutualFundPreset, preset.apiValue);
   }
 }
 
 class _DiscoverStockFiltersNotifier extends StateNotifier<DiscoverStockFilters> {
-  _DiscoverStockFiltersNotifier(this._prefs) : super(_load(_prefs));
-
-  final SharedPreferences _prefs;
-
-  static DiscoverStockFilters _load(SharedPreferences prefs) {
-    final raw = prefs.getString(AppConstants.prefDiscoverStockFilters);
-    if (raw == null || raw.trim().isEmpty) return const DiscoverStockFilters();
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      return DiscoverStockFilters.fromJson(data);
-    } catch (_) {
-      return const DiscoverStockFilters();
-    }
-  }
+  _DiscoverStockFiltersNotifier() : super(const DiscoverStockFilters());
 
   void setFilters(DiscoverStockFilters next) {
     state = next;
-    _prefs.setString(AppConstants.prefDiscoverStockFilters, jsonEncode(next.toJson()));
   }
 }
 
 class _DiscoverMutualFundFiltersNotifier
     extends StateNotifier<DiscoverMutualFundFilters> {
-  _DiscoverMutualFundFiltersNotifier(this._prefs) : super(_load(_prefs));
-
-  final SharedPreferences _prefs;
-
-  static DiscoverMutualFundFilters _load(SharedPreferences prefs) {
-    final raw = prefs.getString(AppConstants.prefDiscoverMutualFundFilters);
-    if (raw == null || raw.trim().isEmpty) {
-      return const DiscoverMutualFundFilters();
-    }
-    try {
-      final data = jsonDecode(raw) as Map<String, dynamic>;
-      return DiscoverMutualFundFilters.fromJson(data);
-    } catch (_) {
-      return const DiscoverMutualFundFilters();
-    }
-  }
+  _DiscoverMutualFundFiltersNotifier() : super(const DiscoverMutualFundFilters());
 
   void setFilters(DiscoverMutualFundFilters next) {
     state = next;
-    _prefs.setString(
-      AppConstants.prefDiscoverMutualFundFilters,
-      jsonEncode(next.toJson()),
-    );
   }
 }
 
 final discoverSegmentProvider =
     StateNotifierProvider<_DiscoverSegmentNotifier, DiscoverSegment>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverSegmentNotifier(prefs);
+  return _DiscoverSegmentNotifier();
 });
 
+// autoDispose: filters/presets reset to defaults when screener screen is disposed
 final discoverStockPresetProvider =
-    StateNotifierProvider<_DiscoverStockPresetNotifier, DiscoverStockPreset>(
+    StateNotifierProvider.autoDispose<_DiscoverStockPresetNotifier, DiscoverStockPreset>(
         (ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverStockPresetNotifier(prefs);
+  return _DiscoverStockPresetNotifier();
 });
 
-final discoverMutualFundPresetProvider = StateNotifierProvider<
+final discoverMutualFundPresetProvider = StateNotifierProvider.autoDispose<
     _DiscoverMutualFundPresetNotifier, DiscoverMutualFundPreset>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverMutualFundPresetNotifier(prefs);
+  return _DiscoverMutualFundPresetNotifier();
 });
 
 final discoverStockFiltersProvider =
-    StateNotifierProvider<_DiscoverStockFiltersNotifier, DiscoverStockFilters>(
+    StateNotifierProvider.autoDispose<_DiscoverStockFiltersNotifier, DiscoverStockFilters>(
         (ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverStockFiltersNotifier(prefs);
+  return _DiscoverStockFiltersNotifier();
 });
 
-final discoverMutualFundFiltersProvider = StateNotifierProvider<
+final discoverMutualFundFiltersProvider = StateNotifierProvider.autoDispose<
     _DiscoverMutualFundFiltersNotifier, DiscoverMutualFundFilters>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverMutualFundFiltersNotifier(prefs);
+  return _DiscoverMutualFundFiltersNotifier();
 });
 
 final discoverRepoProvider = Provider<DiscoverRepository>((ref) {
@@ -607,6 +764,11 @@ class DiscoverStockListNotifier
           maxDebtToEquity: filters.maxDebtToEquity,
           minVolume: filters.minVolume,
           minTradedValue: filters.minTradedValue,
+          minMarketCap: filters.minMarketCap,
+          maxMarketCap: filters.maxMarketCap,
+          minDividendYield: filters.minDividendYield,
+          minPb: filters.minPb,
+          maxPb: filters.maxPb,
           sourceStatus:
               filters.sourceStatus == 'all' ? null : filters.sourceStatus,
           sortBy: filters.sortBy,
@@ -673,7 +835,10 @@ class DiscoverMfListNotifier
           minScore: filters.minScore > 0 ? filters.minScore : null,
           minAumCr: filters.minAumCr,
           maxExpenseRatio: filters.maxExpenseRatio,
+          minReturn1y: filters.minReturn1y,
           minReturn3y: filters.minReturn3y,
+          minReturn5y: filters.minReturn5y,
+          minFundAge: filters.minFundAge,
           sourceStatus:
               filters.sourceStatus == 'all' ? null : filters.sourceStatus,
           sortBy: filters.sortBy,
@@ -687,6 +852,31 @@ class DiscoverMfListNotifier
 final discoverHomeDataProvider =
     FutureProvider.autoDispose<DiscoverHomeData>((ref) {
   return ref.watch(discoverRepoProvider).getHomeData();
+});
+
+/// Top 20 stocks sorted by score (for the Discover home tab).
+final homeTopStocksProvider =
+    FutureProvider.autoDispose<DiscoverStockListResponse>((ref) {
+  return ref.watch(discoverRepoProvider).getStocks(
+        preset: 'quality',
+        sortBy: 'score',
+        sortOrder: 'desc',
+        limit: 20,
+        offset: 0,
+      );
+});
+
+/// Top 20 mutual funds sorted by score (for the Discover home tab).
+final homeTopMutualFundsProvider =
+    FutureProvider.autoDispose<DiscoverMutualFundListResponse>((ref) {
+  return ref.watch(discoverRepoProvider).getMutualFunds(
+        preset: 'all',
+        directOnly: true,
+        sortBy: 'score',
+        sortOrder: 'desc',
+        limit: 20,
+        offset: 0,
+      );
 });
 
 final discoverSearchProvider =
@@ -722,4 +912,14 @@ final discoverStockDetailProvider =
 final discoverMfDetailProvider =
     FutureProvider.autoDispose.family<DiscoverMutualFundItem, String>((ref, schemeCode) {
   return ref.watch(discoverRepoProvider).getMfBySchemeCode(schemeCode: schemeCode);
+});
+
+final discoverStockPeersProvider = FutureProvider.autoDispose
+    .family<List<DiscoverStockItem>, String>((ref, symbol) {
+  return ref.watch(discoverRepoProvider).getStockPeers(symbol: symbol, limit: 5);
+});
+
+final discoverMfPeersProvider = FutureProvider.autoDispose
+    .family<List<DiscoverMutualFundItem>, String>((ref, schemeCode) {
+  return ref.watch(discoverRepoProvider).getMfPeers(schemeCode: schemeCode, limit: 5);
 });

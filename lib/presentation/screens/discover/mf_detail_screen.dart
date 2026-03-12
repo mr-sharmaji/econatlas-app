@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/theme.dart';
@@ -24,10 +25,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   int _selectedDays = 365;
 
   static const _periodOptions = [
+    (label: '1W', days: 7),
     (label: '1M', days: 30),
     (label: '3M', days: 90),
     (label: '6M', days: 180),
     (label: '1Y', days: 365),
+    (label: '3Y', days: 1095),
+    (label: '5Y', days: 1825),
   ];
 
   late DiscoverMutualFundItem item;
@@ -98,17 +102,15 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildMetricsCard(theme),
             const SizedBox(height: 12),
 
-            // ── What Makes This Fund Good ──
-            if (_buildQualityReasons().isNotEmpty) ...[
-              _buildWhatMakesGoodCard(theme),
+            // ── What Makes This Fund Good (merged into badges area) ──
+            if (_buildQualityReasons().length >= 2) ...[
+              _buildQualityReasonsInline(theme),
               const SizedBox(height: 12),
             ],
 
-            // ── Tags ──
-            if (item.tags.isNotEmpty) ...[
-              _buildTagsSection(theme),
-              const SizedBox(height: 12),
-            ],
+            // ── Peer Comparison ──
+            _buildPeerComparison(theme),
+            const SizedBox(height: 12),
 
             const SizedBox(height: 24),
           ],
@@ -210,7 +212,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         if (item.amc != null) ...[
           const SizedBox(height: 4),
           Text(
-            item.amc!,
+            '${item.amc!} · Direct · Growth',
             style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
@@ -277,27 +279,30 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 12),
             // Period selector pills
-            Row(
-              children: _periodOptions.map((opt) {
-                final isSelected = opt.days == _selectedDays;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(opt.label),
-                    selected: isSelected,
-                    onSelected: (_) => setState(() => _selectedDays = opt.days),
-                    visualDensity: VisualDensity.compact,
-                    labelStyle: theme.textTheme.labelSmall?.copyWith(
-                      fontWeight:
-                          isSelected ? FontWeight.w700 : FontWeight.w500,
-                      color: isSelected ? Colors.white : Colors.white60,
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _periodOptions.map((opt) {
+                  final isSelected = opt.days == _selectedDays;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: ChoiceChip(
+                      label: Text(opt.label),
+                      selected: isSelected,
+                      onSelected: (_) => setState(() => _selectedDays = opt.days),
+                      visualDensity: VisualDensity.compact,
+                      labelStyle: theme.textTheme.labelSmall?.copyWith(
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected ? Colors.white : Colors.white60,
+                      ),
+                      selectedColor: AppTheme.primaryColor,
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
                     ),
-                    selectedColor: AppTheme.primaryColor,
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
-                  ),
-                );
-              }).toList(),
+                  );
+                }).toList(),
+              ),
             ),
             const SizedBox(height: 12),
             // Chart
@@ -314,6 +319,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 final timestamps =
                     history.points.map((p) => p.date).toList();
                 return PriceLineChart(
+                  key: ValueKey('mf_chart_$_selectedDays'),
                   prices: prices,
                   timestamps: timestamps,
                   isShortRange: _selectedDays <= 90,
@@ -793,56 +799,165 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return reasons;
   }
 
-  Widget _buildWhatMakesGoodCard(ThemeData theme) {
+  Widget _buildQualityReasonsInline(ThemeData theme) {
     final reasons = _buildQualityReasons();
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.lightbulb_outline_rounded,
-                    size: 18, color: AppTheme.accentOrange),
-                const SizedBox(width: 6),
-                Text('What Makes This Fund Good',
-                    style: theme.textTheme.titleSmall),
-              ],
-            ),
-            const SizedBox(height: 12),
-            ...reasons.map((r) {
-              final (icon, color, text) = r;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Icon(icon, size: 16, color: color),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: reasons.map((r) {
+          final (icon, color, text) = r;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: color.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 14, color: color),
+                  const SizedBox(width: 5),
+                  Text(
+                    text,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 10),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ── Peer Comparison ──────────────────────────────────────────────────────
+
+  Widget _buildPeerComparison(ThemeData theme) {
+    final peersAsync = ref.watch(discoverMfPeersProvider(item.schemeCode));
+
+    return peersAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (peers) {
+        if (peers.isEmpty) return const SizedBox.shrink();
+        return Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Peers in ${item.category ?? "Category"}',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                // Header row
+                Row(
+                  children: [
                     Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          text,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white70),
-                        ),
-                      ),
+                      flex: 3,
+                      child: Text('Name',
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: Colors.white38)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('NAV',
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: Colors.white38)),
+                    ),
+                    Expanded(
+                      flex: 1,
+                      child: Text('Score',
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: Colors.white38)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: Text('3Y Ret',
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: Colors.white38)),
                     ),
                   ],
                 ),
-              );
-            }),
+                Divider(height: 12, color: Colors.white.withValues(alpha: 0.08)),
+                ...peers.map((peer) => _buildMfPeerRow(theme, peer)),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildMfPeerRow(ThemeData theme, DiscoverMutualFundItem peer) {
+    return InkWell(
+      onTap: () => context.push(
+        '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
+        extra: peer,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: Text(
+                peer.displayName ?? peer.schemeName,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                Formatters.fullPrice(peer.nav),
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodySmall,
+              ),
+            ),
+            Expanded(
+              flex: 1,
+              child: Text(
+                peer.score.toStringAsFixed(0),
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: ScoreBar.scoreColor(peer.score),
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            Expanded(
+              flex: 2,
+              child: Text(
+                peer.returns3y != null
+                    ? '${peer.returns3y!.toStringAsFixed(1)}%'
+                    : '\u2014',
+                textAlign: TextAlign.right,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: peer.returns3y != null
+                      ? (peer.returns3y! >= 0
+                          ? AppTheme.accentGreen
+                          : AppTheme.accentRed)
+                      : Colors.white38,
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -863,21 +978,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     if (sharpe > 1.5) return AppTheme.accentGreen;
     if (sharpe < 0.5) return AppTheme.accentRed;
     return null;
-  }
-
-  // ── Tags ────────────────────────────────────────────────────────────────
-
-  Widget _buildTagsSection(ThemeData theme) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 6,
-      children: item.tags
-          .map((tag) => Chip(
-                label: Text(tag, style: theme.textTheme.labelSmall),
-                visualDensity: VisualDensity.compact,
-              ))
-          .toList(),
-    );
   }
 
 }

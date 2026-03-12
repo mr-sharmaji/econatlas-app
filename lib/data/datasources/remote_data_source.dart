@@ -283,6 +283,11 @@ class RemoteDataSource {
     double? maxDebtToEquity,
     int? minVolume,
     double? minTradedValue,
+    double? minMarketCap,
+    double? maxMarketCap,
+    double? minDividendYield,
+    double? minPb,
+    double? maxPb,
     String? sourceStatus,
     String sortBy = 'score',
     String sortOrder = 'desc',
@@ -311,6 +316,11 @@ class RemoteDataSource {
     }
     if (minVolume != null) params['min_volume'] = minVolume;
     if (minTradedValue != null) params['min_traded_value'] = minTradedValue;
+    if (minMarketCap != null) params['min_market_cap'] = minMarketCap;
+    if (maxMarketCap != null) params['max_market_cap'] = maxMarketCap;
+    if (minDividendYield != null) params['min_dividend_yield'] = minDividendYield;
+    if (minPb != null) params['min_pb'] = minPb;
+    if (maxPb != null) params['max_pb'] = maxPb;
     if (sourceStatus != null && sourceStatus.trim().isNotEmpty) {
       params['source_status'] = sourceStatus;
     }
@@ -329,7 +339,10 @@ class RemoteDataSource {
     double? minScore,
     double? minAumCr,
     double? maxExpenseRatio,
+    double? minReturn1y,
     double? minReturn3y,
+    double? minReturn5y,
+    double? minFundAge,
     String? sourceStatus,
     String sortBy = 'score',
     String sortOrder = 'desc',
@@ -356,7 +369,10 @@ class RemoteDataSource {
     if (maxExpenseRatio != null) {
       params['max_expense_ratio'] = maxExpenseRatio;
     }
+    if (minReturn1y != null) params['min_return_1y'] = minReturn1y;
     if (minReturn3y != null) params['min_return_3y'] = minReturn3y;
+    if (minReturn5y != null) params['min_return_5y'] = minReturn5y;
+    if (minFundAge != null) params['min_fund_age'] = minFundAge;
     if (sourceStatus != null && sourceStatus.trim().isNotEmpty) {
       params['source_status'] = sourceStatus;
     }
@@ -423,6 +439,34 @@ class RemoteDataSource {
   Future<DiscoverMutualFundItem> getDiscoverMfBySchemeCode(String schemeCode) async {
     final response = await _dio.get('/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/detail');
     return DiscoverMutualFundItem.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<List<DiscoverStockItem>> getDiscoverStockPeers({
+    required String symbol,
+    int limit = 5,
+  }) async {
+    final response = await _dio.get(
+      '/screener/stocks/${Uri.encodeComponent(symbol)}/peers',
+      queryParameters: {'limit': limit},
+    );
+    final list = response.data as List<dynamic>;
+    return list
+        .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<List<DiscoverMutualFundItem>> getDiscoverMfPeers({
+    required String schemeCode,
+    int limit = 5,
+  }) async {
+    final response = await _dio.get(
+      '/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/peers',
+      queryParameters: {'limit': limit},
+    );
+    final list = response.data as List<dynamic>;
+    return list
+        .map((e) => DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   Future<IpoListResponse> getIpos({

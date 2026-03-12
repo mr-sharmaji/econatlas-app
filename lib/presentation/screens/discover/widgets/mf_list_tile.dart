@@ -148,7 +148,18 @@ class MfListTile extends StatelessWidget {
                         ? AppTheme.accentGreen
                         : AppTheme.accentRed,
                   ),
-                if ((item.returns1y != null || item.returns3y != null) &&
+                if (item.returns3y != null && item.returns5y != null)
+                  const SizedBox(width: 12),
+                if (item.returns5y != null)
+                  _inlineMetric(
+                    context,
+                    '5Y',
+                    '${item.returns5y!.toStringAsFixed(1)}%',
+                    color: item.returns5y! >= 0
+                        ? AppTheme.accentGreen
+                        : AppTheme.accentRed,
+                  ),
+                if ((item.returns1y != null || item.returns3y != null || item.returns5y != null) &&
                     item.expenseRatio != null)
                   const SizedBox(width: 12),
                 if (item.expenseRatio != null)
