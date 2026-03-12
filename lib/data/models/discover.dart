@@ -1,6 +1,53 @@
 import 'package:flutter/foundation.dart';
 
 @immutable
+class ScoreDistribution {
+  final int excellent;
+  final int good;
+  final int average;
+  final int poor;
+
+  const ScoreDistribution({
+    this.excellent = 0,
+    this.good = 0,
+    this.average = 0,
+    this.poor = 0,
+  });
+
+  int get total => excellent + good + average + poor;
+
+  factory ScoreDistribution.fromJson(Map<String, dynamic> json) {
+    return ScoreDistribution(
+      excellent: (json['excellent'] as num?)?.toInt() ?? 0,
+      good: (json['good'] as num?)?.toInt() ?? 0,
+      average: (json['average'] as num?)?.toInt() ?? 0,
+      poor: (json['poor'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+@immutable
+class TopSegmentEntry {
+  final String name;
+  final double avgScore;
+  final int count;
+
+  const TopSegmentEntry({
+    required this.name,
+    required this.avgScore,
+    required this.count,
+  });
+
+  factory TopSegmentEntry.fromJson(Map<String, dynamic> json) {
+    return TopSegmentEntry(
+      name: json['name'] as String? ?? '',
+      avgScore: (json['avg_score'] as num?)?.toDouble() ?? 0,
+      count: (json['count'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
+@immutable
 class DiscoverOverview {
   final String segment;
   final DateTime? asOf;
@@ -8,6 +55,11 @@ class DiscoverOverview {
   final String sourceStatus;
   final List<String> leaders;
   final List<String> laggards;
+  final double? avgScore;
+  final ScoreDistribution? scoreDistribution;
+  final List<TopSegmentEntry> topSectors;
+  final List<TopSegmentEntry> topCategories;
+  final double? dataFreshnessMinutes;
 
   const DiscoverOverview({
     required this.segment,
@@ -16,6 +68,11 @@ class DiscoverOverview {
     required this.sourceStatus,
     required this.leaders,
     required this.laggards,
+    this.avgScore,
+    this.scoreDistribution,
+    this.topSectors = const [],
+    this.topCategories = const [],
+    this.dataFreshnessMinutes,
   });
 
   factory DiscoverOverview.fromJson(Map<String, dynamic> json) {
@@ -30,6 +87,19 @@ class DiscoverOverview {
           (json['leaders'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
       laggards:
           (json['laggards'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
+      avgScore: (json['avg_score'] as num?)?.toDouble(),
+      scoreDistribution: json['score_distribution'] != null
+          ? ScoreDistribution.fromJson(
+              json['score_distribution'] as Map<String, dynamic>)
+          : null,
+      topSectors: (json['top_sectors'] as List<dynamic>? ?? const [])
+          .map((e) => TopSegmentEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      topCategories: (json['top_categories'] as List<dynamic>? ?? const [])
+          .map((e) => TopSegmentEntry.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      dataFreshnessMinutes:
+          (json['data_freshness_minutes'] as num?)?.toDouble(),
     );
   }
 }
@@ -161,6 +231,7 @@ class DiscoverStockListResponse {
   final String sourceStatus;
   final List<DiscoverStockItem> items;
   final int count;
+  final int? totalCount;
 
   const DiscoverStockListResponse({
     required this.preset,
@@ -168,6 +239,7 @@ class DiscoverStockListResponse {
     required this.sourceStatus,
     required this.items,
     required this.count,
+    this.totalCount,
   });
 
   factory DiscoverStockListResponse.fromJson(Map<String, dynamic> json) {
@@ -182,6 +254,7 @@ class DiscoverStockListResponse {
           .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       count: (json['count'] as num?)?.toInt() ?? itemsRaw.length,
+      totalCount: (json['total_count'] as num?)?.toInt(),
     );
   }
 }
@@ -327,6 +400,7 @@ class DiscoverMutualFundListResponse {
   final String sourceStatus;
   final List<DiscoverMutualFundItem> items;
   final int count;
+  final int? totalCount;
 
   const DiscoverMutualFundListResponse({
     required this.preset,
@@ -334,6 +408,7 @@ class DiscoverMutualFundListResponse {
     required this.sourceStatus,
     required this.items,
     required this.count,
+    this.totalCount,
   });
 
   factory DiscoverMutualFundListResponse.fromJson(Map<String, dynamic> json) {
@@ -348,6 +423,29 @@ class DiscoverMutualFundListResponse {
           .map((e) => DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
           .toList(),
       count: (json['count'] as num?)?.toInt() ?? itemsRaw.length,
+      totalCount: (json['total_count'] as num?)?.toInt(),
+    );
+  }
+}
+
+@immutable
+class ComparisonSummary {
+  final String winner;
+  final double scoreDelta;
+  final Map<String, String> metricWinners;
+
+  const ComparisonSummary({
+    required this.winner,
+    required this.scoreDelta,
+    this.metricWinners = const {},
+  });
+
+  factory ComparisonSummary.fromJson(Map<String, dynamic> json) {
+    final raw = json['metric_winners'] as Map<String, dynamic>? ?? const {};
+    return ComparisonSummary(
+      winner: json['winner'] as String? ?? '',
+      scoreDelta: (json['score_delta'] as num?)?.toDouble() ?? 0,
+      metricWinners: raw.map((k, v) => MapEntry(k, '$v')),
     );
   }
 }
@@ -360,6 +458,7 @@ class DiscoverCompareResponse {
   final String sourceStatus;
   final List<DiscoverStockItem> stockItems;
   final List<DiscoverMutualFundItem> mutualFundItems;
+  final ComparisonSummary? comparisonSummary;
 
   const DiscoverCompareResponse({
     required this.segment,
@@ -368,6 +467,7 @@ class DiscoverCompareResponse {
     required this.sourceStatus,
     required this.stockItems,
     required this.mutualFundItems,
+    this.comparisonSummary,
   });
 
   factory DiscoverCompareResponse.fromJson(Map<String, dynamic> json) {
@@ -387,6 +487,10 @@ class DiscoverCompareResponse {
           .map((e) =>
               DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      comparisonSummary: json['comparison_summary'] != null
+          ? ComparisonSummary.fromJson(
+              json['comparison_summary'] as Map<String, dynamic>)
+          : null,
     );
   }
 }

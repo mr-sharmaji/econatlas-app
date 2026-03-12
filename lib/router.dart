@@ -8,7 +8,13 @@ import 'presentation/screens/market/market_screen.dart';
 import 'presentation/screens/commodities/commodities_screen.dart';
 import 'presentation/screens/overview/overview_screen.dart';
 import 'presentation/screens/macro/macro_screen.dart';
-import 'presentation/screens/discover/discover_screen.dart';
+import 'data/models/discover.dart';
+import 'presentation/screens/discover/discover_home_screen.dart';
+import 'presentation/screens/discover/stock_screener_screen.dart';
+import 'presentation/screens/discover/mf_screener_screen.dart';
+import 'presentation/screens/discover/stock_detail_screen.dart';
+import 'presentation/screens/discover/mf_detail_screen.dart';
+import 'presentation/screens/discover/compare_screen.dart';
 import 'presentation/screens/tools/currency_converter_screen.dart';
 import 'presentation/screens/tools/income_tax_screen.dart';
 import 'presentation/screens/tools/trade_charges_screen.dart';
@@ -56,11 +62,7 @@ final router = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/discover',
-            builder: (context, state) => const DiscoverScreen(),
-          ),
-          GoRoute(
-            path: '/brief',
-            builder: (context, state) => const DiscoverScreen(),
+            builder: (context, state) => const DiscoverHomeScreen(),
           ),
         ]),
         StatefulShellBranch(routes: [
@@ -114,6 +116,44 @@ final router = GoRouter(
           initialIndicator: indicator,
         );
       },
+    ),
+    // ── Discover sub-routes ──
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/discover/stocks',
+      builder: (context, state) {
+        final initialSearch = state.extra as String?;
+        return StockScreenerScreen(initialSearch: initialSearch);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/discover/mutual-funds',
+      builder: (context, state) {
+        final initialSearch = state.extra as String?;
+        return MfScreenerScreen(initialSearch: initialSearch);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/discover/stock/:symbol',
+      builder: (context, state) {
+        final item = state.extra as DiscoverStockItem;
+        return StockDetailScreen(item: item);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/discover/mf/:schemeCode',
+      builder: (context, state) {
+        final item = state.extra as DiscoverMutualFundItem;
+        return MfDetailScreen(item: item);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/discover/compare',
+      builder: (context, state) => const CompareScreen(),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,

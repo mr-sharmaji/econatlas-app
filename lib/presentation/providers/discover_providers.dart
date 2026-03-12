@@ -42,6 +42,8 @@ enum DiscoverStockPreset {
   lowVolatility,
   highVolume,
   breakout,
+  quality,
+  dividend,
 }
 
 extension DiscoverStockPresetX on DiscoverStockPreset {
@@ -57,6 +59,10 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'high-volume';
       case DiscoverStockPreset.breakout:
         return 'breakout';
+      case DiscoverStockPreset.quality:
+        return 'quality';
+      case DiscoverStockPreset.dividend:
+        return 'dividend';
     }
   }
 
@@ -72,6 +78,10 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'High Volume';
       case DiscoverStockPreset.breakout:
         return 'Breakout';
+      case DiscoverStockPreset.quality:
+        return 'Quality';
+      case DiscoverStockPreset.dividend:
+        return 'Dividend';
     }
   }
 
@@ -85,6 +95,10 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return DiscoverStockPreset.highVolume;
       case 'breakout':
         return DiscoverStockPreset.breakout;
+      case 'quality':
+        return DiscoverStockPreset.quality;
+      case 'dividend':
+        return DiscoverStockPreset.dividend;
       case 'momentum':
       default:
         return DiscoverStockPreset.momentum;
@@ -98,6 +112,8 @@ enum DiscoverMutualFundPreset {
   flexiCap,
   indexFund,
   lowRisk,
+  midCap,
+  debt,
 }
 
 extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
@@ -113,6 +129,10 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'index';
       case DiscoverMutualFundPreset.lowRisk:
         return 'low-risk';
+      case DiscoverMutualFundPreset.midCap:
+        return 'mid-cap';
+      case DiscoverMutualFundPreset.debt:
+        return 'debt';
     }
   }
 
@@ -128,6 +148,10 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Index';
       case DiscoverMutualFundPreset.lowRisk:
         return 'Low Risk';
+      case DiscoverMutualFundPreset.midCap:
+        return 'Mid Cap';
+      case DiscoverMutualFundPreset.debt:
+        return 'Debt';
     }
   }
 
@@ -141,6 +165,10 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return DiscoverMutualFundPreset.indexFund;
       case 'low-risk':
         return DiscoverMutualFundPreset.lowRisk;
+      case 'mid-cap':
+        return DiscoverMutualFundPreset.midCap;
+      case 'debt':
+        return DiscoverMutualFundPreset.debt;
       case 'all':
       default:
         return DiscoverMutualFundPreset.all;
