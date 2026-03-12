@@ -471,37 +471,6 @@ class _DiscoverMutualFundFiltersNotifier
   }
 }
 
-class _DiscoverCompareNotifier extends StateNotifier<List<String>> {
-  _DiscoverCompareNotifier(this._prefs, this._key) : super(_load(_prefs, _key));
-
-  final SharedPreferences _prefs;
-  final String _key;
-
-  static List<String> _load(SharedPreferences prefs, String key) {
-    final raw = prefs.getStringList(key) ?? const <String>[];
-    return raw.take(3).toList();
-  }
-
-  void toggle(String id) {
-    final normalized = id.trim();
-    if (normalized.isEmpty) return;
-    final current = [...state];
-    if (current.contains(normalized)) {
-      current.remove(normalized);
-    } else {
-      if (current.length >= 3) current.removeAt(0);
-      current.add(normalized);
-    }
-    state = current;
-    _prefs.setStringList(_key, current);
-  }
-
-  void clear() {
-    state = const [];
-    _prefs.setStringList(_key, const []);
-  }
-}
-
 final discoverSegmentProvider =
     StateNotifierProvider<_DiscoverSegmentNotifier, DiscoverSegment>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
@@ -532,21 +501,6 @@ final discoverMutualFundFiltersProvider = StateNotifierProvider<
     _DiscoverMutualFundFiltersNotifier, DiscoverMutualFundFilters>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
   return _DiscoverMutualFundFiltersNotifier(prefs);
-});
-
-final discoverStockCompareProvider =
-    StateNotifierProvider<_DiscoverCompareNotifier, List<String>>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverCompareNotifier(prefs, AppConstants.prefDiscoverStockCompare);
-});
-
-final discoverMutualFundCompareProvider =
-    StateNotifierProvider<_DiscoverCompareNotifier, List<String>>((ref) {
-  final prefs = ref.watch(sharedPreferencesProvider);
-  return _DiscoverCompareNotifier(
-    prefs,
-    AppConstants.prefDiscoverMutualFundCompare,
-  );
 });
 
 final discoverRepoProvider = Provider<DiscoverRepository>((ref) {
@@ -611,23 +565,32 @@ final discoverMutualFundsProvider =
       );
 });
 
-final discoverCompareProvider =
-    FutureProvider.autoDispose.family<DiscoverCompareResponse, DiscoverSegment>(
-        (ref, segment) async {
-  final ids = segment == DiscoverSegment.stocks
-      ? ref.watch(discoverStockCompareProvider)
-      : ref.watch(discoverMutualFundCompareProvider);
-  if (ids.isEmpty) {
-    return DiscoverCompareResponse(
-      segment: segment.apiValue,
-      asOf: null,
-      count: 0,
-      sourceStatus: 'limited',
-      stockItems: const [],
-      mutualFundItems: const [],
-    );
+final discoverHomeDataProvider =
+    FutureProvider.autoDispose<DiscoverHomeData>((ref) {
+  return ref.watch(discoverRepoProvider).getHomeData();
+});
+
+final discoverSearchProvider =
+    FutureProvider.autoDispose.family<UnifiedSearchResponse, String>(
+        (ref, query) {
+  if (query.trim().length < 2) {
+    return const UnifiedSearchResponse(stocks: [], mutualFunds: []);
   }
+  return ref.watch(discoverRepoProvider).search(query: query, limit: 10);
+});
+
+final discoverStockHistoryProvider = FutureProvider.autoDispose
+    .family<PriceHistoryResponse, ({String symbol, int days})>(
+        (ref, params) {
   return ref
       .watch(discoverRepoProvider)
-      .getCompare(segment: segment.apiValue, ids: ids);
+      .getStockHistory(symbol: params.symbol, days: params.days);
+});
+
+final discoverMfHistoryProvider = FutureProvider.autoDispose
+    .family<PriceHistoryResponse, ({String schemeCode, int days})>(
+        (ref, params) {
+  return ref
+      .watch(discoverRepoProvider)
+      .getMfNavHistory(schemeCode: params.schemeCode, days: params.days);
 });

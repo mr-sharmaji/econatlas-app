@@ -369,18 +369,48 @@ class RemoteDataSource {
     );
   }
 
-  Future<DiscoverCompareResponse> getDiscoverCompare({
-    required String segment,
-    required List<String> ids,
+  Future<UnifiedSearchResponse> discoverSearch({
+    required String query,
+    int limit = 10,
   }) async {
     final response = await _dio.get(
-      '/screener/compare',
-      queryParameters: {
-        'segment': segment,
-        'ids': ids.join(','),
-      },
+      '/screener/search',
+      queryParameters: {'q': query, 'limit': limit},
     );
-    return DiscoverCompareResponse.fromJson(
+    return UnifiedSearchResponse.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<DiscoverHomeData> getDiscoverHome() async {
+    final response = await _dio.get('/screener/home');
+    return DiscoverHomeData.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<PriceHistoryResponse> getDiscoverStockHistory({
+    required String symbol,
+    int days = 365,
+  }) async {
+    final response = await _dio.get(
+      '/screener/stocks/${Uri.encodeComponent(symbol)}/history',
+      queryParameters: {'days': days},
+    );
+    return PriceHistoryResponse.fromJson(
+      response.data as Map<String, dynamic>,
+    );
+  }
+
+  Future<PriceHistoryResponse> getDiscoverMfNavHistory({
+    required String schemeCode,
+    int days = 365,
+  }) async {
+    final response = await _dio.get(
+      '/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/history',
+      queryParameters: {'days': days},
+    );
+    return PriceHistoryResponse.fromJson(
       response.data as Map<String, dynamic>,
     );
   }

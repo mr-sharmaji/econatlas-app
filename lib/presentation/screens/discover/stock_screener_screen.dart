@@ -48,6 +48,34 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     });
   }
 
+  /// Build a concise summary of active filters that differ from defaults.
+  String? _buildFilterSummary(DiscoverStockFilters filters) {
+    const defaults = DiscoverStockFilters();
+    final parts = <String>[];
+
+    if (filters.minScore != defaults.minScore) {
+      parts.add('Min Score ${filters.minScore.round()}');
+    }
+    if (filters.sector != defaults.sector) {
+      parts.add('${filters.sector} Sector');
+    }
+    if (filters.sourceStatus != defaults.sourceStatus) {
+      parts.add(filters.sourceStatus[0].toUpperCase() +
+          filters.sourceStatus.substring(1));
+    }
+    if (filters.minPe != null) {
+      parts.add('P/E >= ${filters.minPe!.toStringAsFixed(1)}');
+    }
+    if (filters.maxPe != null) {
+      parts.add('P/E <= ${filters.maxPe!.toStringAsFixed(1)}');
+    }
+    if (filters.search.isNotEmpty) {
+      parts.add('"${filters.search}"');
+    }
+
+    return parts.isEmpty ? null : parts.join(' \u00b7 ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -123,6 +151,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                 SortOption(value: 'pe', label: 'P/E'),
                 SortOption(value: 'roe', label: 'ROE'),
                 SortOption(value: 'price', label: 'Price'),
+                SortOption(value: 'market_cap', label: 'Mkt Cap'),
               ],
               onSortByChanged: (value) {
                 final current = ref.read(discoverStockFiltersProvider);
@@ -165,35 +194,44 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                     ),
                   );
                 }
+
+                final hasHeader = response.totalCount != null &&
+                    response.totalCount! > items.length;
+                final filterSummary = _buildFilterSummary(filters);
+
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(discoverStocksProvider);
                   },
                   child: ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: items.length +
-                        (response.totalCount != null &&
-                                response.totalCount! > items.length
-                            ? 1
-                            : 0),
+                    itemCount: items.length + (hasHeader ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index == 0 &&
-                          response.totalCount != null &&
-                          response.totalCount! > items.length) {
+                      if (index == 0 && hasHeader) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            'Showing ${items.length} of ${response.totalCount} stocks',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: Colors.white54),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Showing ${items.length} of ${response.totalCount} stocks',
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(color: Colors.white54),
+                              ),
+                              if (filterSummary != null) ...[
+                                const SizedBox(height: 2),
+                                Text(
+                                  filterSummary,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white38,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         );
                       }
-                      final itemIndex =
-                          response.totalCount != null &&
-                                  response.totalCount! > items.length
-                              ? index - 1
-                              : index;
+                      final itemIndex = hasHeader ? index - 1 : index;
                       final item = items[itemIndex];
                       return StockListTile(
                         item: item,

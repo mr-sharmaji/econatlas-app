@@ -1,5 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+// ---------------------------------------------------------------------------
+// Overview
+// ---------------------------------------------------------------------------
+
 @immutable
 class ScoreDistribution {
   final int excellent;
@@ -104,6 +108,10 @@ class DiscoverOverview {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Stock
+// ---------------------------------------------------------------------------
+
 @immutable
 class DiscoverStockScoreBreakdown {
   final double momentum;
@@ -145,6 +153,11 @@ class DiscoverStockItem {
   final double? debtToEquity;
   final double? priceToBook;
   final double? eps;
+  final double? high52w;
+  final double? low52w;
+  final double? marketCap;
+  final double? dividendYield;
+  final String? qualityTier;
   final double score;
   final double scoreMomentum;
   final double scoreLiquidity;
@@ -174,6 +187,11 @@ class DiscoverStockItem {
     required this.debtToEquity,
     required this.priceToBook,
     required this.eps,
+    this.high52w,
+    this.low52w,
+    this.marketCap,
+    this.dividendYield,
+    this.qualityTier,
     required this.score,
     required this.scoreMomentum,
     required this.scoreLiquidity,
@@ -205,6 +223,11 @@ class DiscoverStockItem {
       debtToEquity: (json['debt_to_equity'] as num?)?.toDouble(),
       priceToBook: (json['price_to_book'] as num?)?.toDouble(),
       eps: (json['eps'] as num?)?.toDouble(),
+      high52w: (json['high_52w'] as num?)?.toDouble(),
+      low52w: (json['low_52w'] as num?)?.toDouble(),
+      marketCap: (json['market_cap'] as num?)?.toDouble(),
+      dividendYield: (json['dividend_yield'] as num?)?.toDouble(),
+      qualityTier: json['quality_tier'] as String?,
       score: (json['score'] as num?)?.toDouble() ?? 0,
       scoreMomentum: (json['score_momentum'] as num?)?.toDouble() ?? 0,
       scoreLiquidity: (json['score_liquidity'] as num?)?.toDouble() ?? 0,
@@ -259,6 +282,10 @@ class DiscoverStockListResponse {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Mutual Fund
+// ---------------------------------------------------------------------------
+
 @immutable
 class DiscoverMutualFundScoreBreakdown {
   final double returnScore;
@@ -303,6 +330,13 @@ class DiscoverMutualFundItem {
   final double? stdDev;
   final double? sharpe;
   final double? sortino;
+  final int? categoryRank;
+  final int? categoryTotal;
+  final double? fundAgeYears;
+  final List<String> qualityBadges;
+  final double? categoryAvgReturns1y;
+  final double? categoryAvgReturns3y;
+  final double? categoryAvgReturns5y;
   final double score;
   final double scoreReturn;
   final double scoreRisk;
@@ -336,6 +370,13 @@ class DiscoverMutualFundItem {
     required this.stdDev,
     required this.sharpe,
     required this.sortino,
+    this.categoryRank,
+    this.categoryTotal,
+    this.fundAgeYears,
+    this.qualityBadges = const [],
+    this.categoryAvgReturns1y,
+    this.categoryAvgReturns3y,
+    this.categoryAvgReturns5y,
     required this.score,
     required this.scoreReturn,
     required this.scoreRisk,
@@ -373,6 +414,18 @@ class DiscoverMutualFundItem {
       stdDev: (json['std_dev'] as num?)?.toDouble(),
       sharpe: (json['sharpe'] as num?)?.toDouble(),
       sortino: (json['sortino'] as num?)?.toDouble(),
+      categoryRank: (json['category_rank'] as num?)?.toInt(),
+      categoryTotal: (json['category_total'] as num?)?.toInt(),
+      fundAgeYears: (json['fund_age_years'] as num?)?.toDouble(),
+      qualityBadges: (json['quality_badges'] as List<dynamic>? ?? const [])
+          .map((e) => '$e')
+          .toList(),
+      categoryAvgReturns1y:
+          (json['category_avg_returns_1y'] as num?)?.toDouble(),
+      categoryAvgReturns3y:
+          (json['category_avg_returns_3y'] as num?)?.toDouble(),
+      categoryAvgReturns5y:
+          (json['category_avg_returns_5y'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
       scoreReturn: (json['score_return'] as num?)?.toDouble() ?? 0,
       scoreRisk: (json['score_risk'] as num?)?.toDouble() ?? 0,
@@ -428,69 +481,268 @@ class DiscoverMutualFundListResponse {
   }
 }
 
-@immutable
-class ComparisonSummary {
-  final String winner;
-  final double scoreDelta;
-  final Map<String, String> metricWinners;
+// ---------------------------------------------------------------------------
+// Unified Search
+// ---------------------------------------------------------------------------
 
-  const ComparisonSummary({
-    required this.winner,
-    required this.scoreDelta,
-    this.metricWinners = const {},
+@immutable
+class SearchStockResult {
+  final String symbol;
+  final String displayName;
+  final String? sector;
+  final double lastPrice;
+  final double? percentChange;
+  final double score;
+
+  const SearchStockResult({
+    required this.symbol,
+    required this.displayName,
+    this.sector,
+    required this.lastPrice,
+    this.percentChange,
+    required this.score,
   });
 
-  factory ComparisonSummary.fromJson(Map<String, dynamic> json) {
-    final raw = json['metric_winners'] as Map<String, dynamic>? ?? const {};
-    return ComparisonSummary(
-      winner: json['winner'] as String? ?? '',
-      scoreDelta: (json['score_delta'] as num?)?.toDouble() ?? 0,
-      metricWinners: raw.map((k, v) => MapEntry(k, '$v')),
+  factory SearchStockResult.fromJson(Map<String, dynamic> json) {
+    return SearchStockResult(
+      symbol: json['symbol'] as String,
+      displayName: json['display_name'] as String,
+      sector: json['sector'] as String?,
+      lastPrice: (json['last_price'] as num).toDouble(),
+      percentChange: (json['percent_change'] as num?)?.toDouble(),
+      score: (json['score'] as num?)?.toDouble() ?? 0,
     );
   }
 }
 
 @immutable
-class DiscoverCompareResponse {
-  final String segment;
-  final DateTime? asOf;
-  final int count;
-  final String sourceStatus;
-  final List<DiscoverStockItem> stockItems;
-  final List<DiscoverMutualFundItem> mutualFundItems;
-  final ComparisonSummary? comparisonSummary;
+class SearchMfResult {
+  final String schemeCode;
+  final String schemeName;
+  final String? category;
+  final double nav;
+  final double? returns3y;
+  final double score;
 
-  const DiscoverCompareResponse({
-    required this.segment,
-    required this.asOf,
-    required this.count,
-    required this.sourceStatus,
-    required this.stockItems,
-    required this.mutualFundItems,
-    this.comparisonSummary,
+  const SearchMfResult({
+    required this.schemeCode,
+    required this.schemeName,
+    this.category,
+    required this.nav,
+    this.returns3y,
+    required this.score,
   });
 
-  factory DiscoverCompareResponse.fromJson(Map<String, dynamic> json) {
-    final stockRaw = json['stock_items'] as List<dynamic>? ?? const [];
-    final mfRaw = json['mutual_fund_items'] as List<dynamic>? ?? const [];
-    return DiscoverCompareResponse(
-      segment: json['segment'] as String? ?? 'stocks',
-      asOf: json['as_of'] != null
-          ? DateTime.tryParse(json['as_of'] as String)
-          : null,
-      count: (json['count'] as num?)?.toInt() ?? 0,
-      sourceStatus: json['source_status'] as String? ?? 'limited',
-      stockItems: stockRaw
-          .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
+  factory SearchMfResult.fromJson(Map<String, dynamic> json) {
+    return SearchMfResult(
+      schemeCode: json['scheme_code'] as String,
+      schemeName: json['scheme_name'] as String,
+      category: json['category'] as String?,
+      nav: (json['nav'] as num).toDouble(),
+      returns3y: (json['returns_3y'] as num?)?.toDouble(),
+      score: (json['score'] as num?)?.toDouble() ?? 0,
+    );
+  }
+}
+
+@immutable
+class UnifiedSearchResponse {
+  final List<SearchStockResult> stocks;
+  final List<SearchMfResult> mutualFunds;
+
+  const UnifiedSearchResponse({
+    this.stocks = const [],
+    this.mutualFunds = const [],
+  });
+
+  factory UnifiedSearchResponse.fromJson(Map<String, dynamic> json) {
+    return UnifiedSearchResponse(
+      stocks: (json['stocks'] as List<dynamic>? ?? const [])
+          .map((e) => SearchStockResult.fromJson(e as Map<String, dynamic>))
           .toList(),
-      mutualFundItems: mfRaw
+      mutualFunds: (json['mutual_funds'] as List<dynamic>? ?? const [])
+          .map((e) => SearchMfResult.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Discover Home
+// ---------------------------------------------------------------------------
+
+@immutable
+class DiscoverHomeStockItem {
+  final String symbol;
+  final String displayName;
+  final String? sector;
+  final double lastPrice;
+  final double? percentChange;
+  final double score;
+  final String? qualityTier;
+
+  const DiscoverHomeStockItem({
+    required this.symbol,
+    required this.displayName,
+    this.sector,
+    required this.lastPrice,
+    this.percentChange,
+    required this.score,
+    this.qualityTier,
+  });
+
+  factory DiscoverHomeStockItem.fromJson(Map<String, dynamic> json) {
+    return DiscoverHomeStockItem(
+      symbol: json['symbol'] as String,
+      displayName: json['display_name'] as String,
+      sector: json['sector'] as String?,
+      lastPrice: (json['last_price'] as num).toDouble(),
+      percentChange: (json['percent_change'] as num?)?.toDouble(),
+      score: (json['score'] as num?)?.toDouble() ?? 0,
+      qualityTier: json['quality_tier'] as String?,
+    );
+  }
+}
+
+@immutable
+class DiscoverHomeMfItem {
+  final String schemeCode;
+  final String schemeName;
+  final String? category;
+  final double score;
+  final double? returns1y;
+  final List<String> qualityBadges;
+
+  const DiscoverHomeMfItem({
+    required this.schemeCode,
+    required this.schemeName,
+    this.category,
+    required this.score,
+    this.returns1y,
+    this.qualityBadges = const [],
+  });
+
+  factory DiscoverHomeMfItem.fromJson(Map<String, dynamic> json) {
+    return DiscoverHomeMfItem(
+      schemeCode: json['scheme_code'] as String,
+      schemeName: json['scheme_name'] as String,
+      category: json['category'] as String?,
+      score: (json['score'] as num?)?.toDouble() ?? 0,
+      returns1y: (json['returns_1y'] as num?)?.toDouble(),
+      qualityBadges: (json['quality_badges'] as List<dynamic>? ?? const [])
+          .map((e) => '$e')
+          .toList(),
+    );
+  }
+}
+
+@immutable
+class QuickCategory {
+  final String name;
+  final String segment;
+  final String? preset;
+  final String? filterKey;
+  final String? filterValue;
+
+  const QuickCategory({
+    required this.name,
+    required this.segment,
+    this.preset,
+    this.filterKey,
+    this.filterValue,
+  });
+
+  factory QuickCategory.fromJson(Map<String, dynamic> json) {
+    return QuickCategory(
+      name: json['name'] as String,
+      segment: json['segment'] as String,
+      preset: json['preset'] as String?,
+      filterKey: json['filter_key'] as String?,
+      filterValue: json['filter_value'] as String?,
+    );
+  }
+}
+
+@immutable
+class DiscoverHomeData {
+  final List<DiscoverHomeStockItem> topStocks;
+  final List<DiscoverHomeMfItem> topMutualFunds;
+  final List<DiscoverHomeStockItem> trendingStocks;
+  final List<QuickCategory> quickCategories;
+
+  const DiscoverHomeData({
+    this.topStocks = const [],
+    this.topMutualFunds = const [],
+    this.trendingStocks = const [],
+    this.quickCategories = const [],
+  });
+
+  factory DiscoverHomeData.fromJson(Map<String, dynamic> json) {
+    return DiscoverHomeData(
+      topStocks: (json['top_stocks'] as List<dynamic>? ?? const [])
           .map((e) =>
-              DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
+              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      comparisonSummary: json['comparison_summary'] != null
-          ? ComparisonSummary.fromJson(
-              json['comparison_summary'] as Map<String, dynamic>)
-          : null,
+      topMutualFunds:
+          (json['top_mutual_funds'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
+              .toList(),
+      trendingStocks:
+          (json['trending_stocks'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+              .toList(),
+      quickCategories:
+          (json['quick_categories'] as List<dynamic>? ?? const [])
+              .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))
+              .toList(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Price / NAV History (charts)
+// ---------------------------------------------------------------------------
+
+@immutable
+class PriceHistoryPoint {
+  final DateTime date;
+  final double value;
+
+  const PriceHistoryPoint({required this.date, required this.value});
+
+  factory PriceHistoryPoint.fromJson(Map<String, dynamic> json) {
+    return PriceHistoryPoint(
+      date: DateTime.parse(json['date'] as String),
+      value: (json['value'] as num).toDouble(),
+    );
+  }
+}
+
+@immutable
+class PriceHistoryResponse {
+  final String? symbol;
+  final String? schemeCode;
+  final List<PriceHistoryPoint> points;
+  final int count;
+
+  const PriceHistoryResponse({
+    this.symbol,
+    this.schemeCode,
+    this.points = const [],
+    this.count = 0,
+  });
+
+  factory PriceHistoryResponse.fromJson(Map<String, dynamic> json) {
+    final pts = (json['points'] as List<dynamic>? ?? const [])
+        .map((e) => PriceHistoryPoint.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return PriceHistoryResponse(
+      symbol: json['symbol'] as String?,
+      schemeCode: json['scheme_code'] as String?,
+      points: pts,
+      count: (json['count'] as num?)?.toInt() ?? pts.length,
     );
   }
 }

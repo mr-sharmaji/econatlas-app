@@ -47,7 +47,7 @@ class StockListTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${item.symbol} ${item.sector != null ? '· ${item.sector}' : ''}',
+                        '${item.symbol} ${item.sector != null ? '\u00b7 ${item.sector}' : ''}',
                         style: theme.textTheme.bodySmall
                             ?.copyWith(color: Colors.white54),
                       ),
@@ -74,20 +74,50 @@ class StockListTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            ScoreBar(score: item.score),
-            if (item.peRatio != null || item.roe != null) ...[
+
+            // Score bar + quality tier badge
+            Row(
+              children: [
+                Expanded(child: ScoreBar(score: item.score)),
+                if (item.qualityTier != null) ...[
+                  const SizedBox(width: 8),
+                  _QualityTierBadge(tier: item.qualityTier!),
+                ],
+              ],
+            ),
+
+            // Metrics row: P/E, ROE, market cap
+            if (item.peRatio != null ||
+                item.roe != null ||
+                item.marketCap != null) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
                   if (item.peRatio != null)
                     _inlineMetric(
                         context, 'P/E', item.peRatio!.toStringAsFixed(1)),
-                  if (item.peRatio != null && item.roe != null)
+                  if (item.peRatio != null &&
+                      (item.roe != null || item.marketCap != null))
                     const SizedBox(width: 12),
                   if (item.roe != null)
                     _inlineMetric(
                         context, 'ROE', '${item.roe!.toStringAsFixed(1)}%'),
+                  if (item.roe != null && item.marketCap != null)
+                    const SizedBox(width: 12),
+                  if (item.marketCap != null)
+                    _inlineMetric(
+                        context, 'MCap', _formatMarketCap(item.marketCap!)),
                 ],
+              ),
+            ],
+
+            // 52-week range indicator
+            if (item.low52w != null && item.high52w != null) ...[
+              const SizedBox(height: 6),
+              _WeekRangeBar(
+                low: item.low52w!,
+                high: item.high52w!,
+                current: item.lastPrice,
               ),
             ],
           ],
@@ -103,4 +133,155 @@ class StockListTile extends StatelessWidget {
       style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
     );
   }
+
+  /// Format market cap in Indian crore notation.
+  static String _formatMarketCap(double value) {
+    // value is assumed to be in absolute rupees
+    final crore = value / 1e7;
+    if (crore >= 100000) {
+      return '\u20b9${(crore / 100000).toStringAsFixed(1)} L Cr';
+    } else if (crore >= 1) {
+      // Format with commas for Indian numbering
+      final rounded = crore.round();
+      return '\u20b9${_indianNumber(rounded)} Cr';
+    }
+    return '\u20b9${crore.toStringAsFixed(1)} Cr';
+  }
+
+  /// Formats an integer with Indian-style comma grouping (e.g. 12,45,000).
+  static String _indianNumber(int n) {
+    if (n < 0) return '-${_indianNumber(-n)}';
+    final s = n.toString();
+    if (s.length <= 3) return s;
+    final last3 = s.substring(s.length - 3);
+    final rest = s.substring(0, s.length - 3);
+    final buffer = StringBuffer();
+    for (var i = 0; i < rest.length; i++) {
+      if (i > 0 && (rest.length - i) % 2 == 0) {
+        buffer.write(',');
+      }
+      buffer.write(rest[i]);
+    }
+    return '$buffer,$last3';
+  }
+}
+
+/// Small colored chip showing quality tier (Strong, Good, Average, Weak).
+class _QualityTierBadge extends StatelessWidget {
+  final String tier;
+
+  const _QualityTierBadge({required this.tier});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _tierColor(tier);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        tier,
+        style: TextStyle(
+          color: color,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  static Color _tierColor(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'strong':
+        return AppTheme.accentGreen;
+      case 'good':
+        return AppTheme.accentBlue;
+      case 'average':
+        return AppTheme.accentOrange;
+      case 'weak':
+        return AppTheme.accentRed;
+      default:
+        return Colors.white54;
+    }
+  }
+}
+
+/// A thin 52-week range bar showing current price position.
+class _WeekRangeBar extends StatelessWidget {
+  final double low;
+  final double high;
+  final double current;
+
+  const _WeekRangeBar({
+    required this.low,
+    required this.high,
+    required this.current,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final range = high - low;
+    final fraction =
+        range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
+
+    return Row(
+      children: [
+        Text(
+          '52W',
+          style: Theme.of(context)
+              .textTheme
+              .labelSmall
+              ?.copyWith(color: Colors.white38, fontSize: 9),
+        ),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 60,
+          height: 4,
+          child: CustomPaint(
+            painter: _RangeBarPainter(fraction: fraction),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _RangeBarPainter extends CustomPainter {
+  final double fraction;
+
+  _RangeBarPainter({required this.fraction});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trackPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.12)
+      ..strokeCap = StrokeCap.round;
+
+    // Draw track
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+        const Radius.circular(2),
+      ),
+      trackPaint,
+    );
+
+    // Draw position indicator
+    final indicatorX = fraction * size.width;
+    final indicatorPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.7)
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawCircle(
+      Offset(indicatorX.clamp(2, size.width - 2), size.height / 2),
+      3,
+      indicatorPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_RangeBarPainter oldDelegate) =>
+      oldDelegate.fraction != fraction;
 }

@@ -71,8 +71,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
       ref.invalidate(discoverOverviewProvider(DiscoverSegment.mutualFunds));
       ref.invalidate(discoverStocksProvider);
       ref.invalidate(discoverMutualFundsProvider);
-      ref.invalidate(discoverCompareProvider(DiscoverSegment.stocks));
-      ref.invalidate(discoverCompareProvider(DiscoverSegment.mutualFunds));
+      ref.invalidate(discoverHomeDataProvider);
     }
     // Brief data (used by discover home)
     final briefMarket = ref.read(briefMarketProvider);

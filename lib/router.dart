@@ -14,7 +14,6 @@ import 'presentation/screens/discover/stock_screener_screen.dart';
 import 'presentation/screens/discover/mf_screener_screen.dart';
 import 'presentation/screens/discover/stock_detail_screen.dart';
 import 'presentation/screens/discover/mf_detail_screen.dart';
-import 'presentation/screens/discover/compare_screen.dart';
 import 'presentation/screens/tools/currency_converter_screen.dart';
 import 'presentation/screens/tools/income_tax_screen.dart';
 import 'presentation/screens/tools/trade_charges_screen.dart';
@@ -149,11 +148,6 @@ final router = GoRouter(
         final item = state.extra as DiscoverMutualFundItem;
         return MfDetailScreen(item: item);
       },
-    ),
-    GoRoute(
-      parentNavigatorKey: _rootNavigatorKey,
-      path: '/discover/compare',
-      builder: (context, state) => const CompareScreen(),
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,

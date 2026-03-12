@@ -47,6 +47,31 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     });
   }
 
+  /// Build a concise summary of active filters that differ from defaults.
+  String? _activeFilterSummary(DiscoverMutualFundFilters filters) {
+    const defaults = DiscoverMutualFundFilters();
+    final parts = <String>[];
+
+    if (filters.category != defaults.category) {
+      parts.add(filters.category);
+    }
+    if (filters.riskLevel != defaults.riskLevel) {
+      parts.add('${filters.riskLevel} Risk');
+    }
+    if (filters.minScore != defaults.minScore) {
+      parts.add('Min Score ${filters.minScore.round()}');
+    }
+    if (filters.maxExpenseRatio != null) {
+      parts.add('Max Exp ${filters.maxExpenseRatio!.toStringAsFixed(2)}%');
+    }
+    if (filters.sourceStatus != defaults.sourceStatus) {
+      parts.add(filters.sourceStatus[0].toUpperCase() +
+          filters.sourceStatus.substring(1));
+    }
+
+    return parts.isEmpty ? null : parts.join(' \u00b7 ');
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -117,6 +142,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               options: const [
                 SortOption(value: 'score', label: 'Score'),
                 SortOption(value: 'returns_3y', label: '3Y Return'),
+                SortOption(value: 'returns_5y', label: '5Y Return'),
                 SortOption(value: 'returns_1y', label: '1Y Return'),
                 SortOption(value: 'aum', label: 'AUM'),
                 SortOption(value: 'expense', label: 'Expense'),
@@ -152,13 +178,18 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                 }
                 final showCount = response.totalCount != null &&
                     response.totalCount! > items.length;
+                final filterSummary = _activeFilterSummary(filters);
+                // Header takes 1 slot if showCount, plus 1 if filterSummary.
+                final headerSlots =
+                    (showCount ? 1 : 0) + (filterSummary != null ? 1 : 0);
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: items.length + (showCount ? 1 : 0),
+                  itemCount: items.length + headerSlots,
                   itemBuilder: (context, index) {
-                    if (index == 0 && showCount) {
+                    // "Showing X of Y funds" header
+                    if (showCount && index == 0) {
                       return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.only(bottom: 4),
                         child: Text(
                           'Showing ${items.length} of ${response.totalCount} funds',
                           style: theme.textTheme.bodySmall
@@ -166,7 +197,19 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                         ),
                       );
                     }
-                    final itemIndex = showCount ? index - 1 : index;
+                    // Active filter summary row
+                    if (filterSummary != null &&
+                        index == (showCount ? 1 : 0)) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: Text(
+                          filterSummary,
+                          style: theme.textTheme.labelSmall
+                              ?.copyWith(color: Colors.white38),
+                        ),
+                      );
+                    }
+                    final itemIndex = index - headerSlots;
                     final item = items[itemIndex];
                     return MfListTile(
                       item: item,

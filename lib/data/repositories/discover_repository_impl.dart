@@ -93,10 +93,32 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
   }
 
   @override
-  Future<DiscoverCompareResponse> getCompare({
-    required String segment,
-    required List<String> ids,
+  Future<UnifiedSearchResponse> search({
+    required String query,
+    int limit = 10,
   }) {
-    return _remote.getDiscoverCompare(segment: segment, ids: ids);
+    return _remote.discoverSearch(query: query, limit: limit);
+  }
+
+  @override
+  Future<DiscoverHomeData> getHomeData() {
+    return _remote.getDiscoverHome();
+  }
+
+  @override
+  Future<PriceHistoryResponse> getStockHistory({
+    required String symbol,
+    int days = 365,
+  }) {
+    return _remote.getDiscoverStockHistory(symbol: symbol, days: days);
+  }
+
+  @override
+  Future<PriceHistoryResponse> getMfNavHistory({
+    required String schemeCode,
+    int days = 365,
+  }) {
+    return _remote.getDiscoverMfNavHistory(
+        schemeCode: schemeCode, days: days);
   }
 }

@@ -85,8 +85,6 @@ class AppConstants {
   static const String prefDiscoverMutualFundPreset = 'discover_mf_preset';
   static const String prefDiscoverStockFilters = 'discover_stock_filters';
   static const String prefDiscoverMutualFundFilters = 'discover_mf_filters';
-  static const String prefDiscoverStockCompare = 'discover_stock_compare';
-  static const String prefDiscoverMutualFundCompare = 'discover_mf_compare';
   static const String prefConverterFrom = 'converter_from_currency';
   static const String prefConverterTo = 'converter_to_currency';
   static const String prefConverterAmount = 'converter_amount';

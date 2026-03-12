@@ -42,8 +42,20 @@ abstract class DiscoverRepository {
     int offset,
   });
 
-  Future<DiscoverCompareResponse> getCompare({
-    required String segment,
-    required List<String> ids,
+  Future<UnifiedSearchResponse> search({
+    required String query,
+    int limit,
+  });
+
+  Future<DiscoverHomeData> getHomeData();
+
+  Future<PriceHistoryResponse> getStockHistory({
+    required String symbol,
+    int days,
+  });
+
+  Future<PriceHistoryResponse> getMfNavHistory({
+    required String schemeCode,
+    int days,
   });
 }
