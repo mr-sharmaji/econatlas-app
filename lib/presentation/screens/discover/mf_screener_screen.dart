@@ -12,8 +12,9 @@ import 'widgets/mf_list_tile.dart';
 
 class MfScreenerScreen extends ConsumerStatefulWidget {
   final String? initialSearch;
+  final String? initialPreset;
 
-  const MfScreenerScreen({super.key, this.initialSearch});
+  const MfScreenerScreen({super.key, this.initialSearch, this.initialPreset});
 
   @override
   ConsumerState<MfScreenerScreen> createState() => _MfScreenerScreenState();
@@ -21,6 +22,7 @@ class MfScreenerScreen extends ConsumerStatefulWidget {
 
 class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
   late final TextEditingController _searchController;
+  late final ScrollController _listScrollController;
   Timer? _debounce;
 
   @override
@@ -28,16 +30,37 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     super.initState();
     _searchController =
         TextEditingController(text: widget.initialSearch ?? '');
+    _listScrollController = ScrollController();
+    _listScrollController.addListener(_onScroll);
+    if (widget.initialPreset != null) {
+      final preset = DiscoverMutualFundPreset.values.firstWhere(
+        (p) => p.apiValue == widget.initialPreset,
+        orElse: () => DiscoverMutualFundPreset.all,
+      );
+      Future.microtask(() {
+        ref.read(discoverMutualFundPresetProvider.notifier).setPreset(preset);
+      });
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
+  void _onScroll() {
+    if (!_listScrollController.hasClients) return;
+    final pos = _listScrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      ref.read(discoverMutualFundsProvider.notifier).loadMore();
+    }
+  }
+
   void _onSearchChanged(String text) {
+    setState(() {}); // Update clear-button visibility
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       final current = ref.read(discoverMutualFundFiltersProvider);
@@ -45,31 +68,6 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
           .read(discoverMutualFundFiltersProvider.notifier)
           .setFilters(current.copyWith(search: text));
     });
-  }
-
-  /// Build a concise summary of active filters that differ from defaults.
-  String? _activeFilterSummary(DiscoverMutualFundFilters filters) {
-    const defaults = DiscoverMutualFundFilters();
-    final parts = <String>[];
-
-    if (filters.category != defaults.category) {
-      parts.add(filters.category);
-    }
-    if (filters.riskLevel != defaults.riskLevel) {
-      parts.add('${filters.riskLevel} Risk');
-    }
-    if (filters.minScore != defaults.minScore) {
-      parts.add('Min Score ${filters.minScore.round()}');
-    }
-    if (filters.maxExpenseRatio != null) {
-      parts.add('Max Exp ${filters.maxExpenseRatio!.toStringAsFixed(2)}%');
-    }
-    if (filters.sourceStatus != defaults.sourceStatus) {
-      parts.add(filters.sourceStatus[0].toUpperCase() +
-          filters.sourceStatus.substring(1));
-    }
-
-    return parts.isEmpty ? null : parts.join(' \u00b7 ');
   }
 
   @override
@@ -99,6 +97,20 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               decoration: InputDecoration(
                 hintText: 'Search mutual funds...',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                          ref
+                              .read(discoverMutualFundFiltersProvider.notifier)
+                              .setFilters(ref
+                                  .read(discoverMutualFundFiltersProvider)
+                                  .copyWith(search: ''));
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -126,6 +138,16 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                       ref
                           .read(discoverMutualFundPresetProvider.notifier)
                           .setPreset(option);
+                      // Clear search when switching presets
+                      if (_searchController.text.isNotEmpty) {
+                        _searchController.clear();
+                        setState(() {});
+                        ref
+                            .read(discoverMutualFundFiltersProvider.notifier)
+                            .setFilters(ref
+                                .read(discoverMutualFundFiltersProvider)
+                                .copyWith(search: ''));
+                      }
                     },
                   ),
                 );
@@ -169,58 +191,43 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               error: (err, _) => Center(
                 child: Text(friendlyErrorMessage(err)),
               ),
-              data: (response) {
-                final items = response.items;
+              data: (paginatedState) {
+                final items = paginatedState.items;
                 if (items.isEmpty) {
                   return const Center(
                     child: Text('No mutual funds match'),
                   );
                 }
-                final showCount = response.totalCount != null &&
-                    response.totalCount! > items.length;
-                final filterSummary = _activeFilterSummary(filters);
-                // Header takes 1 slot if showCount, plus 1 if filterSummary.
-                final headerSlots =
-                    (showCount ? 1 : 0) + (filterSummary != null ? 1 : 0);
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  itemCount: items.length + headerSlots,
-                  itemBuilder: (context, index) {
-                    // "Showing X of Y funds" header
-                    if (showCount && index == 0) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: Text(
-                          'Showing ${items.length} of ${response.totalCount} funds',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white54),
-                        ),
-                      );
-                    }
-                    // Active filter summary row
-                    if (filterSummary != null &&
-                        index == (showCount ? 1 : 0)) {
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          filterSummary,
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: Colors.white38),
-                        ),
-                      );
-                    }
-                    final itemIndex = index - headerSlots;
-                    final item = items[itemIndex];
-                    return MfListTile(
-                      item: item,
-                      onTap: () {
-                        context.push(
-                          '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
-                          extra: item,
-                        );
-                      },
-                    );
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(discoverMutualFundsProvider);
                   },
+                  child: ListView.builder(
+                    controller: _listScrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount:
+                        items.length + (paginatedState.isLoadingMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= items.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
+                        );
+                      }
+                      final item = items[index];
+                      return MfListTile(
+                        item: item,
+                        onTap: () {
+                          context.push(
+                            '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
+                            extra: item,
+                          );
+                        },
+                      );
+                    },
+                  ),
                 );
               },
             ),
@@ -244,8 +251,6 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
             var riskLevel = current.riskLevel;
             var maxExpenseText =
                 current.maxExpenseRatio?.toString() ?? '';
-            var sourceStatus = current.sourceStatus;
-
             return Padding(
               padding: EdgeInsets.only(
                 left: 16,
@@ -334,27 +339,6 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                           setLocalState(() => maxExpenseText = v),
                     ),
 
-                    const SizedBox(height: 12),
-
-                    // Source Status
-                    DropdownButtonFormField<String>(
-                      value: sourceStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Source Status',
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All')),
-                        DropdownMenuItem(
-                            value: 'primary', child: Text('Primary')),
-                        DropdownMenuItem(
-                            value: 'fallback', child: Text('Fallback')),
-                        DropdownMenuItem(
-                            value: 'limited', child: Text('Limited')),
-                      ],
-                      onChanged: (v) =>
-                          setLocalState(() => sourceStatus = v ?? 'all'),
-                    ),
-
                     const SizedBox(height: 20),
 
                     // Reset / Apply row
@@ -368,6 +352,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                                       .notifier)
                                   .setFilters(
                                       const DiscoverMutualFundFilters());
+                              _searchController.clear();
                               Navigator.pop(context);
                             },
                             child: const Text('Reset'),
@@ -387,7 +372,6 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                                     category: category,
                                     riskLevel: riskLevel,
                                     maxExpenseRatio: expenseRatio,
-                                    sourceStatus: sourceStatus,
                                     directOnly: true,
                                   ));
                               Navigator.pop(context);

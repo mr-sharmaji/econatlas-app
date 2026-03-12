@@ -11,9 +11,10 @@ import 'widgets/score_bar.dart';
 import 'widgets/metric_grid.dart';
 
 class MfDetailScreen extends ConsumerStatefulWidget {
-  final DiscoverMutualFundItem item;
+  final String schemeCode;
+  final DiscoverMutualFundItem? initialItem;
 
-  const MfDetailScreen({super.key, required this.item});
+  const MfDetailScreen({super.key, required this.schemeCode, this.initialItem});
 
   @override
   ConsumerState<MfDetailScreen> createState() => _MfDetailScreenState();
@@ -29,12 +30,35 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     (label: '1Y', days: 365),
   ];
 
-  DiscoverMutualFundItem get item => widget.item;
+  late DiscoverMutualFundItem item;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    if (widget.initialItem != null) {
+      item = widget.initialItem!;
+      return _buildContent(theme, item);
+    }
+
+    final detailAsync = ref.watch(discoverMfDetailProvider(widget.schemeCode));
+    return detailAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Fund Detail')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => Scaffold(
+        appBar: AppBar(title: const Text('Fund Detail')),
+        body: const Center(child: Text('Error loading fund details')),
+      ),
+      data: (loadedItem) {
+        item = loadedItem;
+        return _buildContent(theme, loadedItem);
+      },
+    );
+  }
+
+  Widget _buildContent(ThemeData theme, DiscoverMutualFundItem item) {
     return Scaffold(
       appBar: AppBar(title: const Text('Fund Detail')),
       body: SingleChildScrollView(
@@ -84,12 +108,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             if (item.tags.isNotEmpty) ...[
               _buildTagsSection(theme),
               const SizedBox(height: 12),
-            ],
-
-            // ── Why Ranked ──
-            if (item.whyRanked.isNotEmpty) ...[
-              _buildWhyRankedSection(theme),
-              const SizedBox(height: 16),
             ],
 
             const SizedBox(height: 24),
@@ -166,7 +184,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          item.schemeName,
+          item.displayName ?? item.schemeName,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: theme.textTheme.titleMedium
@@ -648,8 +666,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       display = '${value.toStringAsFixed(1)}%';
       color = value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     } else {
-      display = 'N/A';
-      color = Colors.white54;
+      display = '\u2014';
+      color = Colors.white38;
     }
 
     return Column(
@@ -692,25 +710,30 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   label: 'AUM',
                   value: item.aumCr != null
                       ? '${NumberFormat('#,##,###', 'en_IN').format(item.aumCr!.round())} Cr'
-                      : 'N/A',
+                      : '\u2014',
+                  valueColor: item.aumCr == null ? Colors.white38 : null,
                 ),
                 MetricItem(
                   label: 'Expense Ratio',
                   value: item.expenseRatio != null
                       ? '${item.expenseRatio!.toStringAsFixed(2)}%'
-                      : 'N/A',
+                      : '\u2014',
+                  valueColor: _expenseColor(item.expenseRatio),
                 ),
                 MetricItem(
                   label: 'Sharpe',
-                  value: item.sharpe?.toStringAsFixed(2) ?? 'N/A',
+                  value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: _sharpeColor(item.sharpe),
                 ),
                 MetricItem(
                   label: 'Sortino',
-                  value: item.sortino?.toStringAsFixed(2) ?? 'N/A',
+                  value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: _sharpeColor(item.sortino),
                 ),
                 MetricItem(
                   label: 'Std Dev',
-                  value: item.stdDev?.toStringAsFixed(2) ?? 'N/A',
+                  value: item.stdDev?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: item.stdDev == null ? Colors.white38 : null,
                 ),
                 if (item.fundAgeYears != null)
                   MetricItem(
@@ -826,6 +849,22 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
+  // ── Metric Color Helpers ─────────────────────────────────────────────────
+
+  static Color? _expenseColor(double? expense) {
+    if (expense == null) return Colors.white38;
+    if (expense < 0.5) return AppTheme.accentGreen;
+    if (expense > 1.5) return AppTheme.accentRed;
+    return null;
+  }
+
+  static Color? _sharpeColor(double? sharpe) {
+    if (sharpe == null) return Colors.white38;
+    if (sharpe > 1.5) return AppTheme.accentGreen;
+    if (sharpe < 0.5) return AppTheme.accentRed;
+    return null;
+  }
+
   // ── Tags ────────────────────────────────────────────────────────────────
 
   Widget _buildTagsSection(ThemeData theme) {
@@ -841,38 +880,4 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Why Ranked ──────────────────────────────────────────────────────────
-
-  Widget _buildWhyRankedSection(ThemeData theme) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Why Ranked', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            ...item.whyRanked.map((reason) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('  \u2022  ',
-                          style: TextStyle(color: Colors.white54)),
-                      Expanded(
-                        child: Text(
-                          reason,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white70),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-      ),
-    );
-  }
 }

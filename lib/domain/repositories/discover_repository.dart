@@ -58,4 +58,8 @@ abstract class DiscoverRepository {
     required String schemeCode,
     int days,
   });
+
+  Future<DiscoverStockItem> getStockBySymbol({required String symbol});
+
+  Future<DiscoverMutualFundItem> getMfBySchemeCode({required String schemeCode});
 }

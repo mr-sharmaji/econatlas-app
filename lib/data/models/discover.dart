@@ -314,6 +314,7 @@ class DiscoverMutualFundScoreBreakdown {
 class DiscoverMutualFundItem {
   final String schemeCode;
   final String schemeName;
+  final String? displayName;
   final String? amc;
   final String? category;
   final String? subCategory;
@@ -354,6 +355,7 @@ class DiscoverMutualFundItem {
   const DiscoverMutualFundItem({
     required this.schemeCode,
     required this.schemeName,
+    this.displayName,
     required this.amc,
     required this.category,
     required this.subCategory,
@@ -396,6 +398,7 @@ class DiscoverMutualFundItem {
     return DiscoverMutualFundItem(
       schemeCode: json['scheme_code'] as String,
       schemeName: json['scheme_name'] as String,
+      displayName: json['display_name'] as String?,
       amc: json['amc'] as String?,
       category: json['category'] as String?,
       subCategory: json['sub_category'] as String?,
@@ -608,6 +611,7 @@ class DiscoverHomeStockItem {
 class DiscoverHomeMfItem {
   final String schemeCode;
   final String schemeName;
+  final String? displayName;
   final String? category;
   final double score;
   final double? returns1y;
@@ -616,6 +620,7 @@ class DiscoverHomeMfItem {
   const DiscoverHomeMfItem({
     required this.schemeCode,
     required this.schemeName,
+    this.displayName,
     this.category,
     required this.score,
     this.returns1y,
@@ -626,6 +631,7 @@ class DiscoverHomeMfItem {
     return DiscoverHomeMfItem(
       schemeCode: json['scheme_code'] as String,
       schemeName: json['scheme_name'] as String,
+      displayName: json['display_name'] as String?,
       category: json['category'] as String?,
       score: (json['score'] as num?)?.toDouble() ?? 0,
       returns1y: (json['returns_1y'] as num?)?.toDouble(),

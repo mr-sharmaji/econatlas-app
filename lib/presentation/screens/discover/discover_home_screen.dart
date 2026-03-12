@@ -76,10 +76,15 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   }
 
   void _onCategoryTap(QuickCategory cat) {
+    final params = <String, String>{};
+    if (cat.preset != null) params['preset'] = cat.preset!;
+    if (cat.filterKey != null) params['filterKey'] = cat.filterKey!;
+    if (cat.filterValue != null) params['filterValue'] = cat.filterValue!;
+
     if (cat.segment == 'mutual_funds') {
-      context.push('/discover/mutual-funds');
+      context.push('/discover/mutual-funds', extra: params);
     } else {
-      context.push('/discover/stocks');
+      context.push('/discover/stocks', extra: params);
     }
   }
 
@@ -589,7 +594,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              item.schemeName,
+              item.displayName ?? item.schemeName,
               style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

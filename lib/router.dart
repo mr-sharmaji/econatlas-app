@@ -121,32 +121,46 @@ final router = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/discover/stocks',
       builder: (context, state) {
-        final initialSearch = state.extra as String?;
-        return StockScreenerScreen(initialSearch: initialSearch);
+        final extra = state.extra;
+        final params = extra is Map<String, String> ? extra : <String, String>{};
+        final initialSearch = extra is String ? extra : params['search'];
+        return StockScreenerScreen(
+          initialSearch: initialSearch,
+          initialPreset: params['preset'],
+          initialFilterKey: params['filterKey'],
+          initialFilterValue: params['filterValue'],
+        );
       },
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/discover/mutual-funds',
       builder: (context, state) {
-        final initialSearch = state.extra as String?;
-        return MfScreenerScreen(initialSearch: initialSearch);
+        final extra = state.extra;
+        final params = extra is Map<String, String> ? extra : <String, String>{};
+        final initialSearch = extra is String ? extra : params['search'];
+        return MfScreenerScreen(
+          initialSearch: initialSearch,
+          initialPreset: params['preset'],
+        );
       },
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/discover/stock/:symbol',
       builder: (context, state) {
-        final item = state.extra as DiscoverStockItem;
-        return StockDetailScreen(item: item);
+        final symbol = Uri.decodeComponent(state.pathParameters['symbol']!);
+        final item = state.extra is DiscoverStockItem ? state.extra as DiscoverStockItem : null;
+        return StockDetailScreen(symbol: symbol, initialItem: item);
       },
     ),
     GoRoute(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/discover/mf/:schemeCode',
       builder: (context, state) {
-        final item = state.extra as DiscoverMutualFundItem;
-        return MfDetailScreen(item: item);
+        final schemeCode = Uri.decodeComponent(state.pathParameters['schemeCode']!);
+        final item = state.extra is DiscoverMutualFundItem ? state.extra as DiscoverMutualFundItem : null;
+        return MfDetailScreen(schemeCode: schemeCode, initialItem: item);
       },
     ),
     GoRoute(

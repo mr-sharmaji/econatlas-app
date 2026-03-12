@@ -415,6 +415,16 @@ class RemoteDataSource {
     );
   }
 
+  Future<DiscoverStockItem> getDiscoverStockBySymbol(String symbol) async {
+    final response = await _dio.get('/screener/stocks/${Uri.encodeComponent(symbol)}/detail');
+    return DiscoverStockItem.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<DiscoverMutualFundItem> getDiscoverMfBySchemeCode(String schemeCode) async {
+    final response = await _dio.get('/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/detail');
+    return DiscoverMutualFundItem.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<IpoListResponse> getIpos({
     required String status,
     int limit = 20,

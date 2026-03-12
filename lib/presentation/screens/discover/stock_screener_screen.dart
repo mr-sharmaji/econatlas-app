@@ -12,8 +12,17 @@ import 'widgets/stock_list_tile.dart';
 
 class StockScreenerScreen extends ConsumerStatefulWidget {
   final String? initialSearch;
+  final String? initialPreset;
+  final String? initialFilterKey;
+  final String? initialFilterValue;
 
-  const StockScreenerScreen({super.key, this.initialSearch});
+  const StockScreenerScreen({
+    super.key,
+    this.initialSearch,
+    this.initialPreset,
+    this.initialFilterKey,
+    this.initialFilterValue,
+  });
 
   @override
   ConsumerState<StockScreenerScreen> createState() =>
@@ -22,6 +31,7 @@ class StockScreenerScreen extends ConsumerStatefulWidget {
 
 class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
   late final TextEditingController _searchController;
+  late final ScrollController _listScrollController;
   Timer? _debounce;
 
   @override
@@ -29,16 +39,45 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     super.initState();
     _searchController =
         TextEditingController(text: widget.initialSearch ?? '');
+    _listScrollController = ScrollController();
+    _listScrollController.addListener(_onScroll);
+    if (widget.initialPreset != null) {
+      final preset = DiscoverStockPreset.values.firstWhere(
+        (p) => p.apiValue == widget.initialPreset,
+        orElse: () => DiscoverStockPreset.momentum,
+      );
+      Future.microtask(() {
+        ref.read(discoverStockPresetProvider.notifier).setPreset(preset);
+      });
+    }
+    if (widget.initialFilterKey == 'sector' && widget.initialFilterValue != null) {
+      Future.microtask(() {
+        final current = ref.read(discoverStockFiltersProvider);
+        ref.read(discoverStockFiltersProvider.notifier).setFilters(
+          current.copyWith(sector: widget.initialFilterValue!),
+        );
+      });
+    }
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
     _searchController.dispose();
+    _listScrollController.dispose();
     super.dispose();
   }
 
+  void _onScroll() {
+    if (!_listScrollController.hasClients) return;
+    final pos = _listScrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      ref.read(discoverStocksProvider.notifier).loadMore();
+    }
+  }
+
   void _onSearchChanged(String text) {
+    setState(() {}); // Update clear-button visibility
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 300), () {
       final current = ref.read(discoverStockFiltersProvider);
@@ -46,34 +85,6 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
           .read(discoverStockFiltersProvider.notifier)
           .setFilters(current.copyWith(search: text));
     });
-  }
-
-  /// Build a concise summary of active filters that differ from defaults.
-  String? _buildFilterSummary(DiscoverStockFilters filters) {
-    const defaults = DiscoverStockFilters();
-    final parts = <String>[];
-
-    if (filters.minScore != defaults.minScore) {
-      parts.add('Min Score ${filters.minScore.round()}');
-    }
-    if (filters.sector != defaults.sector) {
-      parts.add('${filters.sector} Sector');
-    }
-    if (filters.sourceStatus != defaults.sourceStatus) {
-      parts.add(filters.sourceStatus[0].toUpperCase() +
-          filters.sourceStatus.substring(1));
-    }
-    if (filters.minPe != null) {
-      parts.add('P/E >= ${filters.minPe!.toStringAsFixed(1)}');
-    }
-    if (filters.maxPe != null) {
-      parts.add('P/E <= ${filters.maxPe!.toStringAsFixed(1)}');
-    }
-    if (filters.search.isNotEmpty) {
-      parts.add('"${filters.search}"');
-    }
-
-    return parts.isEmpty ? null : parts.join(' \u00b7 ');
   }
 
   @override
@@ -103,6 +114,20 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
               decoration: InputDecoration(
                 hintText: 'Search stocks...',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _searchController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                          ref
+                              .read(discoverStockFiltersProvider.notifier)
+                              .setFilters(ref
+                                  .read(discoverStockFiltersProvider)
+                                  .copyWith(search: ''));
+                        },
+                      )
+                    : null,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -129,6 +154,16 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                       ref
                           .read(discoverStockPresetProvider.notifier)
                           .setPreset(option);
+                      // Clear search when switching presets
+                      if (_searchController.text.isNotEmpty) {
+                        _searchController.clear();
+                        setState(() {});
+                        ref
+                            .read(discoverStockFiltersProvider.notifier)
+                            .setFilters(ref
+                                .read(discoverStockFiltersProvider)
+                                .copyWith(search: ''));
+                      }
                     },
                   ),
                 );
@@ -183,8 +218,8 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                       ?.copyWith(color: Colors.white54),
                 ),
               ),
-              data: (response) {
-                final items = response.items;
+              data: (paginatedState) {
+                final items = paginatedState.items;
                 if (items.isEmpty) {
                   return Center(
                     child: Text(
@@ -195,44 +230,25 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                   );
                 }
 
-                final hasHeader = response.totalCount != null &&
-                    response.totalCount! > items.length;
-                final filterSummary = _buildFilterSummary(filters);
-
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(discoverStocksProvider);
                   },
                   child: ListView.builder(
+                    controller: _listScrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: items.length + (hasHeader ? 1 : 0),
+                    itemCount:
+                        items.length + (paginatedState.isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index == 0 && hasHeader) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Showing ${items.length} of ${response.totalCount} stocks',
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: Colors.white54),
-                              ),
-                              if (filterSummary != null) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  filterSummary,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: Colors.white38,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
+                      if (index >= items.length) {
+                        return const Padding(
+                          padding: EdgeInsets.all(16),
+                          child: Center(
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
                         );
                       }
-                      final itemIndex = hasHeader ? index - 1 : index;
-                      final item = items[itemIndex];
+                      final item = items[index];
                       return StockListTile(
                         item: item,
                         onTap: () => context.push(
@@ -260,7 +276,6 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       builder: (sheetContext) {
         double localMinScore = current.minScore;
         String localSector = current.sector;
-        String localSourceStatus = current.sourceStatus;
         final minPeController = TextEditingController(
           text: current.minPe?.toString() ?? '',
         );
@@ -319,6 +334,18 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                         DropdownMenuItem(
                             value: 'Consumer', child: Text('Consumer')),
                         DropdownMenuItem(value: 'Auto', child: Text('Auto')),
+                        DropdownMenuItem(
+                            value: 'Industrials', child: Text('Industrials')),
+                        DropdownMenuItem(
+                            value: 'Materials', child: Text('Materials')),
+                        DropdownMenuItem(
+                            value: 'Telecom', child: Text('Telecom')),
+                        DropdownMenuItem(
+                            value: 'Real Estate', child: Text('Real Estate')),
+                        DropdownMenuItem(
+                            value: 'Media', child: Text('Media')),
+                        DropdownMenuItem(
+                            value: 'Other', child: Text('Other')),
                       ],
                       onChanged: (v) => setSheetState(() {
                         localSector = v ?? 'All';
@@ -356,29 +383,6 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                       ],
                     ),
 
-                    const SizedBox(height: 12),
-
-                    // Source status
-                    DropdownButtonFormField<String>(
-                      value: localSourceStatus,
-                      decoration: const InputDecoration(
-                        labelText: 'Source Status',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All')),
-                        DropdownMenuItem(
-                            value: 'primary', child: Text('Primary')),
-                        DropdownMenuItem(
-                            value: 'fallback', child: Text('Fallback')),
-                        DropdownMenuItem(
-                            value: 'limited', child: Text('Limited')),
-                      ],
-                      onChanged: (v) => setSheetState(() {
-                        localSourceStatus = v ?? 'all';
-                      }),
-                    ),
-
                     const SizedBox(height: 20),
 
                     // Action buttons
@@ -412,7 +416,6 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                                       sector: localSector,
                                       minPe: minPe,
                                       maxPe: maxPe,
-                                      sourceStatus: localSourceStatus,
                                     ),
                                   );
                               Navigator.pop(ctx);

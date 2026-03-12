@@ -10,9 +10,10 @@ import 'widgets/score_bar.dart';
 import 'widgets/metric_grid.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
-  final DiscoverStockItem item;
+  final String symbol;
+  final DiscoverStockItem? initialItem;
 
-  const StockDetailScreen({super.key, required this.item});
+  const StockDetailScreen({super.key, required this.symbol, this.initialItem});
 
   @override
   ConsumerState<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -30,8 +31,27 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
     final theme = Theme.of(context);
+
+    if (widget.initialItem != null) {
+      return _buildContent(theme, widget.initialItem!);
+    }
+
+    final detailAsync = ref.watch(discoverStockDetailProvider(widget.symbol));
+    return detailAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: Text(widget.symbol)),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => Scaffold(
+        appBar: AppBar(title: Text(widget.symbol)),
+        body: const Center(child: Text('Error loading stock details')),
+      ),
+      data: (item) => _buildContent(theme, item),
+    );
+  }
+
+  Widget _buildContent(ThemeData theme, DiscoverStockItem item) {
     final isPositive = (item.percentChange ?? 0) >= 0;
     final changeColor =
         isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
@@ -203,15 +223,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             _buildMetricSection(theme, 'Valuation', [
               MetricItem(
                 label: 'P/E',
-                value: item.peRatio?.toStringAsFixed(1) ?? 'N/A',
+                value: item.peRatio?.toStringAsFixed(1) ?? '\u2014',
+                valueColor: _peColor(item.peRatio),
               ),
               MetricItem(
                 label: 'P/B',
-                value: item.priceToBook?.toStringAsFixed(2) ?? 'N/A',
+                value: item.priceToBook?.toStringAsFixed(2) ?? '\u2014',
+                valueColor: item.priceToBook == null ? Colors.white38 : null,
               ),
               MetricItem(
                 label: 'EPS',
-                value: item.eps?.toStringAsFixed(2) ?? 'N/A',
+                value: item.eps?.toStringAsFixed(2) ?? '\u2014',
+                valueColor: item.eps == null ? Colors.white38 : null,
               ),
             ]),
             const SizedBox(height: 14),
@@ -222,17 +245,20 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 label: 'ROE',
                 value: item.roe != null
                     ? '${item.roe!.toStringAsFixed(1)}%'
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: _roeColor(item.roe),
               ),
               MetricItem(
                 label: 'ROCE',
                 value: item.roce != null
                     ? '${item.roce!.toStringAsFixed(1)}%'
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: _roeColor(item.roce),
               ),
               MetricItem(
                 label: 'D/E',
-                value: item.debtToEquity?.toStringAsFixed(2) ?? 'N/A',
+                value: item.debtToEquity?.toStringAsFixed(2) ?? '\u2014',
+                valueColor: _deColor(item.debtToEquity),
               ),
             ]),
             const SizedBox(height: 14),
@@ -243,107 +269,49 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 label: 'Volume',
                 value: item.volume != null
                     ? _formatLargeNumber(item.volume!.toDouble())
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: item.volume == null ? Colors.white38 : null,
               ),
               MetricItem(
                 label: 'Traded Value',
                 value: item.tradedValue != null
                     ? '\u20B9${_formatCrores(item.tradedValue!)}'
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: item.tradedValue == null ? Colors.white38 : null,
               ),
               MetricItem(
                 label: 'Market Cap',
                 value: item.marketCap != null
                     ? '\u20B9${_formatCrores(item.marketCap!)} Cr'
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: item.marketCap == null ? Colors.white38 : null,
               ),
               MetricItem(
                 label: 'Dividend Yield',
                 value: item.dividendYield != null
                     ? '${item.dividendYield!.toStringAsFixed(2)}%'
-                    : 'N/A',
+                    : '\u2014',
+                valueColor: item.dividendYield == null ? Colors.white38 : null,
               ),
             ]),
             const SizedBox(height: 14),
 
             // -- Tags --------------------------------------------
             if (item.tags.isNotEmpty) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Tags',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: item.tags
-                            .map(
-                              (tag) => Chip(
-                                label: Text(tag),
-                                visualDensity: VisualDensity.compact,
-                                side: BorderSide(
-                                  color:
-                                      Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-
-            // -- Why Ranked --------------------------------------
-            if (item.whyRanked.isNotEmpty) ...[
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Why Ranked',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 10),
-                      ...item.whyRanked.map(
-                        (reason) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '\u2022  ',
-                                style: theme.textTheme.bodyMedium
-                                    ?.copyWith(color: Colors.white54),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  reason,
-                                  style: theme.textTheme.bodyMedium
-                                      ?.copyWith(color: Colors.white70),
-                                ),
-                              ),
-                            ],
-                          ),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: item.tags
+                    .map(
+                      (tag) => Chip(
+                        label: Text(tag, style: theme.textTheme.labelSmall),
+                        visualDensity: VisualDensity.compact,
+                        side: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
-                    ],
-                  ),
-                ),
+                    )
+                    .toList(),
               ),
               const SizedBox(height: 14),
             ],
@@ -583,6 +551,29 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         ),
       ),
     );
+  }
+
+  // ── Metric Color Helpers ────────────────────────────────────────
+
+  static Color? _peColor(double? pe) {
+    if (pe == null) return Colors.white38;
+    if (pe < 25) return AppTheme.accentGreen;
+    if (pe > 40) return AppTheme.accentRed;
+    return null; // default text color
+  }
+
+  static Color? _roeColor(double? roe) {
+    if (roe == null) return Colors.white38;
+    if (roe > 15) return AppTheme.accentGreen;
+    if (roe < 10) return AppTheme.accentRed;
+    return null;
+  }
+
+  static Color? _deColor(double? de) {
+    if (de == null) return Colors.white38;
+    if (de < 0.5) return AppTheme.accentGreen;
+    if (de > 1.0) return AppTheme.accentRed;
+    return null;
   }
 
   // ── Number Formatting Helpers ───────────────────────────────────

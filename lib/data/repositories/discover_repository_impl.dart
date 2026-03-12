@@ -121,4 +121,12 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
     return _remote.getDiscoverMfNavHistory(
         schemeCode: schemeCode, days: days);
   }
+
+  @override
+  Future<DiscoverStockItem> getStockBySymbol({required String symbol}) =>
+      _remote.getDiscoverStockBySymbol(symbol);
+
+  @override
+  Future<DiscoverMutualFundItem> getMfBySchemeCode({required String schemeCode}) =>
+      _remote.getDiscoverMfBySchemeCode(schemeCode);
 }

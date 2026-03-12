@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -515,55 +516,173 @@ final discoverOverviewProvider =
       .getOverview(segment: segment.apiValue);
 });
 
-final discoverStocksProvider =
-    FutureProvider.autoDispose<DiscoverStockListResponse>((ref) {
-  final preset = ref.watch(discoverStockPresetProvider);
-  final filters = ref.watch(discoverStockFiltersProvider);
-  return ref.watch(discoverRepoProvider).getStocks(
-        preset: preset.apiValue,
-        search: filters.search,
-        sector: filters.sector == 'All' ? null : filters.sector,
-        minScore: filters.minScore,
-        minPrice: filters.minPrice,
-        maxPrice: filters.maxPrice,
-        minPe: filters.minPe,
-        maxPe: filters.maxPe,
-        minRoe: filters.minRoe,
-        minRoce: filters.minRoce,
-        maxDebtToEquity: filters.maxDebtToEquity,
-        minVolume: filters.minVolume,
-        minTradedValue: filters.minTradedValue,
-        sourceStatus:
-            filters.sourceStatus == 'all' ? null : filters.sourceStatus,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder,
-        limit: 40,
-        offset: 0,
-      );
-});
+// Paginated state for stock/MF lists
+@immutable
+class PaginatedListState<T> {
+  final List<T> items;
+  final int totalCount;
+  final bool hasMore;
+  final bool isLoadingMore;
 
-final discoverMutualFundsProvider =
-    FutureProvider.autoDispose<DiscoverMutualFundListResponse>((ref) {
-  final preset = ref.watch(discoverMutualFundPresetProvider);
-  final filters = ref.watch(discoverMutualFundFiltersProvider);
-  return ref.watch(discoverRepoProvider).getMutualFunds(
-        preset: preset.apiValue,
-        search: filters.search,
-        category: filters.category == 'All' ? null : filters.category,
-        riskLevel: filters.riskLevel == 'All' ? null : filters.riskLevel,
-        directOnly: filters.directOnly,
-        minScore: filters.minScore,
-        minAumCr: filters.minAumCr,
-        maxExpenseRatio: filters.maxExpenseRatio,
-        minReturn3y: filters.minReturn3y,
-        sourceStatus:
-            filters.sourceStatus == 'all' ? null : filters.sourceStatus,
-        sortBy: filters.sortBy,
-        sortOrder: filters.sortOrder,
-        limit: 40,
-        offset: 0,
-      );
-});
+  const PaginatedListState({
+    this.items = const [],
+    this.totalCount = 0,
+    this.hasMore = true,
+    this.isLoadingMore = false,
+  });
+
+  PaginatedListState<T> copyWith({
+    List<T>? items,
+    int? totalCount,
+    bool? hasMore,
+    bool? isLoadingMore,
+  }) {
+    return PaginatedListState<T>(
+      items: items ?? this.items,
+      totalCount: totalCount ?? this.totalCount,
+      hasMore: hasMore ?? this.hasMore,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+    );
+  }
+}
+
+final discoverStocksProvider = AsyncNotifierProvider.autoDispose<
+    DiscoverStockListNotifier,
+    PaginatedListState<DiscoverStockItem>>(() => DiscoverStockListNotifier());
+
+class DiscoverStockListNotifier
+    extends AutoDisposeAsyncNotifier<PaginatedListState<DiscoverStockItem>> {
+  static const _pageSize = 25;
+
+  @override
+  Future<PaginatedListState<DiscoverStockItem>> build() async {
+    final preset = ref.watch(discoverStockPresetProvider);
+    final filters = ref.watch(discoverStockFiltersProvider);
+    final response = await _fetch(offset: 0, preset: preset, filters: filters);
+    final total = response.totalCount ?? response.items.length;
+    return PaginatedListState<DiscoverStockItem>(
+      items: response.items,
+      totalCount: total,
+      hasMore: response.items.length < total,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final preset = ref.read(discoverStockPresetProvider);
+      final filters = ref.read(discoverStockFiltersProvider);
+      final response =
+          await _fetch(offset: current.items.length, preset: preset, filters: filters);
+      final newItems = [...current.items, ...response.items];
+      final total = response.totalCount ?? newItems.length;
+      state = AsyncData(PaginatedListState<DiscoverStockItem>(
+        items: newItems,
+        totalCount: total,
+        hasMore: newItems.length < total,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+
+  Future<DiscoverStockListResponse> _fetch({
+    required int offset,
+    required DiscoverStockPreset preset,
+    required DiscoverStockFilters filters,
+  }) {
+    return ref.read(discoverRepoProvider).getStocks(
+          preset: preset.apiValue,
+          search: filters.search.isEmpty ? null : filters.search,
+          sector: filters.sector == 'All' ? null : filters.sector,
+          minScore: filters.minScore > 0 ? filters.minScore : null,
+          minPrice: filters.minPrice,
+          maxPrice: filters.maxPrice,
+          minPe: filters.minPe,
+          maxPe: filters.maxPe,
+          minRoe: filters.minRoe,
+          minRoce: filters.minRoce,
+          maxDebtToEquity: filters.maxDebtToEquity,
+          minVolume: filters.minVolume,
+          minTradedValue: filters.minTradedValue,
+          sourceStatus:
+              filters.sourceStatus == 'all' ? null : filters.sourceStatus,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
+          limit: _pageSize,
+          offset: offset,
+        );
+  }
+}
+
+final discoverMutualFundsProvider = AsyncNotifierProvider.autoDispose<
+    DiscoverMfListNotifier,
+    PaginatedListState<DiscoverMutualFundItem>>(() => DiscoverMfListNotifier());
+
+class DiscoverMfListNotifier
+    extends AutoDisposeAsyncNotifier<PaginatedListState<DiscoverMutualFundItem>> {
+  static const _pageSize = 25;
+
+  @override
+  Future<PaginatedListState<DiscoverMutualFundItem>> build() async {
+    final preset = ref.watch(discoverMutualFundPresetProvider);
+    final filters = ref.watch(discoverMutualFundFiltersProvider);
+    final response = await _fetch(offset: 0, preset: preset, filters: filters);
+    final total = response.totalCount ?? response.items.length;
+    return PaginatedListState<DiscoverMutualFundItem>(
+      items: response.items,
+      totalCount: total,
+      hasMore: response.items.length < total,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+    try {
+      final preset = ref.read(discoverMutualFundPresetProvider);
+      final filters = ref.read(discoverMutualFundFiltersProvider);
+      final response =
+          await _fetch(offset: current.items.length, preset: preset, filters: filters);
+      final newItems = [...current.items, ...response.items];
+      final total = response.totalCount ?? newItems.length;
+      state = AsyncData(PaginatedListState<DiscoverMutualFundItem>(
+        items: newItems,
+        totalCount: total,
+        hasMore: newItems.length < total,
+      ));
+    } catch (e) {
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+    }
+  }
+
+  Future<DiscoverMutualFundListResponse> _fetch({
+    required int offset,
+    required DiscoverMutualFundPreset preset,
+    required DiscoverMutualFundFilters filters,
+  }) {
+    return ref.read(discoverRepoProvider).getMutualFunds(
+          preset: preset.apiValue,
+          search: filters.search.isEmpty ? null : filters.search,
+          category: filters.category == 'All' ? null : filters.category,
+          riskLevel: filters.riskLevel == 'All' ? null : filters.riskLevel,
+          directOnly: filters.directOnly,
+          minScore: filters.minScore > 0 ? filters.minScore : null,
+          minAumCr: filters.minAumCr,
+          maxExpenseRatio: filters.maxExpenseRatio,
+          minReturn3y: filters.minReturn3y,
+          sourceStatus:
+              filters.sourceStatus == 'all' ? null : filters.sourceStatus,
+          sortBy: filters.sortBy,
+          sortOrder: filters.sortOrder,
+          limit: _pageSize,
+          offset: offset,
+        );
+  }
+}
 
 final discoverHomeDataProvider =
     FutureProvider.autoDispose<DiscoverHomeData>((ref) {
@@ -593,4 +712,14 @@ final discoverMfHistoryProvider = FutureProvider.autoDispose
   return ref
       .watch(discoverRepoProvider)
       .getMfNavHistory(schemeCode: params.schemeCode, days: params.days);
+});
+
+final discoverStockDetailProvider =
+    FutureProvider.autoDispose.family<DiscoverStockItem, String>((ref, symbol) {
+  return ref.watch(discoverRepoProvider).getStockBySymbol(symbol: symbol);
+});
+
+final discoverMfDetailProvider =
+    FutureProvider.autoDispose.family<DiscoverMutualFundItem, String>((ref, schemeCode) {
+  return ref.watch(discoverRepoProvider).getMfBySchemeCode(schemeCode: schemeCode);
 });

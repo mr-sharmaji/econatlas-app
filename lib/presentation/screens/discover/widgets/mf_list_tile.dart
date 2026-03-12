@@ -58,7 +58,7 @@ class MfListTile extends StatelessWidget {
           children: [
             // Scheme name
             Text(
-              item.schemeName,
+              item.displayName ?? item.schemeName,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: theme.textTheme.bodyMedium
