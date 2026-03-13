@@ -54,6 +54,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     final now = DateTime.now();
     ref.invalidate(marketStatusProvider);
     ref.invalidate(latestMarketPricesProvider);
+    ref.invalidate(latestCryptoProvider);
     ref.invalidate(latestIndicesProvider);
     ref.invalidate(latestCurrenciesProvider);
     ref.invalidate(latestCommoditiesProvider);

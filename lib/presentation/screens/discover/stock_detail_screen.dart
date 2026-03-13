@@ -103,7 +103,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: Colors.white54),
                 ),
-                if (item.sector != null) ...[
+                if (item.sector != null && item.sector != 'Other') ...[
                   const SizedBox(width: 8),
                   Container(
                     padding:
@@ -123,7 +123,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              '${item.sector ?? "Equity"} · NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap!) : "—"} Cr',
+              '${item.sector != null && item.sector != "Other" ? "${item.sector} · " : ""}NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap!) : "—"} Cr',
               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
             ),
             const SizedBox(height: 12),
@@ -236,6 +236,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                           value: item.scoreFundamentals,
                           color: AppTheme.accentOrange,
                         ),
+                        ScoreSegment(
+                          label: 'Volatility',
+                          value: item.scoreVolatility,
+                          color: const Color(0xFFAB47BC),
+                        ),
+                        ScoreSegment(
+                          label: 'Growth',
+                          value: item.scoreGrowth,
+                          color: const Color(0xFF26C6DA),
+                        ),
                       ],
                     ),
                   ],
@@ -254,36 +264,36 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 valueColor: item.marketCap == null ? Colors.white38 : null,
               ),
               MetricItem(
-                label: 'P/E',
+                label: 'Price to Earnings',
                 value: item.peRatio?.toStringAsFixed(1) ?? '\u2014',
                 valueColor: _peColor(item.peRatio),
               ),
               MetricItem(
-                label: 'P/B',
+                label: 'Price to Book',
                 value: item.priceToBook?.toStringAsFixed(2) ?? '\u2014',
                 valueColor: item.priceToBook == null ? Colors.white38 : null,
               ),
               MetricItem(
-                label: 'EPS',
+                label: 'Earnings Per Share',
                 value: item.eps?.toStringAsFixed(2) ?? '\u2014',
                 valueColor: item.eps == null ? Colors.white38 : null,
               ),
               MetricItem(
-                label: 'ROE',
+                label: 'Return on Equity',
                 value: item.roe != null
                     ? '${item.roe!.toStringAsFixed(1)}%'
                     : '\u2014',
                 valueColor: _roeColor(item.roe),
               ),
               MetricItem(
-                label: 'ROCE',
+                label: 'Return on Capital',
                 value: item.roce != null
                     ? '${item.roce!.toStringAsFixed(1)}%'
                     : '\u2014',
                 valueColor: _roeColor(item.roce),
               ),
               MetricItem(
-                label: 'D/E',
+                label: 'Debt to Equity',
                 value: item.debtToEquity?.toStringAsFixed(2) ?? '\u2014',
                 valueColor: _deColor(item.debtToEquity),
               ),
@@ -295,6 +305,75 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 valueColor: item.dividendYield == null ? Colors.white38 : null,
               ),
             ]),
+
+            // -- Today's Trading Activity -------------------------
+            if (item.volume != null || item.tradedValue != null) ...[
+              const SizedBox(height: 14),
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Today's Trading Activity",
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          if (item.volume != null)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.bar_chart_rounded,
+                                      size: 16, color: Colors.white38),
+                                  const SizedBox(width: 6),
+                                  Text('Volume',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(color: Colors.white54)),
+                                  const Spacer(),
+                                  Text(
+                                    Formatters.compactNumber(
+                                        item.volume!.toDouble()),
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (item.volume != null && item.tradedValue != null)
+                            const SizedBox(width: 24),
+                          if (item.tradedValue != null)
+                            Expanded(
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.currency_rupee_rounded,
+                                      size: 16, color: Colors.white38),
+                                  const SizedBox(width: 6),
+                                  Text('Traded Value',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(color: Colors.white54)),
+                                  const Spacer(),
+                                  Text(
+                                    '\u20B9${Formatters.price(item.tradedValue!)} Cr',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
 
             // -- Peer Comparison -----------------------------------
@@ -512,13 +591,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Text(
-              '${((current - low) / low * 100).toStringAsFixed(1)}% from 52W Low',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white38,
-              ),
-            ),
           ],
         ),
       ),
@@ -559,6 +631,22 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       error: (_, __) => const SizedBox.shrink(),
       data: (peers) {
         if (peers.isEmpty) return const SizedBox.shrink();
+
+        const double nameWidth = 110;
+        const double colWidth = 72;
+        final headerStyle =
+            theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
+
+        Widget dataCell(String text, {TextStyle? style}) => SizedBox(
+              width: colWidth,
+              child: Text(text,
+                  textAlign: TextAlign.right,
+                  style: style ?? theme.textTheme.bodySmall),
+            );
+
+        Widget headerCell(String text) =>
+            dataCell(text, style: headerStyle);
+
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
@@ -572,104 +660,104 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                // Header row
+                // Header
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      flex: 3,
-                      child: Text('Name',
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: Colors.white38)),
+                    SizedBox(
+                      width: nameWidth,
+                      child: Text('Name', style: headerStyle),
                     ),
                     Expanded(
-                      flex: 2,
-                      child: Text('Price',
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: Colors.white38)),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: Text('Score',
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: Colors.white38)),
-                    ),
-                    Expanded(
-                      flex: 2,
-                      child: Text('ROE',
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: Colors.white38)),
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(children: [
+                          headerCell('Price'),
+                          headerCell('Score'),
+                          headerCell('ROE'),
+                          headerCell('P/E'),
+                          headerCell('Chg %'),
+                        ]),
+                      ),
                     ),
                   ],
                 ),
                 Divider(
                     height: 12, color: Colors.white.withValues(alpha: 0.08)),
-                ...peers.map((peer) => _buildPeerRow(theme, peer)),
+                // Data rows
+                ...peers.map((peer) {
+                  final pctChange = peer.percentChange;
+                  return InkWell(
+                    onTap: () => context.push(
+                      '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
+                      extra: peer,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: nameWidth,
+                            child: Text(
+                              peer.displayName,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Row(children: [
+                                dataCell(Formatters.fullPrice(peer.lastPrice)),
+                                dataCell(
+                                  ScoreBar.formatMinified(peer.score),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: ScoreBar.scoreColor(peer.score),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                dataCell(
+                                  peer.roe != null
+                                      ? '${peer.roe!.toStringAsFixed(1)}%'
+                                      : '\u2014',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: _roeColor(peer.roe),
+                                  ),
+                                ),
+                                dataCell(
+                                  peer.peRatio != null
+                                      ? peer.peRatio!.toStringAsFixed(1)
+                                      : '\u2014',
+                                ),
+                                dataCell(
+                                  pctChange != null
+                                      ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
+                                      : '\u2014',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: pctChange != null
+                                        ? (pctChange >= 0
+                                            ? AppTheme.accentGreen
+                                            : AppTheme.accentRed)
+                                        : null,
+                                  ),
+                                ),
+                              ]),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  Widget _buildPeerRow(ThemeData theme, DiscoverStockItem peer) {
-    return InkWell(
-      onTap: () => context.push(
-        '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
-        extra: peer,
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 6),
-        child: Row(
-          children: [
-            Expanded(
-              flex: 3,
-              child: Text(
-                peer.displayName,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                Formatters.fullPrice(peer.lastPrice),
-                textAlign: TextAlign.right,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: Text(
-                ScoreBar.formatMinified(peer.score),
-                textAlign: TextAlign.right,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: ScoreBar.scoreColor(peer.score),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Expanded(
-              flex: 2,
-              child: Text(
-                peer.roe != null
-                    ? '${peer.roe!.toStringAsFixed(1)}%'
-                    : '\u2014',
-                textAlign: TextAlign.right,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: _roeColor(peer.roe),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

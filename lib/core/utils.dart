@@ -183,6 +183,24 @@ class Formatters {
     return updatedFreshness(tickTime);
   }
 
+  /// Compact number: 1.2K, 12.5M, 3.4B, 1.1T etc.
+  static String compactNumber(double value) {
+    final abs = value.abs();
+    final sign = value < 0 ? '-' : '';
+    if (abs >= 1e12) return '$sign${_compactFixed(abs / 1e12)}T';
+    if (abs >= 1e9) return '$sign${_compactFixed(abs / 1e9)}B';
+    if (abs >= 1e7) return '$sign${_compactFixed(abs / 1e7)} Cr';
+    if (abs >= 1e5) return '$sign${_compactFixed(abs / 1e5)} L';
+    if (abs >= 1e3) return '$sign${_compactFixed(abs / 1e3)}K';
+    return '$sign${_indianFormat(abs)}';
+  }
+
+  static String _compactFixed(double v) {
+    if (v >= 100) return v.toStringAsFixed(0);
+    if (v >= 10) return v.toStringAsFixed(1);
+    return v.toStringAsFixed(2);
+  }
+
   static String confidence(double value) => '${(value * 100).toInt()}%';
 
   static String macroValue(double value, String indicator) {

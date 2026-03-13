@@ -24,6 +24,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
+  bool _showGainers3m = false;
+  bool _showLosers3m = false;
 
   @override
   void dispose() {
@@ -121,6 +123,9 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildFeed(DiscoverHomeData data, List<RecentlyViewedItem> recent) {
+    final gainersToShow = _showGainers3m ? data.gainers3m : data.gainers;
+    final losersToShow = _showLosers3m ? data.losers3m : data.losers;
+
     return CustomScrollView(
       slivers: [
         // Search bar
@@ -171,7 +176,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             ),
           ),
 
-        // Top Stocks
+        // Top Stocks (3M data)
         if (data.topStocks.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
@@ -179,73 +184,113 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               seeAllRoute: '/discover/stocks',
               seeAllExtra: const {'preset': 'quality'},
               children: data.topStocks
+                  .map((s) => _StockCard(
+                        item: s,
+                        onTap: () => _onStockTap(s),
+                        use3mChange: true,
+                      ))
+                  .toList(),
+            ),
+          ),
+
+        // Hot Today 🔥
+        if (data.hotTodayStocks.isNotEmpty &&
+            data.hotTodaySectorName != null)
+          SliverToBoxAdapter(
+            child: _HorizontalSection(
+              title: '🔥 Hot Today · ${data.hotTodaySectorName}',
+              children: data.hotTodayStocks
                   .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
                   .toList(),
             ),
           ),
 
-        // Top Mutual Funds
-        if (data.topMutualFunds.isNotEmpty)
+        // 3M Sector Leader 📈
+        if (data.leader3mStocks.isNotEmpty &&
+            data.leader3mSectorName != null)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: 'Top Mutual Funds',
+              title: '📈 3M Leader · ${data.leader3mSectorName}',
+              children: data.leader3mStocks
+                  .map((s) => _StockCard(
+                        item: s,
+                        onTap: () => _onStockTap(s),
+                        use3mChange: true,
+                      ))
+                  .toList(),
+            ),
+          ),
+
+        // Top Equity Funds
+        if (data.topEquityFunds.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _HorizontalSection(
+              title: 'Top Equity Funds',
               seeAllRoute: '/discover/mutual-funds',
-              children: data.topMutualFunds
+              seeAllExtra: const {'preset': 'equity'},
+              children: data.topEquityFunds
                   .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
                   .toList(),
             ),
           ),
 
-        // Top Gainers
-        if (data.gainers.isNotEmpty)
+        // Top Debt Funds
+        if (data.topDebtFunds.isNotEmpty)
+          SliverToBoxAdapter(
+            child: _HorizontalSection(
+              title: 'Top Debt Funds',
+              seeAllRoute: '/discover/mutual-funds',
+              seeAllExtra: const {'preset': 'debt'},
+              children: data.topDebtFunds
+                  .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
+                  .toList(),
+            ),
+          ),
+
+        // Top Gainers (with Today / 3M toggle)
+        if (gainersToShow.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
               title: 'Top Gainers',
-              seeAllRoute: '/discover/stocks',
-              seeAllExtra: const {'preset': 'momentum'},
-              children: data.gainers
-                  .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
+              trailing: _PeriodToggle(
+                is3m: _showGainers3m,
+                onChanged: (v) => setState(() => _showGainers3m = v),
+              ),
+              children: gainersToShow
+                  .map((s) => _StockCard(
+                        item: s,
+                        onTap: () => _onStockTap(s),
+                        use3mChange: _showGainers3m,
+                      ))
                   .toList(),
             ),
           ),
 
-        // Top Losers
-        if (data.losers.isNotEmpty)
+        // Top Losers (with Today / 3M toggle)
+        if (losersToShow.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
               title: 'Top Losers',
-              seeAllRoute: '/discover/stocks',
-              children: data.losers
-                  .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
+              trailing: _PeriodToggle(
+                is3m: _showLosers3m,
+                onChanged: (v) => setState(() => _showLosers3m = v),
+              ),
+              children: losersToShow
+                  .map((s) => _StockCard(
+                        item: s,
+                        onTap: () => _onStockTap(s),
+                        use3mChange: _showLosers3m,
+                      ))
                   .toList(),
             ),
           ),
 
-        // Sector Spotlight
-        if (data.sectorSpotlight.isNotEmpty &&
-            data.spotlightSectorName != null)
+        // Trending This Week
+        if (data.trendingThisWeek.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: '${data.spotlightSectorName} Spotlight',
-              seeAllRoute: '/discover/stocks',
-              seeAllExtra: {
-                'filterKey': 'sector',
-                'filterValue': data.spotlightSectorName!,
-              },
-              children: data.sectorSpotlight
-                  .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
-                  .toList(),
-            ),
-          ),
-
-        // Trending
-        if (data.trendingStocks.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Trending',
-              seeAllRoute: '/discover/stocks',
-              seeAllExtra: const {'preset': 'high-volume'},
-              children: data.trendingStocks
+              title: 'Trending This Week',
+              children: data.trendingThisWeek
                   .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
                   .toList(),
             ),
@@ -495,12 +540,14 @@ class _HorizontalSection extends StatelessWidget {
   final String title;
   final String? seeAllRoute;
   final Map<String, String>? seeAllExtra;
+  final Widget? trailing;
   final List<Widget> children;
 
   const _HorizontalSection({
     required this.title,
     this.seeAllRoute,
     this.seeAllExtra,
+    this.trailing,
     required this.children,
   });
 
@@ -527,7 +574,8 @@ class _HorizontalSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (seeAllRoute != null)
+                if (trailing != null) trailing!,
+                if (seeAllRoute != null && trailing == null)
                   TextButton(
                     onPressed: () => context.push(
                       seeAllRoute!,
@@ -574,15 +622,23 @@ class _HorizontalSection extends StatelessWidget {
 class _StockCard extends StatelessWidget {
   final DiscoverHomeStockItem item;
   final VoidCallback onTap;
+  final bool use3mChange;
 
-  const _StockCard({required this.item, required this.onTap});
+  const _StockCard({
+    required this.item,
+    required this.onTap,
+    this.use3mChange = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pct = item.percentChange ?? 0;
+    final pct = use3mChange
+        ? (item.percentChange3m ?? item.percentChange ?? 0)
+        : (item.percentChange ?? 0);
     final isUp = pct >= 0;
     final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
+    final periodLabel = use3mChange ? ' 3M' : '';
 
     return GestureDetector(
       onTap: onTap,
@@ -635,7 +691,7 @@ class _StockCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(
-                Formatters.changeTag(pct),
+                '${Formatters.changeTag(pct)}$periodLabel',
                 style: TextStyle(
                   color: changeColor,
                   fontSize: 11,
@@ -783,26 +839,27 @@ class _RecentCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 6),
-            // ID (symbol / scheme code)
+            // Primary label: symbol for stocks, name for MF
             Text(
-              item.id,
+              isStock ? item.id : item.name,
               style: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
-              maxLines: 1,
+              maxLines: isStock ? 1 : 2,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            // Name
-            Text(
-              item.name,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.white54,
-                fontSize: 10,
+            // Secondary label: name for stocks, hidden for MF (already shown above)
+            if (isStock)
+              Text(
+                item.name,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
             const Spacer(),
             // Subtle indicator
             Icon(
@@ -862,6 +919,53 @@ class _QuickNavChip extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Period toggle chips (Today / 3M)
+// =============================================================================
+
+class _PeriodToggle extends StatelessWidget {
+  final bool is3m;
+  final ValueChanged<bool> onChanged;
+
+  const _PeriodToggle({required this.is3m, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _toggleChip(context, label: 'Today', selected: !is3m, onTap: () => onChanged(false)),
+        const SizedBox(width: 4),
+        _toggleChip(context, label: '3M', selected: is3m, onTap: () => onChanged(true)),
+      ],
+    );
+  }
+
+  Widget _toggleChip(BuildContext context,
+      {required String label, required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppTheme.accentBlue.withValues(alpha: 0.20)
+              : Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: selected ? AppTheme.accentBlue : Colors.white54,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                fontSize: 11,
+              ),
         ),
       ),
     );

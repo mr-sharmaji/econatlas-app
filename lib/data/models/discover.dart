@@ -117,12 +117,16 @@ class DiscoverStockScoreBreakdown {
   final double momentum;
   final double liquidity;
   final double fundamentals;
+  final double volatility;
+  final double growth;
   final double combinedSignal;
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
     required this.liquidity,
     required this.fundamentals,
+    required this.volatility,
+    required this.growth,
     required this.combinedSignal,
   });
 
@@ -131,6 +135,8 @@ class DiscoverStockScoreBreakdown {
       momentum: (json['momentum'] as num?)?.toDouble() ?? 0,
       liquidity: (json['liquidity'] as num?)?.toDouble() ?? 0,
       fundamentals: (json['fundamentals'] as num?)?.toDouble() ?? 0,
+      volatility: (json['volatility'] as num?)?.toDouble() ?? 0,
+      growth: (json['growth'] as num?)?.toDouble() ?? 0,
       combinedSignal: (json['combined_signal'] as num?)?.toDouble() ?? 0,
     );
   }
@@ -162,6 +168,9 @@ class DiscoverStockItem {
   final double scoreMomentum;
   final double scoreLiquidity;
   final double scoreFundamentals;
+  final double scoreVolatility;
+  final double scoreGrowth;
+  final double? percentChange3m;
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
   final List<String> whyRanked;
@@ -196,6 +205,9 @@ class DiscoverStockItem {
     required this.scoreMomentum,
     required this.scoreLiquidity,
     required this.scoreFundamentals,
+    required this.scoreVolatility,
+    required this.scoreGrowth,
+    this.percentChange3m,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -232,6 +244,9 @@ class DiscoverStockItem {
       scoreMomentum: (json['score_momentum'] as num?)?.toDouble() ?? 0,
       scoreLiquidity: (json['score_liquidity'] as num?)?.toDouble() ?? 0,
       scoreFundamentals: (json['score_fundamentals'] as num?)?.toDouble() ?? 0,
+      scoreVolatility: (json['score_volatility'] as num?)?.toDouble() ?? 0,
+      scoreGrowth: (json['score_growth'] as num?)?.toDouble() ?? 0,
+      percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
@@ -581,6 +596,7 @@ class DiscoverHomeStockItem {
   final String? sector;
   final double lastPrice;
   final double? percentChange;
+  final double? percentChange3m;
   final double score;
   final String? qualityTier;
 
@@ -590,6 +606,7 @@ class DiscoverHomeStockItem {
     this.sector,
     required this.lastPrice,
     this.percentChange,
+    this.percentChange3m,
     required this.score,
     this.qualityTier,
   });
@@ -601,6 +618,7 @@ class DiscoverHomeStockItem {
       sector: json['sector'] as String?,
       lastPrice: (json['last_price'] as num).toDouble(),
       percentChange: (json['percent_change'] as num?)?.toDouble(),
+      percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
       qualityTier: json['quality_tier'] as String?,
     );
@@ -672,22 +690,32 @@ class QuickCategory {
 @immutable
 class DiscoverHomeData {
   final List<DiscoverHomeStockItem> topStocks;
-  final List<DiscoverHomeMfItem> topMutualFunds;
-  final List<DiscoverHomeStockItem> trendingStocks;
+  final List<DiscoverHomeMfItem> topEquityFunds;
+  final List<DiscoverHomeMfItem> topDebtFunds;
+  final List<DiscoverHomeStockItem> trendingThisWeek;
   final List<DiscoverHomeStockItem> gainers;
+  final List<DiscoverHomeStockItem> gainers3m;
   final List<DiscoverHomeStockItem> losers;
-  final List<DiscoverHomeStockItem> sectorSpotlight;
-  final String? spotlightSectorName;
+  final List<DiscoverHomeStockItem> losers3m;
+  final String? hotTodaySectorName;
+  final List<DiscoverHomeStockItem> hotTodayStocks;
+  final String? leader3mSectorName;
+  final List<DiscoverHomeStockItem> leader3mStocks;
   final List<QuickCategory> quickCategories;
 
   const DiscoverHomeData({
     this.topStocks = const [],
-    this.topMutualFunds = const [],
-    this.trendingStocks = const [],
+    this.topEquityFunds = const [],
+    this.topDebtFunds = const [],
+    this.trendingThisWeek = const [],
     this.gainers = const [],
+    this.gainers3m = const [],
     this.losers = const [],
-    this.sectorSpotlight = const [],
-    this.spotlightSectorName,
+    this.losers3m = const [],
+    this.hotTodaySectorName,
+    this.hotTodayStocks = const [],
+    this.leader3mSectorName,
+    this.leader3mStocks = const [],
     this.quickCategories = const [],
   });
 
@@ -697,13 +725,18 @@ class DiscoverHomeData {
           .map((e) =>
               DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      topMutualFunds:
-          (json['top_mutual_funds'] as List<dynamic>? ?? const [])
+      topEquityFunds:
+          (json['top_equity_funds'] as List<dynamic>? ?? const [])
               .map((e) =>
                   DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
               .toList(),
-      trendingStocks:
-          (json['trending_stocks'] as List<dynamic>? ?? const [])
+      topDebtFunds:
+          (json['top_debt_funds'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
+              .toList(),
+      trendingThisWeek:
+          (json['trending_this_week'] as List<dynamic>? ?? const [])
               .map((e) =>
                   DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
               .toList(),
@@ -711,16 +744,30 @@ class DiscoverHomeData {
           .map((e) =>
               DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
           .toList(),
+      gainers3m: (json['gainers_3m'] as List<dynamic>? ?? const [])
+          .map((e) =>
+              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
       losers: (json['losers'] as List<dynamic>? ?? const [])
           .map((e) =>
               DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
           .toList(),
-      sectorSpotlight:
-          (json['sector_spotlight'] as List<dynamic>? ?? const [])
+      losers3m: (json['losers_3m'] as List<dynamic>? ?? const [])
+          .map((e) =>
+              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      hotTodaySectorName: json['hot_today_sector_name'] as String?,
+      hotTodayStocks:
+          (json['hot_today_stocks'] as List<dynamic>? ?? const [])
               .map((e) =>
                   DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
               .toList(),
-      spotlightSectorName: json['spotlight_sector_name'] as String?,
+      leader3mSectorName: json['leader_3m_sector_name'] as String?,
+      leader3mStocks:
+          (json['leader_3m_stocks'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+              .toList(),
       quickCategories:
           (json['quick_categories'] as List<dynamic>? ?? const [])
               .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))
