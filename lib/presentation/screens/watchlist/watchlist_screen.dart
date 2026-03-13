@@ -147,6 +147,8 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
           return 'Indices';
         case 'commodity':
           return 'Commodities';
+        case 'crypto':
+          return 'Crypto';
         case 'currency':
           return 'Currencies';
         case 'bond_yield':
@@ -166,6 +168,7 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
         const order = [
           'Indices',
           'Commodities',
+          'Crypto',
           'Currencies',
           'Bonds',
           'Other',

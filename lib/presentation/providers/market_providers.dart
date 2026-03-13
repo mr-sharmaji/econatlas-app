@@ -74,6 +74,12 @@ final commodityIntradayProvider = FutureProvider.autoDispose
   return repo.getCommodityIntraday(asset: asset);
 });
 
+final cryptoIntradayProvider = FutureProvider.autoDispose
+    .family<IntradayResponse, String>((ref, asset) async {
+  final repo = ref.watch(marketRepositoryProvider);
+  return repo.getCryptoIntraday(asset: asset);
+});
+
 final marketByTypeProvider = FutureProvider.autoDispose
     .family<List<MarketPrice>, String>((ref, instrumentType) async {
   final repo = ref.watch(marketRepositoryProvider);

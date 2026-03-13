@@ -21,6 +21,7 @@ class AssetLogoResolver {
 
   static String inferInstrumentType(String asset) {
     if (Entities.commodities.contains(asset)) return 'commodity';
+    if (Entities.crypto.contains(asset)) return 'crypto';
     if (Entities.fx.contains(asset)) return 'currency';
     if (Entities.bonds.contains(asset)) return 'bond_yield';
     if (Entities.indicesIndia.contains(asset) ||

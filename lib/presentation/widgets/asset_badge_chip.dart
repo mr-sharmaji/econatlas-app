@@ -18,6 +18,7 @@ enum AssetBadgeStyle {
   currenciesOther,
   metals,
   energy,
+  crypto,
   fallback,
 }
 
@@ -89,6 +90,8 @@ class AssetBadgeResolver {
           return AssetBadgeStyle.metals;
         }
         return AssetBadgeStyle.energy;
+      case 'crypto':
+        return AssetBadgeStyle.crypto;
       case 'bond_yield':
         if (asset == 'India 10Y Bond Yield') return AssetBadgeStyle.india;
         if (asset.startsWith('US ')) return AssetBadgeStyle.us;
@@ -164,6 +167,8 @@ class AssetBadgeResolver {
         return style == AssetBadgeStyle.energy
             ? const Color(0xFF3B2A21)
             : const Color(0xFF6A5A2F);
+      case 'crypto':
+        return const Color(0xFF3A2F5E);
       case 'bond_yield':
         return const Color(0xFF3E4D73);
       default:
@@ -186,6 +191,8 @@ class AssetBadgeResolver {
         return FontAwesomeIcons.landmark;
       case 'currency':
         return FontAwesomeIcons.globe;
+      case 'crypto':
+        return FontAwesomeIcons.bitcoin;
       default:
         return Icons.circle_rounded;
     }
@@ -276,6 +283,10 @@ class AssetBadgeResolver {
       case AssetBadgeStyle.energy:
         return const LinearGradient(
           colors: [Color(0xFFFF9F0A), Color(0xFF1C1C1E)],
+        );
+      case AssetBadgeStyle.crypto:
+        return const LinearGradient(
+          colors: [Color(0xFF3A2F5E), Color(0xFF7B61FF)],
         );
       case AssetBadgeStyle.fallback:
         return const LinearGradient(
@@ -396,6 +407,7 @@ class AssetBadgeChip extends StatelessWidget {
       case AssetBadgeStyle.us:
       case AssetBadgeStyle.europe:
       case AssetBadgeStyle.japan:
+      case AssetBadgeStyle.crypto:
         return SquareBadgeAssets.globalCategoryPath;
     }
   }

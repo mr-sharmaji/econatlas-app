@@ -3,12 +3,14 @@ import '../../core/dio_client.dart';
 import '../../data/datasources/remote_data_source.dart';
 import '../../data/repositories/market_repository_impl.dart';
 import '../../data/repositories/commodity_repository_impl.dart';
+import '../../data/repositories/crypto_repository_impl.dart';
 import '../../data/repositories/news_repository_impl.dart';
 import '../../data/repositories/macro_repository_impl.dart';
 import '../../data/repositories/brief_repository_impl.dart';
 import '../../data/repositories/discover_repository_impl.dart';
 import '../../domain/repositories/market_repository.dart';
 import '../../domain/repositories/commodity_repository.dart';
+import '../../domain/repositories/crypto_repository.dart';
 import '../../domain/repositories/news_repository.dart';
 import '../../domain/repositories/macro_repository.dart';
 import '../../domain/repositories/brief_repository.dart';
@@ -24,6 +26,10 @@ final marketRepositoryProvider = Provider<MarketRepository>((ref) {
 
 final commodityRepositoryProvider = Provider<CommodityRepository>((ref) {
   return CommodityRepositoryImpl(ref.watch(remoteDataSourceProvider));
+});
+
+final cryptoRepositoryProvider = Provider<CryptoRepository>((ref) {
+  return CryptoRepositoryImpl(ref.watch(remoteDataSourceProvider));
 });
 
 final newsRepositoryProvider = Provider<NewsRepository>((ref) {

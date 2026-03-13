@@ -24,6 +24,10 @@ class MarketRepositoryImpl implements MarketRepository {
       _remote.getCommodityIntraday(asset: asset);
 
   @override
+  Future<IntradayResponse> getCryptoIntraday({required String asset}) =>
+      _remote.getCryptoIntraday(asset: asset);
+
+  @override
   Future<MarketPriceResponse> getMarketPrices({
     String? instrumentType,
     String? asset,

@@ -245,6 +245,9 @@ double assetDisplayValue({
         return rawPrice * usdInrRate;
     }
   }
+  if (instrumentType == 'crypto' && useIndianUnits) {
+    return rawPrice * usdInrRate;
+  }
   if (instrumentType == 'currency' && asset.toUpperCase().contains('INR')) {
     return rawPrice;
   }
@@ -313,6 +316,12 @@ double assetDisplayValue({
       '\$ ${Formatters.fullPrice(rawPrice)}',
       normalized == null ? '' : ' $normalized',
     );
+  }
+  if (instrumentType == 'crypto') {
+    if (useIndianUnits) {
+      return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', '');
+    }
+    return ('\$ ${Formatters.fullPrice(rawPrice)}', '');
   }
   if (instrumentType == 'currency' &&
       (asset.contains('INR') || asset.contains('inr'))) {

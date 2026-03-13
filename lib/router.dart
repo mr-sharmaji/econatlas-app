@@ -6,6 +6,7 @@ import 'presentation/screens/shell_screen.dart';
 import 'presentation/screens/dashboard/dashboard_screen.dart';
 import 'presentation/screens/market/market_screen.dart';
 import 'presentation/screens/commodities/commodities_screen.dart';
+import 'presentation/screens/crypto/crypto_screen.dart';
 import 'presentation/screens/overview/overview_screen.dart';
 import 'presentation/screens/macro/macro_screen.dart';
 import 'data/models/discover.dart';
@@ -88,6 +89,15 @@ final router = GoRouter(
         final asset = Uri.decodeComponent(state.pathParameters['asset']!);
         final price = state.extra as MarketPrice?;
         return CommodityDetailScreen(asset: asset, initialPrice: price);
+      },
+    ),
+    GoRoute(
+      parentNavigatorKey: _rootNavigatorKey,
+      path: '/crypto/detail/:asset',
+      builder: (context, state) {
+        final asset = Uri.decodeComponent(state.pathParameters['asset']!);
+        final price = state.extra as MarketPrice?;
+        return CryptoDetailScreen(asset: asset, initialPrice: price);
       },
     ),
     GoRoute(

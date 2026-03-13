@@ -83,6 +83,34 @@ class RemoteDataSource {
     return MarketPriceResponse.fromJson(response.data);
   }
 
+  Future<IntradayResponse> getCryptoIntraday({required String asset}) async {
+    final response = await _dio.get(
+      '/crypto/intraday',
+      queryParameters: {'asset': asset},
+    );
+    return IntradayResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MarketPriceResponse> getCrypto({
+    String? asset,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final params = <String, dynamic>{
+      'limit': limit,
+      'offset': offset,
+    };
+    if (asset != null) params['asset'] = asset;
+
+    final response = await _dio.get('/crypto', queryParameters: params);
+    return MarketPriceResponse.fromJson(response.data);
+  }
+
+  Future<MarketPriceResponse> getLatestCrypto() async {
+    final response = await _dio.get('/crypto/latest');
+    return MarketPriceResponse.fromJson(response.data);
+  }
+
   Future<NewsResponse> getNews({
     String? entity,
     String? impact,

@@ -94,6 +94,7 @@ class AppConstants {
   static const String prefCacheLatestCurrencies = 'cache_latest_currencies';
   static const String prefCacheLatestBonds = 'cache_latest_bonds';
   static const String prefCacheLatestCommodities = 'cache_latest_commodities';
+  static const String prefCacheLatestCrypto = 'cache_latest_crypto';
   static const String prefTaxSalary = 'tax_salary';
   static const String prefTaxDeductions = 'tax_deductions';
   static const String prefTaxRegime = 'tax_regime';
@@ -307,6 +308,19 @@ class Entities {
     'palladium',
   ];
 
+  static const List<String> crypto = [
+    'bitcoin',
+    'ethereum',
+    'bnb',
+    'solana',
+    'xrp',
+    'cardano',
+    'dogecoin',
+    'polkadot',
+    'avalanche',
+    'chainlink',
+  ];
+
   static const List<String> dashboardAssets = [
     'Nifty 50',
     'Nasdaq 100',
@@ -393,6 +407,16 @@ class Entities {
     'copper': 'Copper',
     'platinum': 'Platinum',
     'palladium': 'Palladium',
+    'bitcoin': 'Bitcoin',
+    'ethereum': 'Ethereum',
+    'bnb': 'BNB',
+    'solana': 'Solana',
+    'xrp': 'XRP',
+    'cardano': 'Cardano',
+    'dogecoin': 'Dogecoin',
+    'polkadot': 'Polkadot',
+    'avalanche': 'Avalanche',
+    'chainlink': 'Chainlink',
     'inflation_cpi': 'Inflation (CPI)',
     'inflation': 'Inflation (CPI)',
     'gdp_growth': 'GDP Growth',
@@ -427,6 +451,7 @@ class MarketRegions {
   static const String japan = 'Japan';
   static const String fx = 'FX';
   static const String commodities = 'Commodities';
+  static const String crypto = 'Crypto';
   static const String all = 'All';
 
   static const List<String> allValues = [
@@ -437,6 +462,7 @@ class MarketRegions {
     japan,
     fx,
     commodities,
+    crypto,
   ];
 }
 

@@ -25,15 +25,17 @@ class _MarketScreenState extends ConsumerState<MarketScreen>
   late final ScrollController _currenciesScrollController;
   late final ScrollController _commoditiesScrollController;
   late final ScrollController _bondsScrollController;
+  late final ScrollController _cryptoScrollController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
     _indicesScrollController = ScrollController();
     _currenciesScrollController = ScrollController();
     _commoditiesScrollController = ScrollController();
     _bondsScrollController = ScrollController();
+    _cryptoScrollController = ScrollController();
   }
 
   @override
@@ -42,6 +44,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen>
     _currenciesScrollController.dispose();
     _commoditiesScrollController.dispose();
     _bondsScrollController.dispose();
+    _cryptoScrollController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -50,7 +53,8 @@ class _MarketScreenState extends ConsumerState<MarketScreen>
     final controller = switch (_tabController.index) {
       0 => _indicesScrollController,
       1 => _commoditiesScrollController,
-      2 => _currenciesScrollController,
+      2 => _cryptoScrollController,
+      3 => _currenciesScrollController,
       _ => _bondsScrollController,
     };
     if (!controller.hasClients) return;
@@ -84,6 +88,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen>
           tabs: const [
             Tab(text: 'Indices'),
             Tab(text: 'Commodities'),
+            Tab(text: 'Crypto'),
             Tab(text: 'Currencies'),
             Tab(text: 'Bond'),
           ],
@@ -94,6 +99,7 @@ class _MarketScreenState extends ConsumerState<MarketScreen>
         children: [
           _IndicesTab(scrollController: _indicesScrollController),
           _CommoditiesTab(scrollController: _commoditiesScrollController),
+          _CryptoTab(scrollController: _cryptoScrollController),
           _CurrenciesTab(scrollController: _currenciesScrollController),
           _BondsTab(scrollController: _bondsScrollController),
         ],
@@ -814,6 +820,176 @@ class _MarketTile extends StatelessWidget {
                       ),
                     ),
                   ],
+                ],
+              ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, size: 18, color: Colors.white24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CryptoTab extends ConsumerWidget {
+  const _CryptoTab({required this.scrollController});
+
+  final ScrollController scrollController;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pricesAsync = ref.watch(latestCryptoProvider);
+    final unitSystem = ref.watch(unitSystemProvider);
+    final useIndian = unitSystem == UnitSystem.indian;
+    final marketAsync = ref.watch(latestMarketPricesProvider);
+    final usdInrRate = marketAsync.valueOrNull
+            ?.where((p) => p.asset == 'USD/INR')
+            .map((p) => p.price)
+            .firstOrNull ??
+        84.0;
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(latestCryptoProvider);
+      },
+      child: pricesAsync.when(
+        loading: () => const ShimmerList(itemCount: 6),
+        error: (err, _) => ErrorView(
+          message: friendlyErrorMessage(err),
+          onRetry: () => ref.invalidate(latestCryptoProvider),
+        ),
+        data: (prices) {
+          if (prices.isEmpty) {
+            return const EmptyView(
+                message: 'No crypto data', icon: Icons.currency_bitcoin);
+          }
+
+          final ordered = <MarketPrice>[];
+          for (final name in Entities.crypto) {
+            final match = prices.where((p) => p.asset == name).toList();
+            if (match.isNotEmpty) ordered.add(match.first);
+          }
+          for (final p in prices) {
+            if (!ordered.any((o) => o.asset == p.asset)) ordered.add(p);
+          }
+
+          return ListView(
+            controller: scrollController,
+            padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
+            children: [
+              ...ordered.map((p) => _CryptoTile(
+                    price: p,
+                    isLive: true,
+                    useIndian: useIndian,
+                    usdInrRate: usdInrRate,
+                  )),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CryptoTile extends StatelessWidget {
+  final MarketPrice price;
+  final bool isLive;
+  final bool useIndian;
+  final double usdInrRate;
+
+  const _CryptoTile({
+    required this.price,
+    this.isLive = true,
+    this.useIndian = false,
+    this.usdInrRate = 84.0,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final phase = isLive ? 'live' : 'closed';
+    final tickTs = price.lastTickTimestamp ?? price.timestamp;
+
+    final display = assetDisplayPriceAndUnit(
+      asset: price.asset,
+      rawPrice: price.price,
+      useIndianUnits: useIndian,
+      usdInrRate: usdInrRate,
+      instrumentType: 'crypto',
+    );
+    final displayPrice = display.$1;
+    final changeTag = Formatters.changeWithDiff(
+      current: price.price,
+      previous: price.previousClose,
+      pct: price.changePercent,
+    );
+    final pctColor = (price.changePercent ?? 0) >= 0
+        ? AppTheme.accentGreen
+        : AppTheme.accentRed;
+    final subtitle = phase == 'live'
+        ? Formatters.updatedFreshness(
+            tickTs,
+            allowJustNow: true,
+          )
+        : Formatters.updatedFreshness(tickTs);
+
+    return Card(
+      child: InkWell(
+        onTap: () {
+          final encoded = Uri.encodeComponent(price.asset);
+          context.push('/crypto/detail/$encoded', extra: price);
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Row(
+            children: [
+              AssetLogoBadge(
+                asset: price.asset,
+                instrumentType: 'crypto',
+                size: 20,
+                borderRadius: 6,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName(price.asset),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white38,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    displayPrice,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    changeTag,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: pctColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(width: 4),

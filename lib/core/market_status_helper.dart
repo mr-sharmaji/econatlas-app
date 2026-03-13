@@ -10,13 +10,17 @@ bool isLiveForAsset(
 }) {
   final now = DateTime.now();
   final liveMaxAgeSeconds =
-      (instrumentType == 'commodity' || instrumentType == 'currency')
+      (instrumentType == 'commodity' ||
+              instrumentType == 'currency' ||
+              instrumentType == 'crypto')
           ? 900
           : 300;
   final tickAgeSeconds =
       lastUpdate != null ? now.difference(lastUpdate.toLocal()).inSeconds : 0;
   final staleByAge = tickAgeSeconds > liveMaxAgeSeconds;
   switch (instrumentType) {
+    case 'crypto':
+      return !staleByAge;
     case 'commodity':
       return (status.commoditiesOpen || status.nyseOpen) && !staleByAge;
     case 'currency':

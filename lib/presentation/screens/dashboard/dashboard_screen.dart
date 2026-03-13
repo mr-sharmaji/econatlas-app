@@ -90,6 +90,7 @@ class _MarketOverviewGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final marketAsync = ref.watch(latestMarketPricesProvider);
     final commodityAsync = ref.watch(latestCommoditiesProvider);
+    final cryptoAsync = ref.watch(latestCryptoProvider);
     final unitSystem = ref.watch(unitSystemProvider);
     final statusAsync = ref.watch(marketStatusProvider);
     final watchlistAsync = ref.watch(watchlistProvider);
@@ -115,7 +116,8 @@ class _MarketOverviewGrid extends ConsumerWidget {
       ),
       data: (marketPrices) {
         final commodities = commodityAsync.valueOrNull ?? [];
-        final allPrices = [...marketPrices, ...commodities];
+        final cryptos = cryptoAsync.valueOrNull ?? [];
+        final allPrices = [...marketPrices, ...commodities, ...cryptos];
 
         final usdInrPrice =
             allPrices.where((p) => p.asset == 'USD/INR').toList();
@@ -191,7 +193,9 @@ class _DashboardTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isCommodity = price.instrumentType == 'commodity';
-    final useIndianCommodity = unitSystem == UnitSystem.indian && isCommodity;
+    final isCrypto = price.instrumentType == 'crypto';
+    final useIndianCommodity =
+        unitSystem == UnitSystem.indian && (isCommodity || isCrypto);
     final displayValue = assetDisplayValue(
       asset: price.asset,
       rawPrice: price.price,
@@ -238,7 +242,11 @@ class _DashboardTile extends StatelessWidget {
       child: InkWell(
         onTap: () {
           final encoded = Uri.encodeComponent(price.asset);
-          context.push('/market/detail/$encoded', extra: price);
+          if (price.instrumentType == 'crypto') {
+            context.push('/crypto/detail/$encoded', extra: price);
+          } else {
+            context.push('/market/detail/$encoded', extra: price);
+          }
         },
         borderRadius: BorderRadius.circular(14),
         child: Padding(

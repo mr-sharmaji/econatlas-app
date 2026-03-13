@@ -12,6 +12,8 @@ abstract class MarketRepository {
 
   Future<IntradayResponse> getCommodityIntraday({required String asset});
 
+  Future<IntradayResponse> getCryptoIntraday({required String asset});
+
   Future<MarketPriceResponse> getMarketPrices({
     String? instrumentType,
     String? asset,
