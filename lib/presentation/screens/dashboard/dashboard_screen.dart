@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/error_utils.dart';
-import '../../../core/market_status_helper.dart';
+import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/market_price.dart';
@@ -66,7 +66,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         onRefresh: () async {
           await ref.read(watchlistProvider.notifier).load(silent: true);
           await Future.wait([
-            ref.refresh(marketStatusProvider.future),
             ref.refresh(latestMarketPricesProvider.future),
             ref.refresh(latestCommoditiesProvider.future),
           ]);
@@ -92,27 +91,8 @@ class _MarketOverviewGrid extends ConsumerWidget {
     final commodityAsync = ref.watch(latestCommoditiesProvider);
     final cryptoAsync = ref.watch(latestCryptoProvider);
     final unitSystem = ref.watch(unitSystemProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
     final watchlistAsync = ref.watch(watchlistProvider);
-    final status = statusAsync.valueOrNull;
-    String phaseFor(MarketPrice p) {
-      final hasApiPhase = (p.marketPhase ?? '').trim().isNotEmpty;
-      if (hasApiPhase) return normalizeMarketPhase(p.marketPhase);
-      // Crypto is 24/7 — only check data freshness, no market-status needed.
-      if (p.instrumentType == 'crypto') {
-        final lastUpdate = p.lastTickTimestamp ?? p.timestamp;
-        final age = DateTime.now().difference(lastUpdate.toLocal()).inSeconds;
-        return age <= 900 ? 'live' : 'stale';
-      }
-      final live = status != null &&
-          isLiveForAsset(
-            p.asset,
-            p.instrumentType,
-            status,
-            lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-          );
-      return live ? 'live' : 'closed';
-    }
+    String phaseFor(MarketPrice p) => normalizeMarketPhase(p.marketPhase);
 
     return marketAsync.when(
       loading: () => const ShimmerList(itemCount: 4, itemHeight: 70),

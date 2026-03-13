@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants.dart';
 import '../../../core/error_utils.dart';
-import '../../../core/market_status_helper.dart';
+import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/intraday_response.dart';
@@ -67,19 +67,7 @@ class _CommodityDetailScreenState
     final intradayList = intradayPayload?.prices ?? const [];
     final hasAuthoritativeTick =
         latestResolvedPrice != null || intradayList.isNotEmpty;
-    final status = ref.watch(marketStatusProvider).valueOrNull;
-    final hasApiPhase = (currentPrice?.marketPhase ?? '').trim().isNotEmpty;
-    final fallbackLive = status != null &&
-        isLiveForAsset(
-          widget.asset,
-          'commodity',
-          status,
-          lastUpdate:
-              currentPrice?.lastTickTimestamp ?? currentPrice?.timestamp,
-        );
-    final phase = hasApiPhase
-        ? normalizeMarketPhase(currentPrice?.marketPhase)
-        : (fallbackLive ? 'live' : 'closed');
+    final phase = normalizeMarketPhase(currentPrice?.marketPhase);
     final chartTzId = ref.watch(chartTimezoneProvider).id;
     final usdInrRate = marketAsync.valueOrNull
             ?.where((p) => p.asset == 'USD/INR')

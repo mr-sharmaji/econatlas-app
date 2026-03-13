@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants.dart';
 import '../../../core/error_utils.dart';
-import '../../../core/market_status_helper.dart';
+import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/intraday_response.dart';
@@ -116,20 +116,9 @@ class _IndicesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestMarketPricesProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
-    final status = statusAsync.valueOrNull;
-    bool isLiveFor(MarketPrice p) =>
-        status != null &&
-        isLiveForAsset(
-          p.asset,
-          p.instrumentType,
-          status,
-          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-        );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestMarketPricesProvider);
       },
       child: pricesAsync.when(
@@ -183,7 +172,7 @@ class _IndicesTab extends ConsumerWidget {
                   prices: inIndices,
                 ),
                 ...inIndices
-                    .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
+                    .map((p) => _MarketTile(price: p)),
               ],
               if (usIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -192,7 +181,7 @@ class _IndicesTab extends ConsumerWidget {
                   prices: usIndices,
                 ),
                 ...usIndices
-                    .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
+                    .map((p) => _MarketTile(price: p)),
               ],
               if (europeIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -201,7 +190,7 @@ class _IndicesTab extends ConsumerWidget {
                   prices: europeIndices,
                 ),
                 ...europeIndices
-                    .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
+                    .map((p) => _MarketTile(price: p)),
               ],
               if (japanIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -210,7 +199,7 @@ class _IndicesTab extends ConsumerWidget {
                   prices: japanIndices,
                 ),
                 ...japanIndices
-                    .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
+                    .map((p) => _MarketTile(price: p)),
               ],
               ...indices
                   .where((p) =>
@@ -218,7 +207,7 @@ class _IndicesTab extends ConsumerWidget {
                       !Entities.indicesIndia.contains(p.asset) &&
                       !Entities.indicesEurope.contains(p.asset) &&
                       !Entities.indicesJapan.contains(p.asset))
-                  .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
+                  .map((p) => _MarketTile(price: p)),
             ],
           );
         },
@@ -235,20 +224,9 @@ class _CurrenciesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestCurrenciesProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
-    final status = statusAsync.valueOrNull;
-    bool isLiveFor(MarketPrice p) =>
-        status != null &&
-        isLiveForAsset(
-          p.asset,
-          p.instrumentType,
-          status,
-          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-        );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestCurrenciesProvider);
       },
       child: pricesAsync.when(
@@ -305,7 +283,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...majors.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -317,7 +294,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...asiaPacific.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -329,7 +305,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...middleEast.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -341,7 +316,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...europe.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -353,7 +327,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...americas.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -365,7 +338,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...africa.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -377,7 +349,6 @@ class _CurrenciesTab extends ConsumerWidget {
                 ),
                 ...others.map((p) => _MarketTile(
                       price: p,
-                      isLive: isLiveFor(p),
                       pricePrefix: '₹ ',
                     )),
               ],
@@ -399,8 +370,6 @@ class _CommoditiesTab extends ConsumerWidget {
     final pricesAsync = ref.watch(latestCommoditiesProvider);
     final unitSystem = ref.watch(unitSystemProvider);
     final marketAsync = ref.watch(latestMarketPricesProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
-    final status = statusAsync.valueOrNull;
     final usdInrRate = marketAsync.whenOrNull(
           data: (prices) {
             final usdInr = prices.where((p) => p.asset == 'USD/INR').toList();
@@ -408,18 +377,9 @@ class _CommoditiesTab extends ConsumerWidget {
           },
         ) ??
         84.0;
-    bool isLiveFor(MarketPrice p) =>
-        status != null &&
-        isLiveForAsset(
-          p.asset,
-          p.instrumentType,
-          status,
-          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-        );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestCommoditiesProvider);
       },
       child: pricesAsync.when(
@@ -478,7 +438,6 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: usdInrRate,
                       unitSystem: unitSystem,
-                      isLive: isLiveFor(p),
                     )),
               ],
               if (industrial.isNotEmpty) ...[
@@ -491,7 +450,6 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: usdInrRate,
                       unitSystem: unitSystem,
-                      isLive: isLiveFor(p),
                     )),
               ],
               if (energy.isNotEmpty) ...[
@@ -504,14 +462,12 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: usdInrRate,
                       unitSystem: unitSystem,
-                      isLive: isLiveFor(p),
                     )),
               ],
               ...others.map((p) => _CommodityTile(
                     price: p,
                     usdInrRate: usdInrRate,
                     unitSystem: unitSystem,
-                    isLive: isLiveFor(p),
                   )),
             ],
           );
@@ -529,20 +485,9 @@ class _BondsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestBondsProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
-    final status = statusAsync.valueOrNull;
-    bool isLiveFor(MarketPrice p) =>
-        status != null &&
-        isLiveForAsset(
-          p.asset,
-          p.instrumentType,
-          status,
-          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-        );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestBondsProvider);
       },
       child: pricesAsync.when(
@@ -593,7 +538,6 @@ class _BondsTab extends ConsumerWidget {
                 ...inBonds.map((p) => _MarketTile(
                       price: p,
                       suffix: '%',
-                      isLive: isLiveFor(p),
                       showChange: false,
                     )),
               ],
@@ -606,7 +550,6 @@ class _BondsTab extends ConsumerWidget {
                 ...usBonds.map((p) => _MarketTile(
                       price: p,
                       suffix: '%',
-                      isLive: isLiveFor(p),
                       showChange: false,
                     )),
               ],
@@ -619,7 +562,6 @@ class _BondsTab extends ConsumerWidget {
                 ...euBonds.map((p) => _MarketTile(
                       price: p,
                       suffix: '%',
-                      isLive: isLiveFor(p),
                       showChange: false,
                     )),
               ],
@@ -632,14 +574,12 @@ class _BondsTab extends ConsumerWidget {
                 ...jpBonds.map((p) => _MarketTile(
                       price: p,
                       suffix: '%',
-                      isLive: isLiveFor(p),
                       showChange: false,
                     )),
               ],
               ...others.map((p) => _MarketTile(
                     price: p,
                     suffix: '%',
-                    isLive: isLiveFor(p),
                     showChange: false,
                   )),
             ],
@@ -777,23 +717,19 @@ class _MarketTile extends StatelessWidget {
   final MarketPrice price;
   final String pricePrefix;
   final String suffix;
-  final bool isLive;
   final bool showChange;
 
   const _MarketTile({
     required this.price,
     this.pricePrefix = '',
     this.suffix = '',
-    this.isLive = false,
     this.showChange = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasApiPhase = (price.marketPhase ?? '').trim().isNotEmpty;
-    final apiPhase = normalizeMarketPhase(price.marketPhase);
-    final phase = hasApiPhase ? apiPhase : (isLive ? 'live' : 'closed');
+    final phase = normalizeMarketPhase(price.marketPhase);
     final tickTs = price.lastTickTimestamp ?? price.timestamp;
     final isPredictive = price.isPredictive ?? false;
     final changeTag = Formatters.changeWithDiff(
@@ -911,25 +847,14 @@ class _CryptoTab extends ConsumerWidget {
     final unitSystem = ref.watch(unitSystemProvider);
     final useIndian = unitSystem == UnitSystem.indian;
     final marketAsync = ref.watch(latestMarketPricesProvider);
-    final statusAsync = ref.watch(marketStatusProvider);
-    final status = statusAsync.valueOrNull;
     final usdInrRate = marketAsync.valueOrNull
             ?.where((p) => p.asset == 'USD/INR')
             .map((p) => p.price)
             .firstOrNull ??
         84.0;
-    bool isLiveFor(MarketPrice p) =>
-        status != null &&
-        isLiveForAsset(
-          p.asset,
-          'crypto',
-          status,
-          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
-        );
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestCryptoProvider);
       },
       child: pricesAsync.when(
@@ -968,7 +893,6 @@ class _CryptoTab extends ConsumerWidget {
 
           Widget tile(MarketPrice p) => _CryptoTile(
                 price: p,
-                isLive: isLiveFor(p),
                 useIndian: useIndian,
                 usdInrRate: usdInrRate,
               );
@@ -1012,13 +936,11 @@ class _CryptoTab extends ConsumerWidget {
 
 class _CryptoTile extends StatelessWidget {
   final MarketPrice price;
-  final bool isLive;
   final bool useIndian;
   final double usdInrRate;
 
   const _CryptoTile({
     required this.price,
-    this.isLive = true,
     this.useIndian = false,
     this.usdInrRate = 84.0,
   });
@@ -1026,8 +948,7 @@ class _CryptoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Crypto is 24/7 – never "closed", only "live" or "stale".
-    final phase = isLive ? 'live' : 'stale';
+    final phase = normalizeMarketPhase(price.marketPhase);
     final tickTs = price.lastTickTimestamp ?? price.timestamp;
 
     final display = assetDisplayPriceAndUnit(
@@ -1138,21 +1059,17 @@ class _CommodityTile extends StatelessWidget {
   final MarketPrice price;
   final double usdInrRate;
   final UnitSystem unitSystem;
-  final bool isLive;
 
   const _CommodityTile({
     required this.price,
     required this.usdInrRate,
     required this.unitSystem,
-    this.isLive = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasApiPhase = (price.marketPhase ?? '').trim().isNotEmpty;
-    final apiPhase = normalizeMarketPhase(price.marketPhase);
-    final phase = hasApiPhase ? apiPhase : (isLive ? 'live' : 'closed');
+    final phase = normalizeMarketPhase(price.marketPhase);
     final tickTs = price.lastTickTimestamp ?? price.timestamp;
 
     final useIndianCommodity = unitSystem == UnitSystem.indian;
@@ -1388,19 +1305,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           );
     final intradayStatsList =
         intradayListRaw.isNotEmpty ? intradayListRaw : intradayChartList;
-    final status = ref.watch(marketStatusProvider).valueOrNull;
-    final hasApiPhase = (currentPrice?.marketPhase ?? '').trim().isNotEmpty;
-    final fallbackLive = status != null &&
-        isLiveForAsset(
-          widget.asset,
-          instType,
-          status,
-          lastUpdate:
-              currentPrice?.lastTickTimestamp ?? currentPrice?.timestamp,
-        );
-    final phase = hasApiPhase
-        ? normalizeMarketPhase(currentPrice?.marketPhase)
-        : (fallbackLive ? 'live' : 'closed');
+    final phase = normalizeMarketPhase(currentPrice?.marketPhase);
     final chartTzId = ref.watch(chartTimezoneProvider).id;
     final displayUnit = display?.$2;
     final isCurrency = instType == 'currency';
