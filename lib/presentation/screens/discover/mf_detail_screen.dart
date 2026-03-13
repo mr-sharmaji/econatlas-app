@@ -84,8 +84,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     });
 
     final isPositive = (periodChange ?? 0) >= 0;
-    final changeColor =
-        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Fund Detail')),
@@ -358,8 +357,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 color: isSelected ? Colors.white : Colors.white60,
               ),
               selectedColor: AppTheme.primaryColor,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
             ),
           );
         }).toList(),
@@ -385,7 +383,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  item.score.toStringAsFixed(0),
+                  ScoreBar.formatMinified(item.score),
                   style: theme.textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: ScoreBar.scoreColor(item.score),
@@ -545,9 +543,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 Text(
                   'Top $percentile%',
                   style: theme.textTheme.labelSmall?.copyWith(
-                    color: isTopQuartile
-                        ? AppTheme.accentGreen
-                        : Colors.white54,
+                    color:
+                        isTopQuartile ? AppTheme.accentGreen : Colors.white54,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -594,24 +591,21 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     ?.copyWith(color: Colors.white54),
               ),
               const SizedBox(height: 8),
-              if (item.returns1y != null &&
-                  item.categoryAvgReturns1y != null)
+              if (item.returns1y != null && item.categoryAvgReturns1y != null)
                 _buildReturnComparison(
                   theme,
                   '1Y',
                   item.returns1y!,
                   item.categoryAvgReturns1y!,
                 ),
-              if (item.returns3y != null &&
-                  item.categoryAvgReturns3y != null)
+              if (item.returns3y != null && item.categoryAvgReturns3y != null)
                 _buildReturnComparison(
                   theme,
                   '3Y',
                   item.returns3y!,
                   item.categoryAvgReturns3y!,
                 ),
-              if (item.returns5y != null &&
-                  item.categoryAvgReturns5y != null)
+              if (item.returns5y != null && item.categoryAvgReturns5y != null)
                 _buildReturnComparison(
                   theme,
                   '5Y',
@@ -648,8 +642,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             width: 28,
             child: Text(
               period,
-              style: theme.textTheme.labelSmall
-                  ?.copyWith(color: Colors.white54, fontWeight: FontWeight.w600),
+              style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white54, fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(width: 4),
@@ -669,14 +663,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           const SizedBox(width: 8),
           Text(
             'vs',
-            style:
-                theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
           ),
           const SizedBox(width: 8),
           Text(
             'Avg: ${categoryAvg.toStringAsFixed(1)}%',
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: Colors.white54),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
       ),
@@ -906,7 +898,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     ),
                   ],
                 ),
-                Divider(height: 12, color: Colors.white.withValues(alpha: 0.08)),
+                Divider(
+                    height: 12, color: Colors.white.withValues(alpha: 0.08)),
                 ...peers.map((peer) => _buildMfPeerRow(theme, peer)),
               ],
             ),
@@ -948,7 +941,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             Expanded(
               flex: 1,
               child: Text(
-                peer.score.toStringAsFixed(0),
+                ScoreBar.formatMinified(peer.score),
                 textAlign: TextAlign.right,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: ScoreBar.scoreColor(peer.score),
@@ -993,5 +986,4 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     if (sharpe < 0.5) return AppTheme.accentRed;
     return null;
   }
-
 }

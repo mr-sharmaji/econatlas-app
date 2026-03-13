@@ -22,6 +22,12 @@ class ScoreBar extends StatelessWidget {
     return AppTheme.accentRed;
   }
 
+  static String formatMinified(double score) {
+    final scaled = score / 10.0;
+    final bounded = scaled < 0 ? 0.0 : (scaled > 10 ? 10.0 : scaled);
+    return '${bounded.toStringAsFixed(1)}/10';
+  }
+
   @override
   Widget build(BuildContext context) {
     final color = scoreColor(score);
@@ -31,7 +37,7 @@ class ScoreBar extends StatelessWidget {
       children: [
         if (showLabel) ...[
           Text(
-            score.toStringAsFixed(0),
+            formatMinified(score),
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   color: color,
                   fontWeight: FontWeight.w700,

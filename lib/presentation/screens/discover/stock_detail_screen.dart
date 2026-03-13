@@ -76,8 +76,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
 
     final displayChange = periodChange ?? item.percentChange;
     final isPositive = (displayChange ?? 0) >= 0;
-    final changeColor =
-        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Scaffold(
       appBar: AppBar(title: Text(item.symbol)),
@@ -125,8 +124,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             const SizedBox(height: 4),
             Text(
               '${item.sector ?? "Equity"} · NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap!) : "—"} Cr',
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: Colors.white54),
+              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
             ),
             const SizedBox(height: 12),
             Row(
@@ -212,7 +210,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                         ),
                         const SizedBox(width: 10),
                         Text(
-                          item.score.toStringAsFixed(0),
+                          ScoreBar.formatMinified(item.score),
                           style: theme.textTheme.headlineMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: ScoreBar.scoreColor(item.score),
@@ -420,7 +418,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     final high = item.high52w!;
     final current = item.lastPrice;
     final range = high - low;
-    final fraction = range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
+    final fraction =
+        range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -488,8 +487,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                   borderRadius: BorderRadius.circular(4),
                                   boxShadow: [
                                     BoxShadow(
-                                      color:
-                                          AppTheme.accentBlue.withValues(alpha: 0.4),
+                                      color: AppTheme.accentBlue
+                                          .withValues(alpha: 0.4),
                                       blurRadius: 6,
                                     ),
                                   ],
@@ -604,7 +603,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ),
                   ],
                 ),
-                Divider(height: 12, color: Colors.white.withValues(alpha: 0.08)),
+                Divider(
+                    height: 12, color: Colors.white.withValues(alpha: 0.08)),
                 ...peers.map((peer) => _buildPeerRow(theme, peer)),
               ],
             ),
@@ -646,7 +646,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             Expanded(
               flex: 1,
               child: Text(
-                peer.score.toStringAsFixed(0),
+                ScoreBar.formatMinified(peer.score),
                 textAlign: TextAlign.right,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: ScoreBar.scoreColor(peer.score),
@@ -657,7 +657,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             Expanded(
               flex: 2,
               child: Text(
-                peer.roe != null ? '${peer.roe!.toStringAsFixed(1)}%' : '\u2014',
+                peer.roe != null
+                    ? '${peer.roe!.toStringAsFixed(1)}%'
+                    : '\u2014',
                 textAlign: TextAlign.right,
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: _roeColor(peer.roe),
@@ -692,5 +694,4 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     if (de > 1.0) return AppTheme.accentRed;
     return null;
   }
-
 }
