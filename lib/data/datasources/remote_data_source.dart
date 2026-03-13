@@ -586,7 +586,13 @@ class RemoteDataSource {
   }
 
   Future<Map<String, dynamic>> triggerJob(String jobName) async {
-    final response = await _dio.post('/ops/jobs/trigger/$jobName');
+    final response = await _dio.post(
+      '/ops/jobs/trigger/$jobName',
+      options: Options(
+        sendTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      ),
+    );
     return response.data as Map<String, dynamic>;
   }
 

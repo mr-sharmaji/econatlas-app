@@ -174,8 +174,8 @@ class _DeveloperOptionsScreenState
       final ds = ref.read(remoteDataSourceProvider);
       final jobs = await ds.listJobs();
       if (mounted) setState(() => _jobs = jobs);
-    } catch (_) {
-      // silently ignore — jobs section just won't show
+    } catch (err) {
+      debugPrint('Failed to load jobs list: $err');
     } finally {
       if (mounted) setState(() => _loadingJobs = false);
     }
@@ -197,11 +197,20 @@ class _DeveloperOptionsScreenState
       }
     } catch (err) {
       if (mounted) {
+        String detail = err.toString();
+        if (err is DioException) {
+          final resp = err.response;
+          if (resp != null) {
+            detail = '${resp.statusCode}: ${resp.data}';
+          } else {
+            detail = err.message ?? err.type.name;
+          }
+        }
         setState(() => _jobStatus[jobName] = 'error');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to trigger $jobName'),
-            duration: const Duration(seconds: 2),
+            content: Text('Failed to trigger $jobName — $detail'),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
