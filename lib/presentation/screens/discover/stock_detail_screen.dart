@@ -74,13 +74,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
-        // Override last point with live price so chart matches header
-        if (chartPrices.isNotEmpty) {
-          chartPrices[chartPrices.length - 1] = item.lastPrice;
-        }
+        // Compute % change from raw historical close prices (no live override)
+        // so the value matches the discover page's percent_change_3m etc.
         final first = chartPrices.first;
         final last = chartPrices.last;
         if (first > 0) _periodChange = ((last - first) / first) * 100;
+        // Override last chart point with live price for visual display only
+        if (chartPrices.isNotEmpty) {
+          chartPrices[chartPrices.length - 1] = item.lastPrice;
+        }
       }
     });
 

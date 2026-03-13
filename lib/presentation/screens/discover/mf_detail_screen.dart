@@ -70,20 +70,35 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       ),
     );
 
-    // Compute period change % from chart data (persist to avoid flash)
+    // Use API return values for known periods (more reliable than chart calc).
+    // Fall back to chart-based computation for periods without API data.
     List<double> chartPrices = [];
     List<DateTime> chartTimestamps = [];
     historyAsync.whenData((history) {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
-        // Override last point with live NAV so chart matches header
+        // Prefer API return values for known periods
+        double? apiReturn;
+        if (_selectedDays == 365) {
+          apiReturn = item.returns1y;
+        } else if (_selectedDays == 1095) {
+          apiReturn = item.returns3y;
+        } else if (_selectedDays == 1825) {
+          apiReturn = item.returns5y;
+        }
+        if (apiReturn != null) {
+          _periodChange = apiReturn;
+        } else {
+          // Compute from raw NAV history for short periods (1W, 1M, 3M, 6M)
+          final first = chartPrices.first;
+          final last = chartPrices.last;
+          if (first > 0) _periodChange = ((last - first) / first) * 100;
+        }
+        // Override last chart point with live NAV for visual display only
         if (chartPrices.isNotEmpty) {
           chartPrices[chartPrices.length - 1] = item.nav;
         }
-        final first = chartPrices.first;
-        final last = chartPrices.last;
-        if (first > 0) _periodChange = ((last - first) / first) * 100;
       }
     });
 
