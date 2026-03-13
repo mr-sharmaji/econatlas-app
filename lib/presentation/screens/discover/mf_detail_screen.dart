@@ -351,6 +351,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               label: Text(opt.label),
               selected: isSelected,
               onSelected: (_) => setState(() => _selectedDays = opt.days),
+              showCheckmark: false,
               selectedColor: AppTheme.accentBlue.withValues(alpha: 0.25),
               side: BorderSide(
                 color: isSelected

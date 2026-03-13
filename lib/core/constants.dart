@@ -162,7 +162,6 @@ class Entities {
     'NASDAQ',
     'Nasdaq 100',
     'Dow Jones',
-    'CBOE VIX',
     'S&P 500 Tech',
     'S&P 500 Financials',
     'S&P 500 Energy',
@@ -183,7 +182,6 @@ class Entities {
   static const List<String> indicesIndia = [
     'Sensex',
     'Nifty 50',
-    'India VIX',
     'Gift Nifty',
     'Nifty 500',
     'Nifty Bank',

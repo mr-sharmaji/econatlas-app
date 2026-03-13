@@ -98,6 +98,12 @@ class _MarketOverviewGrid extends ConsumerWidget {
     String phaseFor(MarketPrice p) {
       final hasApiPhase = (p.marketPhase ?? '').trim().isNotEmpty;
       if (hasApiPhase) return normalizeMarketPhase(p.marketPhase);
+      // Crypto is 24/7 — only check data freshness, no market-status needed.
+      if (p.instrumentType == 'crypto') {
+        final lastUpdate = p.lastTickTimestamp ?? p.timestamp;
+        final age = DateTime.now().difference(lastUpdate.toLocal()).inSeconds;
+        return age <= 900 ? 'live' : 'stale';
+      }
       final live = status != null &&
           isLiveForAsset(
             p.asset,

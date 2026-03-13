@@ -139,8 +139,12 @@ class _IndicesTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(latestMarketPricesProvider),
         ),
         data: (prices) {
-          final indices =
-              prices.where((p) => p.instrumentType == 'index').toList();
+          // VIX indices are shown on the Overview page, not here.
+          const vixAssets = {'CBOE VIX', 'India VIX'};
+          final indices = prices
+              .where((p) =>
+                  p.instrumentType == 'index' && !vixAssets.contains(p.asset))
+              .toList();
 
           final inIndices = <MarketPrice>[];
           for (final name in Entities.indicesIndia) {
@@ -173,37 +177,37 @@ class _IndicesTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
               if (inIndices.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.india,
                   title: 'India',
-                  subtitle: 'Key indices',
+                  prices: inIndices,
                 ),
                 ...inIndices
                     .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
               ],
               if (usIndices.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.us,
                   title: 'United States',
-                  subtitle: 'Key indices',
+                  prices: usIndices,
                 ),
                 ...usIndices
                     .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
               ],
               if (europeIndices.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.europe,
                   title: 'Europe',
-                  subtitle: 'Key indices',
+                  prices: europeIndices,
                 ),
                 ...europeIndices
                     .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
               ],
               if (japanIndices.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.japan,
                   title: 'Japan',
-                  subtitle: 'Key indices',
+                  prices: japanIndices,
                 ),
                 ...japanIndices
                     .map((p) => _MarketTile(price: p, isLive: isLiveFor(p))),
@@ -294,10 +298,10 @@ class _CurrenciesTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
               if (majors.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.global,
                   title: 'Global Majors',
-                  subtitle: 'High-volume INR pairs',
+                  prices: majors,
                 ),
                 ...majors.map((p) => _MarketTile(
                       price: p,
@@ -306,10 +310,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (asiaPacific.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.asia,
                   title: 'Asia Pacific',
-                  subtitle: 'Asia-Pacific INR pairs',
+                  prices: asiaPacific,
                 ),
                 ...asiaPacific.map((p) => _MarketTile(
                       price: p,
@@ -318,10 +322,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (middleEast.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.middleEast,
                   title: 'Middle East',
-                  subtitle: 'Middle East INR pairs',
+                  prices: middleEast,
                 ),
                 ...middleEast.map((p) => _MarketTile(
                       price: p,
@@ -330,10 +334,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (europe.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.europe,
                   title: 'Europe',
-                  subtitle: 'Europe INR pairs',
+                  prices: europe,
                 ),
                 ...europe.map((p) => _MarketTile(
                       price: p,
@@ -342,10 +346,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (americas.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.americas,
                   title: 'Americas',
-                  subtitle: 'Americas INR pairs',
+                  prices: americas,
                 ),
                 ...americas.map((p) => _MarketTile(
                       price: p,
@@ -354,10 +358,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (africa.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.africa,
                   title: 'Africa',
-                  subtitle: 'Africa INR pairs',
+                  prices: africa,
                 ),
                 ...africa.map((p) => _MarketTile(
                       price: p,
@@ -366,10 +370,10 @@ class _CurrenciesTab extends ConsumerWidget {
                     )),
               ],
               if (others.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.currenciesOther,
                   title: 'Other',
-                  subtitle: 'Less-tracked INR pairs',
+                  prices: others,
                 ),
                 ...others.map((p) => _MarketTile(
                       price: p,
@@ -465,10 +469,10 @@ class _CommoditiesTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
               if (precious.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.metals,
                   title: 'Precious Metals',
-                  subtitle: 'Gold, silver, and other precious metals',
+                  prices: precious,
                 ),
                 ...precious.map((p) => _CommodityTile(
                       price: p,
@@ -478,10 +482,10 @@ class _CommoditiesTab extends ConsumerWidget {
                     )),
               ],
               if (industrial.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.metals,
                   title: 'Industrial Metals',
-                  subtitle: 'Key industrial metal benchmarks',
+                  prices: industrial,
                 ),
                 ...industrial.map((p) => _CommodityTile(
                       price: p,
@@ -491,10 +495,10 @@ class _CommoditiesTab extends ConsumerWidget {
                     )),
               ],
               if (energy.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.energy,
                   title: 'Energy',
-                  subtitle: 'Oil and natural gas benchmarks',
+                  prices: energy,
                 ),
                 ...energy.map((p) => _CommodityTile(
                       price: p,
@@ -581,10 +585,10 @@ class _BondsTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
               if (inBonds.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.india,
                   title: 'India',
-                  subtitle: 'Government yields',
+                  prices: inBonds,
                 ),
                 ...inBonds.map((p) => _MarketTile(
                       price: p,
@@ -594,10 +598,10 @@ class _BondsTab extends ConsumerWidget {
                     )),
               ],
               if (usBonds.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.us,
                   title: 'United States',
-                  subtitle: 'Treasury yields',
+                  prices: usBonds,
                 ),
                 ...usBonds.map((p) => _MarketTile(
                       price: p,
@@ -607,10 +611,10 @@ class _BondsTab extends ConsumerWidget {
                     )),
               ],
               if (euBonds.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.europe,
                   title: 'Europe',
-                  subtitle: 'Sovereign yields',
+                  prices: euBonds,
                 ),
                 ...euBonds.map((p) => _MarketTile(
                       price: p,
@@ -620,10 +624,10 @@ class _BondsTab extends ConsumerWidget {
                     )),
               ],
               if (jpBonds.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.japan,
                   title: 'Japan',
-                  subtitle: 'Government yields',
+                  prices: jpBonds,
                 ),
                 ...jpBonds.map((p) => _MarketTile(
                       price: p,
@@ -650,16 +654,30 @@ class _RegionBanner extends StatelessWidget {
   const _RegionBanner({
     required this.badgeStyle,
     required this.title,
-    required this.subtitle,
+    required this.prices,
   });
 
   final AssetBadgeStyle badgeStyle;
   final String title;
-  final String subtitle;
+  final List<MarketPrice> prices;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Compute trend summary from changePercent
+    final changes = prices
+        .map((p) => p.changePercent)
+        .whereType<double>()
+        .toList();
+    final upCount = changes.where((c) => c >= 0).length;
+    final downCount = changes.where((c) => c < 0).length;
+    final avgChange = changes.isNotEmpty
+        ? changes.fold<double>(0, (s, c) => s + c) / changes.length
+        : null;
+    final avgPositive = (avgChange ?? 0) >= 0;
+    final avgColor =
+        avgPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
       child: Container(
@@ -693,12 +711,58 @@ class _RegionBanner extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                  const SizedBox(height: 2),
+                  if (changes.isNotEmpty)
+                    Row(
+                      children: [
+                        if (upCount > 0)
+                          Text(
+                            '▲$upCount',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.accentGreen,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        if (upCount > 0 && downCount > 0)
+                          const SizedBox(width: 6),
+                        if (downCount > 0)
+                          Text(
+                            '▼$downCount',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppTheme.accentRed,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                        if (avgChange != null) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: avgColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              '${avgPositive ? "+" : ""}${avgChange.toStringAsFixed(2)}%',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: avgColor,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    )
+                  else
+                    Text(
+                      '—',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -914,26 +978,26 @@ class _CryptoTab extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
               if (layer1.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.crypto,
                   title: 'Layer 1',
-                  subtitle: 'Core blockchain networks',
+                  prices: layer1,
                 ),
                 ...layer1.map(tile),
               ],
               if (defi.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.crypto,
                   title: 'Infrastructure',
-                  subtitle: 'Oracles and interoperability',
+                  prices: defi,
                 ),
                 ...defi.map(tile),
               ],
               if (meme.isNotEmpty) ...[
-                const _RegionBanner(
+                _RegionBanner(
                   badgeStyle: AssetBadgeStyle.crypto,
                   title: 'Payments & Meme',
-                  subtitle: 'Payment networks and community tokens',
+                  prices: meme,
                 ),
                 ...meme.map(tile),
               ],
@@ -962,7 +1026,8 @@ class _CryptoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final phase = isLive ? 'live' : 'closed';
+    // Crypto is 24/7 – never "closed", only "live" or "stale".
+    final phase = isLive ? 'live' : 'stale';
     final tickTs = price.lastTickTimestamp ?? price.timestamp;
 
     final display = assetDisplayPriceAndUnit(
@@ -1229,29 +1294,44 @@ class MarketDetailScreen extends ConsumerStatefulWidget {
 
 class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
   ChartRange _chartRange = ChartRange.oneDay;
-  final ScrollController _rangeScrollController = ScrollController();
-  bool _showRangeScrollHint = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _rangeScrollController.addListener(_onRangeScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onRangeScroll());
+  // Context metadata for header line
+  static String _contextForAsset(String asset, String instType) {
+    if (instType == 'bond_yield') return 'Government';
+    if (instType == 'currency') {
+      final base = asset.split('/').first;
+      return '$base vs INR';
+    }
+    if (instType == 'commodity') {
+      const exchanges = <String, String>{
+        'gold': 'COMEX',
+        'silver': 'COMEX',
+        'platinum': 'NYMEX',
+        'palladium': 'NYMEX',
+        'copper': 'COMEX',
+        'crude oil': 'NYMEX',
+        'natural gas': 'NYMEX',
+      };
+      return exchanges[asset.toLowerCase()] ?? 'Exchange';
+    }
+    // index
+    if (Entities.indicesUS.contains(asset)) return 'United States';
+    if (Entities.indicesEurope.contains(asset)) return 'Europe';
+    if (Entities.indicesJapan.contains(asset)) return 'Japan';
+    if (Entities.indicesIndia.contains(asset)) return 'India';
+    return '';
   }
 
-  @override
-  void dispose() {
-    _rangeScrollController.removeListener(_onRangeScroll);
-    _rangeScrollController.dispose();
-    super.dispose();
-  }
-
-  void _onRangeScroll() {
-    if (!_rangeScrollController.hasClients) return;
-    final atEnd = _rangeScrollController.offset >=
-        _rangeScrollController.position.maxScrollExtent - 4;
-    if (_showRangeScrollHint == atEnd) {
-      setState(() => _showRangeScrollHint = !atEnd);
+  static String _typeBadge(String instType) {
+    switch (instType) {
+      case 'bond_yield':
+        return 'Bond';
+      case 'currency':
+        return 'FX';
+      case 'commodity':
+        return 'Commodity';
+      default:
+        return 'Index';
     }
   }
 
@@ -1333,7 +1413,26 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(displayName(widget.asset)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AssetLogoBadge(
+              asset: widget.asset,
+              instrumentType: instType,
+              size: 22,
+              borderRadius: 6,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                displayName(widget.asset),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            MarketStatusPill(phase: phase, showLabel: true),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: inWatchlist ? 'Remove from watchlist' : 'Add to watchlist',
@@ -1343,12 +1442,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             ),
             onPressed: () =>
                 ref.read(watchlistProvider.notifier).toggle(widget.asset),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: MarketStatusPill(phase: phase, showLabel: true),
-            ),
           ),
         ],
       ),
@@ -1368,10 +1461,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _chartRangeChips(context, oneDayLabel: oneDayLabel),
-            const SizedBox(height: 16),
+            // ── 1. Header ──
+            _buildHeader(theme, instType),
+            const SizedBox(height: 12),
+
+            // ── 2. Price row ──
             if (currentPrice != null && display != null) ...[
-              _buildTopCard(
+              _buildPriceRow(
                 theme,
                 display.$1,
                 display.$2,
@@ -1384,8 +1480,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 phase: phase,
                 showTickAge: hasAuthoritativeTick,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
             ],
+
+            // ── 3. Period selector ──
+            _buildPeriodSelector(theme, oneDayLabel: oneDayLabel),
+            const SizedBox(height: 10),
+
+            // ── 4. Chart + 5. Range card ──
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
               error: (err, _) => ErrorView(
@@ -1516,25 +1618,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 final close = statsPrices.last;
                 final high = statsPrices.reduce((a, b) => a > b ? a : b);
                 final low = statsPrices.reduce((a, b) => a < b ? a : b);
-                final avg = statsPrices.fold<double>(0, (s, p) => s + p) /
-                    statsPrices.length;
-                final spreadPct =
-                    open != 0 ? ((high - low) / open) * 100 : null;
+                final currentVal =
+                    currentPrice != null && display != null
+                        ? statsPrices.last
+                        : close;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _MarketRangeStatsCard(
-                      open: open,
-                      high: high,
-                      low: low,
-                      close: close,
-                      avg: avg,
-                      spreadPct: spreadPct,
-                      pricePrefix: prefix,
-                      unit: chartUnit,
-                    ),
-                    const SizedBox(height: 12),
                     PriceLineChart(
                       prices: chartPrices,
                       timestamps: chartTimestamps,
@@ -1544,6 +1635,21 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       chartTimeZoneId: chartTzId,
                       pricePrefix: prefix,
                       chartUnitHint: chartUnitHint,
+                    ),
+                    const SizedBox(height: 14),
+                    _SessionRangeCard(
+                      label: is1D
+                          ? ((isCommodity || isCurrency)
+                              ? '24H Range'
+                              : 'Session Range')
+                          : 'Period Range',
+                      low: low,
+                      high: high,
+                      current: currentVal,
+                      open: open,
+                      close: close,
+                      pricePrefix: prefix ?? '',
+                      unit: chartUnit,
                     ),
                   ],
                 );
@@ -1555,7 +1661,40 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     );
   }
 
-  Widget _buildTopCard(
+  // ── Header ──────────────────────────────────────────────────────────
+
+  Widget _buildHeader(ThemeData theme, String instType) {
+    final badge = _typeBadge(instType);
+    final ctx = _contextForAsset(widget.asset, instType);
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            badge,
+            style:
+                theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+          ),
+        ),
+        if (ctx.isNotEmpty) ...[
+          const SizedBox(width: 8),
+          Text(
+            ctx,
+            style:
+                theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── Price row (no Card wrapper) ─────────────────────────────────────
+
+  Widget _buildPriceRow(
     ThemeData theme,
     String displayPrice,
     String unitLabel,
@@ -1580,7 +1719,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     double? rangeCurrentDisplay;
     double? rangeBaseDisplay;
     if (_chartRange == ChartRange.oneDay) {
-      // Backend session/24H change should already align with the active intraday window.
       rangePct = priceForTop.changePercent;
       rangeCurrentDisplay = toDisplayValue(priceForTop.price);
       if (rangePct == null) {
@@ -1614,44 +1752,29 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         rangeCurrentDisplay = toDisplayValue(last);
       }
     }
-    String rangeChangeTag = '';
-    if (rangeCurrentDisplay != null) {
-      rangeChangeTag = Formatters.changeWithDiff(
-        current: rangeCurrentDisplay,
-        previous: rangeBaseDisplay,
-        pct: rangePct,
-      );
-    }
-    if (rangeChangeTag.isEmpty && rangePct != null) {
-      rangeChangeTag = Formatters.changeTag(rangePct);
-    }
-    final changeIsPositive =
+
+    final isPositive =
         (rangeCurrentDisplay != null && rangeBaseDisplay != null)
             ? (rangeCurrentDisplay - rangeBaseDisplay) >= 0
             : ((rangePct ?? 0) >= 0);
+    final changeColor =
+        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     final lastTick = (intradayFor1D != null && intradayFor1D.isNotEmpty)
         ? intradayFor1D.last.timestamp
         : priceForTop.lastTickTimestamp ?? priceForTop.timestamp;
-    final rangeLabel = (_chartRange == ChartRange.oneDay &&
-            ((priceForTop.instrumentType == 'commodity') ||
-                (priceForTop.instrumentType == 'currency')))
-        ? '24H'
-        : _chartRange.label;
     final subtitle = phase == 'live'
-        ? Formatters.updatedFreshness(
-            lastTick,
-            allowJustNow: true,
-          )
+        ? Formatters.updatedFreshness(lastTick, allowJustNow: true)
         : (priceForTop.isPredictive ?? false)
             ? 'Indicative · last quoted ${Formatters.relativeTime(lastTick)}'
             : Formatters.updatedFreshness(lastTick);
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
               '$displayPrice$unitLabel',
@@ -1660,26 +1783,32 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-            if (rangeChangeTag.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                '$rangeLabel change  $rangeChangeTag',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: changeIsPositive
-                      ? AppTheme.accentGreen
-                      : AppTheme.accentRed,
-                  fontWeight: FontWeight.w600,
+            if (rangePct != null) ...[
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: changeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${isPositive ? "+" : ""}${rangePct.toStringAsFixed(2)}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: changeColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
-            ),
           ],
         ),
-      ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        ),
+      ],
     );
   }
 
@@ -1710,172 +1839,202 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     return sorted.where((p) => !p.timestamp.isBefore(cutoff)).toList();
   }
 
-  Widget _chartRangeChips(BuildContext context, {String oneDayLabel = '1D'}) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: 44,
-      child: Stack(
-        alignment: Alignment.centerRight,
-        children: [
-          SingleChildScrollView(
-            controller: _rangeScrollController,
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ...ChartRange.values.map((r) {
-                  final selected = r == _chartRange;
-                  final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(label),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _chartRange = r),
-                      selectedColor: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.4),
-                      checkmarkColor: theme.colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                }),
-                const SizedBox(width: 24),
-              ],
-            ),
-          ),
-          if (_showRangeScrollHint)
-            IgnorePointer(
-              child: Container(
-                width: 32,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                      theme.scaffoldBackgroundColor,
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
+  // ── Period selector (ChoiceChip, matching stock detail) ──────────────
+
+  Widget _buildPeriodSelector(ThemeData theme, {String oneDayLabel = '1D'}) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: ChartRange.values.map((r) {
+          final isSelected = r == _chartRange;
+          final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: isSelected,
+              onSelected: (_) => setState(() => _chartRange = r),
+              showCheckmark: false,
+              selectedColor: AppTheme.accentBlue.withValues(alpha: 0.25),
+              side: BorderSide(
+                color: isSelected
+                    ? AppTheme.accentBlue.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.1),
               ),
+              labelStyle: theme.textTheme.labelMedium?.copyWith(
+                color: isSelected ? AppTheme.accentBlue : Colors.white60,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
-        ],
+          );
+        }).toList(),
       ),
     );
   }
 }
 
-class _MarketRangeStatsCard extends StatelessWidget {
-  final double open;
-  final double high;
+// ═══════════════════════════════════════════════════════════════════════
+// Session Range Card (visual range bar)
+// ═══════════════════════════════════════════════════════════════════════
+
+class _SessionRangeCard extends StatelessWidget {
+  final String label;
   final double low;
+  final double high;
+  final double current;
+  final double open;
   final double close;
-  final double? avg;
-  final double? spreadPct;
-  final String? pricePrefix;
+  final String pricePrefix;
   final String? unit;
 
-  const _MarketRangeStatsCard({
-    required this.open,
-    required this.high,
+  const _SessionRangeCard({
+    required this.label,
     required this.low,
+    required this.high,
+    required this.current,
+    required this.open,
     required this.close,
-    this.avg,
-    this.spreadPct,
-    this.pricePrefix,
+    this.pricePrefix = '',
     this.unit,
   });
+
+  String _fmt(double v) {
+    if (unit == 'percent') return Formatters.price(v, unit: unit);
+    if (unit == 'inr') return '$pricePrefix${Formatters.fxInrPrice(v)}';
+    return '$pricePrefix${Formatters.fullPrice(v)}';
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final prefix = pricePrefix ?? '';
-    String fmt(double v) {
-      if (unit == 'percent') {
-        return Formatters.price(v, unit: unit);
-      }
-      if (unit == 'inr') {
-        return '$prefix${Formatters.fxInrPrice(v)}';
-      }
-      return '$prefix${Formatters.fullPrice(v)}';
-    }
+    final range = high - low;
+    final fraction =
+        range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
 
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.all(14),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              label,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
+            // ── Visual range bar ──
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: _stat(theme, 'Open', fmt(open))),
-                const SizedBox(width: 12),
-                Expanded(child: _stat(theme, 'High', fmt(high))),
+                Text(
+                  _fmt(low),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final barWidth = constraints.maxWidth;
+                      final markerPos = barWidth * fraction;
+                      return SizedBox(
+                        height: 24,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 10,
+                              child: Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(2),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppTheme.accentRed
+                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentOrange
+                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentGreen
+                                          .withValues(alpha: 0.4),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: markerPos - 6,
+                              top: 2,
+                              child: Container(
+                                width: 12,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentBlue,
+                                  borderRadius: BorderRadius.circular(4),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.accentBlue
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _fmt(high),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
+            // ── Open / Close row ──
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Expanded(child: _stat(theme, 'Low', fmt(low))),
+                Expanded(
+                  child: _miniStat(theme, 'Open', _fmt(open)),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _stat(theme, 'Close', fmt(close))),
+                Expanded(
+                  child: _miniStat(theme, 'Close', _fmt(close)),
+                ),
               ],
             ),
-            if (avg != null || spreadPct != null) ...[
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (avg != null)
-                    Expanded(child: _stat(theme, 'Avg', fmt(avg!))),
-                  if (spreadPct != null) ...[
-                    if (avg != null) const SizedBox(width: 12),
-                    Expanded(
-                        child: _stat(theme, 'High–Low',
-                            Formatters.price(spreadPct!, unit: 'percent'))),
-                  ],
-                ],
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _stat(ThemeData theme, String label, String value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _miniStat(ThemeData theme, String label, String value) {
+    return Row(
       children: [
         Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          '$label: ',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
         ),
-        const SizedBox(height: 4),
         Text(
           value,
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
         ),
       ],
     );

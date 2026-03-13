@@ -392,6 +392,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               label: Text(p.label),
               selected: isSelected,
               onSelected: (_) => setState(() => _selectedDays = p.days),
+              showCheckmark: false,
               selectedColor: AppTheme.accentBlue.withValues(alpha: 0.25),
               side: BorderSide(
                 color: isSelected

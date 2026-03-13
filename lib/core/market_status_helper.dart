@@ -12,7 +12,8 @@ bool isLiveForAsset(
   final liveMaxAgeSeconds =
       (instrumentType == 'commodity' ||
               instrumentType == 'currency' ||
-              instrumentType == 'crypto')
+              instrumentType == 'crypto' ||
+              asset == 'Gift Nifty')
           ? 900
           : 300;
   final tickAgeSeconds =

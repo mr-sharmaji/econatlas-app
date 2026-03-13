@@ -25,33 +25,30 @@ class CommodityDetailScreen extends ConsumerStatefulWidget {
       _CommodityDetailScreenState();
 }
 
-class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
+class _CommodityDetailScreenState
+    extends ConsumerState<CommodityDetailScreen> {
   ChartRange _chartRange = ChartRange.oneDay;
-  final ScrollController _rangeScrollController = ScrollController();
-  bool _showRangeScrollHint = true;
 
-  @override
-  void initState() {
-    super.initState();
-    _rangeScrollController.addListener(_onRangeScroll);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _onRangeScroll());
-  }
+  // Commodity category labels for the context line
+  static const _categories = <String, String>{
+    'gold': 'Precious Metal',
+    'silver': 'Precious Metal',
+    'platinum': 'Precious Metal',
+    'palladium': 'Precious Metal',
+    'copper': 'Industrial Metal',
+    'crude oil': 'Energy',
+    'natural gas': 'Energy',
+  };
 
-  @override
-  void dispose() {
-    _rangeScrollController.removeListener(_onRangeScroll);
-    _rangeScrollController.dispose();
-    super.dispose();
-  }
-
-  void _onRangeScroll() {
-    if (!_rangeScrollController.hasClients) return;
-    final atEnd = _rangeScrollController.offset >=
-        _rangeScrollController.position.maxScrollExtent - 4;
-    if (_showRangeScrollHint == atEnd) {
-      setState(() => _showRangeScrollHint = !atEnd);
-    }
-  }
+  static const _exchanges = <String, String>{
+    'gold': 'COMEX',
+    'silver': 'COMEX',
+    'platinum': 'NYMEX',
+    'palladium': 'NYMEX',
+    'copper': 'COMEX',
+    'crude oil': 'NYMEX',
+    'natural gas': 'NYMEX',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +104,26 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(displayName(widget.asset)),
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AssetLogoBadge(
+              asset: widget.asset,
+              instrumentType: 'commodity',
+              size: 22,
+              borderRadius: 6,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                displayName(widget.asset),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(width: 6),
+            MarketStatusPill(phase: phase, showLabel: true),
+          ],
+        ),
         actions: [
           IconButton(
             tooltip: inWatchlist ? 'Remove from watchlist' : 'Add to watchlist',
@@ -117,12 +133,6 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
             ),
             onPressed: () =>
                 ref.read(watchlistProvider.notifier).toggle(widget.asset),
-          ),
-          Center(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: MarketStatusPill(phase: phase, showLabel: true),
-            ),
           ),
         ],
       ),
@@ -135,10 +145,13 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _chartRangeChips(context, oneDayLabel: '24H'),
-            const SizedBox(height: 16),
+            // ── 1. Header ──
+            _buildHeader(theme),
+            const SizedBox(height: 12),
+
+            // ── 2. Price row ──
             if (currentPrice != null && display != null) ...[
-              _buildTopCard(
+              _buildPriceRow(
                 theme,
                 display.$1,
                 display.$2,
@@ -148,8 +161,14 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
                 phase: phase,
                 showTickAge: hasAuthoritativeTick,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
             ],
+
+            // ── 3. Period selector ──
+            _buildPeriodSelector(theme, oneDayLabel: '24H'),
+            const SizedBox(height: 10),
+
+            // ── 4. Chart + 5. Range card ──
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
               error: (err, _) => ErrorView(
@@ -238,26 +257,23 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
                 final close = chartPrices.last;
                 final high = chartPrices.reduce((a, b) => a > b ? a : b);
                 final low = chartPrices.reduce((a, b) => a < b ? a : b);
-                final prefix = useIndian ? '₹ ' : null;
-                final avg = chartPrices.fold<double>(0, (s, p) => s + p) /
-                    chartPrices.length;
-                final spreadPct =
-                    open != 0 ? ((high - low) / open) * 100 : null;
+                final prefix = useIndian ? '₹ ' : '';
                 final chartUnitHint =
                     useIndian && displayUnit != null ? '₹$displayUnit' : null;
+                final dCurrent = currentPrice != null
+                    ? (useIndian
+                        ? assetDisplayValue(
+                            asset: widget.asset,
+                            rawPrice: currentPrice.price,
+                            useIndianUnits: true,
+                            usdInrRate: usdInrRate,
+                            instrumentType: 'commodity',
+                          )
+                        : currentPrice.price)
+                    : close;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _RangeStatsCard(
-                      open: open,
-                      high: high,
-                      low: low,
-                      close: close,
-                      avg: avg,
-                      spreadPct: spreadPct,
-                      pricePrefix: prefix,
-                    ),
-                    const SizedBox(height: 12),
                     PriceLineChart(
                       prices: chartPrices,
                       timestamps: chartTimestamps,
@@ -265,8 +281,18 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
                       isShortRange: isShortRange,
                       isIntraday: isIntradayChart,
                       chartTimeZoneId: chartTzId,
-                      pricePrefix: prefix,
+                      pricePrefix: prefix.isEmpty ? null : prefix,
                       chartUnitHint: chartUnitHint,
+                    ),
+                    const SizedBox(height: 14),
+                    _SessionRangeCard(
+                      label: is1D ? '24H Range' : 'Period Range',
+                      low: low,
+                      high: high,
+                      current: dCurrent,
+                      open: open,
+                      close: close,
+                      pricePrefix: prefix.isEmpty ? '' : prefix,
                     ),
                   ],
                 );
@@ -278,7 +304,38 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
     );
   }
 
-  Widget _buildTopCard(
+  // ── Header ──────────────────────────────────────────────────────────
+
+  Widget _buildHeader(ThemeData theme) {
+    final category = _categories[widget.asset] ?? 'Commodity';
+    final exchange = _exchanges[widget.asset] ?? 'COMEX';
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            category,
+            style: theme.textTheme.bodySmall
+                ?.copyWith(color: Colors.white54),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          exchange,
+          style:
+              theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        ),
+      ],
+    );
+  }
+
+  // ── Price row (no Card wrapper) ─────────────────────────────────────
+
+  Widget _buildPriceRow(
     ThemeData theme,
     String displayPrice,
     String unitLabel,
@@ -290,7 +347,6 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
   }) {
     double? rangePct;
     if (_chartRange == ChartRange.oneDay) {
-      // Keep 1D change aligned with list tiles by using backend daily change first.
       rangePct = priceForTop.changePercent;
       if (rangePct == null) {
         final prevClose = priceForTop.previousClose;
@@ -316,22 +372,22 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
         if (first != 0) rangePct = ((last - first) / first) * 100;
       }
     }
-    final rangeLabel =
-        _chartRange == ChartRange.oneDay ? '24H' : _chartRange.label;
     final lastTick = (intradayFor1D != null && intradayFor1D.isNotEmpty)
         ? intradayFor1D.last.timestamp
         : priceForTop.lastTickTimestamp ?? priceForTop.timestamp;
     final subtitle = phase == 'live'
-        ? Formatters.updatedFreshness(
-            lastTick,
-            allowJustNow: true,
-          )
+        ? Formatters.updatedFreshness(lastTick, allowJustNow: true)
         : Formatters.updatedFreshness(lastTick);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final isPositive = (rangePct ?? 0) >= 0;
+    final changeColor =
+        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
           children: [
             Text(
               '$displayPrice$unitLabel',
@@ -341,198 +397,230 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
               ),
             ),
             if (rangePct != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                '$rangeLabel change  ${Formatters.changeTag(rangePct)}',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: (rangePct >= 0)
-                      ? AppTheme.accentGreen
-                      : AppTheme.accentRed,
-                  fontWeight: FontWeight.w600,
+              const SizedBox(width: 10),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: changeColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${isPositive ? "+" : ""}${rangePct.toStringAsFixed(2)}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: changeColor,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
-            ),
           ],
         ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        ),
+      ],
+    );
+  }
+
+  // ── Period selector (ChoiceChip, matching stock detail) ──────────────
+
+  Widget _buildPeriodSelector(ThemeData theme, {String oneDayLabel = '1D'}) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: ChartRange.values.map((r) {
+          final isSelected = r == _chartRange;
+          final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(label),
+              selected: isSelected,
+              onSelected: (_) => setState(() => _chartRange = r),
+              showCheckmark: false,
+              selectedColor: AppTheme.accentBlue.withValues(alpha: 0.25),
+              side: BorderSide(
+                color: isSelected
+                    ? AppTheme.accentBlue.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.1),
+              ),
+              labelStyle: theme.textTheme.labelMedium?.copyWith(
+                color: isSelected ? AppTheme.accentBlue : Colors.white60,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
+
+  // ── Helpers ─────────────────────────────────────────────────────────
 
   List<MarketPrice> _filterByRange(List<MarketPrice> sorted) {
     if (_chartRange == ChartRange.all) return sorted;
     final cutoff = DateTime.now().subtract(_chartRange.duration);
     return sorted.where((p) => !p.timestamp.isBefore(cutoff)).toList();
   }
-
-  Widget _chartRangeChips(BuildContext context, {String oneDayLabel = '1D'}) {
-    final theme = Theme.of(context);
-    return SizedBox(
-      height: 44,
-      child: Stack(
-        alignment: Alignment.centerRight,
-        children: [
-          SingleChildScrollView(
-            controller: _rangeScrollController,
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ...ChartRange.values.map((r) {
-                  final selected = r == _chartRange;
-                  final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(label),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _chartRange = r),
-                      selectedColor: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.4),
-                      checkmarkColor: theme.colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                }),
-                const SizedBox(width: 24),
-              ],
-            ),
-          ),
-          if (_showRangeScrollHint)
-            IgnorePointer(
-              child: Container(
-                width: 32,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                      theme.scaffoldBackgroundColor,
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
 }
 
-class _RangeStatsCard extends StatelessWidget {
-  final double open;
-  final double high;
-  final double low;
-  final double close;
-  final double? avg;
-  final double? spreadPct;
-  final String? pricePrefix;
+// ═══════════════════════════════════════════════════════════════════════
+// Session Range Card
+// ═══════════════════════════════════════════════════════════════════════
 
-  const _RangeStatsCard({
-    required this.open,
-    required this.high,
+class _SessionRangeCard extends StatelessWidget {
+  final String label;
+  final double low;
+  final double high;
+  final double current;
+  final double open;
+  final double close;
+  final String pricePrefix;
+
+  const _SessionRangeCard({
+    required this.label,
     required this.low,
+    required this.high,
+    required this.current,
+    required this.open,
     required this.close,
-    this.avg,
-    this.spreadPct,
-    this.pricePrefix,
+    this.pricePrefix = '',
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final prefix = pricePrefix ?? '';
+    final range = high - low;
+    final fraction =
+        range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
+
     return Card(
+      margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        padding: const EdgeInsets.all(14),
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              label,
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 12),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Text(
+                  '$pricePrefix${Formatters.fullPrice(low)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
-                    child: _stat(
-                        theme, 'Open', '$prefix${Formatters.fullPrice(open)}')),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _stat(
-                        theme, 'High', '$prefix${Formatters.fullPrice(high)}')),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final barWidth = constraints.maxWidth;
+                      final markerPos = barWidth * fraction;
+                      return SizedBox(
+                        height: 24,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Positioned(
+                              left: 0,
+                              right: 0,
+                              top: 10,
+                              child: Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(2),
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      AppTheme.accentRed
+                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentOrange
+                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentGreen
+                                          .withValues(alpha: 0.4),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              left: markerPos - 6,
+                              top: 2,
+                              child: Container(
+                                width: 12,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.accentBlue,
+                                  borderRadius: BorderRadius.circular(4),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: AppTheme.accentBlue
+                                          .withValues(alpha: 0.4),
+                                      blurRadius: 6,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '$pricePrefix${Formatters.fullPrice(high)}',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                    child: _stat(
-                        theme, 'Low', '$prefix${Formatters.fullPrice(low)}')),
+                  child: _miniStat(
+                      theme, 'Open', '$pricePrefix${Formatters.fullPrice(open)}'),
+                ),
                 const SizedBox(width: 12),
                 Expanded(
-                    child: _stat(theme, 'Close',
-                        '$prefix${Formatters.fullPrice(close)}')),
+                  child: _miniStat(theme, 'Close',
+                      '$pricePrefix${Formatters.fullPrice(close)}'),
+                ),
               ],
             ),
-            if (avg != null || spreadPct != null) ...[
-              const SizedBox(height: 14),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  if (avg != null)
-                    Expanded(
-                        child: _stat(theme, 'Avg',
-                            '$prefix${Formatters.fullPrice(avg!)}')),
-                  if (spreadPct != null) ...[
-                    if (avg != null) const SizedBox(width: 12),
-                    Expanded(
-                        child: _stat(theme, 'High–Low',
-                            Formatters.price(spreadPct!, unit: 'percent'))),
-                  ],
-                ],
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _stat(ThemeData theme, String label, String value) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.center,
+  Widget _miniStat(ThemeData theme, String label, String value) {
+    return Row(
       children: [
         Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
+          '$label: ',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
         ),
-        const SizedBox(height: 4),
         Text(
           value,
           style: theme.textTheme.bodySmall?.copyWith(
             fontWeight: FontWeight.w600,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
         ),
       ],
     );
