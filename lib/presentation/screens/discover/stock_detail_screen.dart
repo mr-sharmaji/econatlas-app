@@ -13,15 +13,22 @@ import 'widgets/metric_grid.dart';
 class StockDetailScreen extends ConsumerStatefulWidget {
   final String symbol;
   final DiscoverStockItem? initialItem;
+  final int initialDays;
 
-  const StockDetailScreen({super.key, required this.symbol, this.initialItem});
+  const StockDetailScreen({
+    super.key,
+    required this.symbol,
+    this.initialItem,
+    this.initialDays = 90,
+  });
 
   @override
   ConsumerState<StockDetailScreen> createState() => _StockDetailScreenState();
 }
 
 class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
-  int _selectedDays = 90; // default 3M
+  late int _selectedDays = widget.initialDays;
+  double? _periodChange; // persists across rebuilds to avoid flash
 
   static const _periods = [
     (label: '1W', days: 7),
@@ -60,21 +67,24 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       discoverStockHistoryProvider((symbol: item.symbol, days: _selectedDays)),
     );
 
-    // Compute period change % from chart data
-    double? periodChange;
+    // Compute period change % from chart data (persist to avoid flash)
     List<double> chartPrices = [];
     List<DateTime> chartTimestamps = [];
     historyAsync.whenData((history) {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
+        // Override last point with live price so chart matches header
+        if (chartPrices.isNotEmpty) {
+          chartPrices[chartPrices.length - 1] = item.lastPrice;
+        }
         final first = chartPrices.first;
         final last = chartPrices.last;
-        if (first > 0) periodChange = ((last - first) / first) * 100;
+        if (first > 0) _periodChange = ((last - first) / first) * 100;
       }
     });
 
-    final displayChange = periodChange ?? item.percentChange;
+    final displayChange = _periodChange ?? item.percentChange;
     final isPositive = (displayChange ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
@@ -306,74 +316,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               ),
             ]),
 
-            // -- Today's Trading Activity -------------------------
-            if (item.volume != null || item.tradedValue != null) ...[
-              const SizedBox(height: 14),
-              Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Today's Trading Activity",
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          if (item.volume != null)
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.bar_chart_rounded,
-                                      size: 16, color: Colors.white38),
-                                  const SizedBox(width: 6),
-                                  Text('Volume',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(color: Colors.white54)),
-                                  const Spacer(),
-                                  Text(
-                                    Formatters.compactNumber(
-                                        item.volume!.toDouble()),
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          if (item.volume != null && item.tradedValue != null)
-                            const SizedBox(width: 24),
-                          if (item.tradedValue != null)
-                            Expanded(
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.currency_rupee_rounded,
-                                      size: 16, color: Colors.white38),
-                                  const SizedBox(width: 6),
-                                  Text('Traded Value',
-                                      style: theme.textTheme.bodySmall
-                                          ?.copyWith(color: Colors.white54)),
-                                  const Spacer(),
-                                  Text(
-                                    '\u20B9${Formatters.price(item.tradedValue!)} Cr',
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
             const SizedBox(height: 14),
 
             // -- Peer Comparison -----------------------------------
@@ -632,7 +574,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       data: (peers) {
         if (peers.isEmpty) return const SizedBox.shrink();
 
-        const double nameWidth = 110;
+        const double nameWidth = 130;
         const double colWidth = 72;
         final headerStyle =
             theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
@@ -647,6 +589,107 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         Widget headerCell(String text) =>
             dataCell(text, style: headerStyle);
 
+        // Build a unified scrollable data column block
+        Widget buildDataColumns() {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header row
+                Row(children: [
+                  headerCell('Price'),
+                  headerCell('Score'),
+                  headerCell('ROE'),
+                  headerCell('P/E'),
+                  headerCell('Chg %'),
+                ]),
+                Divider(
+                    height: 12,
+                    color: Colors.white.withValues(alpha: 0.08)),
+                // Data rows
+                ...peers.map((peer) {
+                  final pctChange = peer.percentChange;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(children: [
+                      dataCell(Formatters.fullPrice(peer.lastPrice)),
+                      dataCell(
+                        ScoreBar.formatMinified(peer.score),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: ScoreBar.scoreColor(peer.score),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      dataCell(
+                        peer.roe != null
+                            ? '${peer.roe!.toStringAsFixed(1)}%'
+                            : '\u2014',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: _roeColor(peer.roe),
+                        ),
+                      ),
+                      dataCell(
+                        peer.peRatio != null
+                            ? peer.peRatio!.toStringAsFixed(1)
+                            : '\u2014',
+                      ),
+                      dataCell(
+                        pctChange != null
+                            ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
+                            : '\u2014',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: pctChange != null
+                              ? (pctChange >= 0
+                                  ? AppTheme.accentGreen
+                                  : AppTheme.accentRed)
+                              : null,
+                        ),
+                      ),
+                    ]),
+                  );
+                }),
+              ],
+            ),
+          );
+        }
+
+        // Fixed name column
+        Widget buildNameColumn() {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: nameWidth,
+                child: Text('Name', style: headerStyle),
+              ),
+              Divider(
+                  height: 12,
+                  color: Colors.white.withValues(alpha: 0.08)),
+              ...peers.map((peer) => InkWell(
+                    onTap: () => context.push(
+                      '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
+                      extra: peer,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: SizedBox(
+                        width: nameWidth,
+                        child: Text(
+                          peer.displayName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  )),
+            ],
+          );
+        }
+
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
@@ -660,99 +703,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                // Header
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: nameWidth,
-                      child: Text('Name', style: headerStyle),
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(children: [
-                          headerCell('Price'),
-                          headerCell('Score'),
-                          headerCell('ROE'),
-                          headerCell('P/E'),
-                          headerCell('Chg %'),
-                        ]),
-                      ),
-                    ),
+                    buildNameColumn(),
+                    Expanded(child: buildDataColumns()),
                   ],
                 ),
-                Divider(
-                    height: 12, color: Colors.white.withValues(alpha: 0.08)),
-                // Data rows
-                ...peers.map((peer) {
-                  final pctChange = peer.percentChange;
-                  return InkWell(
-                    onTap: () => context.push(
-                      '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
-                      extra: peer,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: nameWidth,
-                            child: Text(
-                              peer.displayName,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(children: [
-                                dataCell(Formatters.fullPrice(peer.lastPrice)),
-                                dataCell(
-                                  ScoreBar.formatMinified(peer.score),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: ScoreBar.scoreColor(peer.score),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                dataCell(
-                                  peer.roe != null
-                                      ? '${peer.roe!.toStringAsFixed(1)}%'
-                                      : '\u2014',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: _roeColor(peer.roe),
-                                  ),
-                                ),
-                                dataCell(
-                                  peer.peRatio != null
-                                      ? peer.peRatio!.toStringAsFixed(1)
-                                      : '\u2014',
-                                ),
-                                dataCell(
-                                  pctChange != null
-                                      ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
-                                      : '\u2014',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: pctChange != null
-                                        ? (pctChange >= 0
-                                            ? AppTheme.accentGreen
-                                            : AppTheme.accentRed)
-                                        : null,
-                                  ),
-                                ),
-                              ]),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
               ],
             ),
           ),

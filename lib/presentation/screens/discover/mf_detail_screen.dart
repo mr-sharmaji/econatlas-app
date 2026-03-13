@@ -23,6 +23,7 @@ class MfDetailScreen extends ConsumerStatefulWidget {
 
 class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   int _selectedDays = 365;
+  double? _periodChange; // persists across rebuilds to avoid flash
 
   static const _periodOptions = [
     (label: '1W', days: 7),
@@ -69,21 +70,24 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       ),
     );
 
-    // Compute period change % from chart data
-    double? periodChange;
+    // Compute period change % from chart data (persist to avoid flash)
     List<double> chartPrices = [];
     List<DateTime> chartTimestamps = [];
     historyAsync.whenData((history) {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
+        // Override last point with live NAV so chart matches header
+        if (chartPrices.isNotEmpty) {
+          chartPrices[chartPrices.length - 1] = item.nav;
+        }
         final first = chartPrices.first;
         final last = chartPrices.last;
-        if (first > 0) periodChange = ((last - first) / first) * 100;
+        if (first > 0) _periodChange = ((last - first) / first) * 100;
       }
     });
 
-    final isPositive = (periodChange ?? 0) >= 0;
+    final isPositive = (_periodChange ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Scaffold(
@@ -114,7 +118,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(width: 10),
-                if (periodChange != null)
+                if (_periodChange != null)
                   Container(
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -123,7 +127,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${isPositive ? "+" : ""}${periodChange!.toStringAsFixed(2)}%',
+                      '${isPositive ? "+" : ""}${_periodChange!.toStringAsFixed(2)}%',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: changeColor,
                         fontWeight: FontWeight.w600,
@@ -183,7 +187,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ],
 
             // ── Category Rank ──
-            if (item.categoryRank != null && item.categoryTotal != null) ...[
+            if ((item.categoryRank != null && item.categoryTotal != null) ||
+                (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
               const SizedBox(height: 12),
             ],
@@ -427,12 +432,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   // ── Category Rank Card ─────────────────────────────────────────────────
 
   Widget _buildCategoryRankCard(ThemeData theme) {
-    final rank = item.categoryRank!;
-    final total = item.categoryTotal!;
-    final fraction = total > 0 ? (rank / total).clamp(0.0, 1.0) : 0.0;
-    final percentile = total > 0 ? ((rank / total) * 100).round() : 0;
-    final isTopQuartile = percentile <= 25;
-
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -442,124 +441,151 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Text('Category Rank', style: theme.textTheme.titleSmall),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Text(
-                  '#$rank',
-                  style: theme.textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: isTopQuartile
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentOrange,
-                  ),
-                ),
-                Text(
-                  ' of $total',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white60),
-                ),
-                if (item.category != null) ...[
-                  Text(
-                    ' in ',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.white60),
-                  ),
-                  Flexible(
-                    child: Text(
-                      item.category!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            // Visual position bar
-            LayoutBuilder(
-              builder: (context, constraints) {
-                return Stack(
-                  children: [
-                    // Track
-                    Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    // Filled portion
-                    FractionallySizedBox(
-                      widthFactor: fraction,
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              AppTheme.accentGreen,
-                              isTopQuartile
-                                  ? AppTheme.accentGreen
-                                  : AppTheme.accentOrange,
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                    // Position indicator
-                    Positioned(
-                      left: (constraints.maxWidth * fraction - 6)
-                          .clamp(0.0, constraints.maxWidth - 12),
-                      top: -2,
-                      child: Container(
-                        width: 12,
-                        height: 12,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.3),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Best',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: Colors.white38),
-                ),
-                Text(
-                  'Top $percentile%',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color:
-                        isTopQuartile ? AppTheme.accentGreen : Colors.white54,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  'Worst',
-                  style: theme.textTheme.labelSmall
-                      ?.copyWith(color: Colors.white38),
-                ),
-              ],
-            ),
+
+            // Sub-category rank (more granular: e.g. Large Cap, Mid Cap)
+            if (item.subCategoryRank != null && item.subCategoryTotal != null)
+              _buildRankRow(
+                theme,
+                rank: item.subCategoryRank!,
+                total: item.subCategoryTotal!,
+                label: item.subCategory ?? item.category ?? 'Sub-Category',
+              ),
+
+            // Category rank (broader: e.g. Equity, Debt)
+            if (item.categoryRank != null && item.categoryTotal != null) ...[
+              if (item.subCategoryRank != null) const SizedBox(height: 14),
+              _buildRankRow(
+                theme,
+                rank: item.categoryRank!,
+                total: item.categoryTotal!,
+                label: item.category ?? 'Category',
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRankRow(
+    ThemeData theme, {
+    required int rank,
+    required int total,
+    required String label,
+  }) {
+    final fraction = total > 0 ? (rank / total).clamp(0.0, 1.0) : 0.0;
+    final percentile = total > 0 ? ((rank / total) * 100).round() : 0;
+    final isTopQuartile = percentile <= 25;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              '#$rank',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: isTopQuartile
+                    ? AppTheme.accentGreen
+                    : AppTheme.accentOrange,
+              ),
+            ),
+            Text(
+              ' of $total',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white60),
+            ),
+            Text(
+              ' in ',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white60),
+            ),
+            Flexible(
+              child: Text(
+                label,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white70,
+                  fontWeight: FontWeight.w600,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        // Visual position bar
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return Stack(
+              children: [
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                FractionallySizedBox(
+                  widthFactor: fraction,
+                  child: Container(
+                    height: 8,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppTheme.accentGreen,
+                          isTopQuartile
+                              ? AppTheme.accentGreen
+                              : AppTheme.accentOrange,
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: (constraints.maxWidth * fraction - 6)
+                      .clamp(0.0, constraints.maxWidth - 12),
+                  top: -2,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 6),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Best',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.white38)),
+            Text(
+              'Top $percentile%',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: isTopQuartile ? AppTheme.accentGreen : Colors.white54,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Text('Worst',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.white38)),
+          ],
+        ),
+      ],
     );
   }
 
@@ -793,14 +819,25 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       ));
     }
 
-    if (item.categoryRank != null &&
-        item.categoryTotal != null &&
-        item.categoryTotal! > 0 &&
-        item.categoryRank! <= (item.categoryTotal! * 0.2).ceil()) {
+    if (item.subCategoryRank != null &&
+        item.subCategoryTotal != null &&
+        item.subCategoryTotal! > 0 &&
+        item.subCategoryRank! <= (item.subCategoryTotal! * 0.2).ceil()) {
+      final catName = item.subCategory ?? item.category ?? 'its category';
       reasons.add((
         Icons.emoji_events_rounded,
         AppTheme.accentOrange,
-        'Ranked in top 20% of its category',
+        'Ranked in top 20% of $catName',
+      ));
+    } else if (item.categoryRank != null &&
+        item.categoryTotal != null &&
+        item.categoryTotal! > 0 &&
+        item.categoryRank! <= (item.categoryTotal! * 0.2).ceil()) {
+      final catName = item.category ?? 'its category';
+      reasons.add((
+        Icons.emoji_events_rounded,
+        AppTheme.accentOrange,
+        'Ranked in top 20% of $catName',
       ));
     }
 
@@ -870,7 +907,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         if (peers.isEmpty) return const SizedBox.shrink();
 
         final peerLabel = item.subCategory ?? item.category ?? 'Category';
-        const double nameWidth = 120;
+        const double nameWidth = 130;
         const double colWidth = 76;
         final headerStyle =
             theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
@@ -885,6 +922,101 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         Widget headerCell(String text) =>
             dataCell(text, style: headerStyle);
 
+        // Unified scrollable data columns
+        Widget buildDataColumns() {
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [
+                  headerCell('NAV'),
+                  headerCell('Score'),
+                  headerCell('1Y Ret'),
+                  headerCell('AUM Cr'),
+                  headerCell('Exp %'),
+                ]),
+                Divider(
+                    height: 12,
+                    color: Colors.white.withValues(alpha: 0.08)),
+                ...peers.map((peer) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Row(children: [
+                      dataCell(Formatters.fullPrice(peer.nav)),
+                      dataCell(
+                        ScoreBar.formatMinified(peer.score),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: ScoreBar.scoreColor(peer.score),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      dataCell(
+                        peer.returns1y != null
+                            ? '${peer.returns1y!.toStringAsFixed(1)}%'
+                            : '\u2014',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: peer.returns1y != null
+                              ? (peer.returns1y! >= 0
+                                  ? AppTheme.accentGreen
+                                  : AppTheme.accentRed)
+                              : Colors.white38,
+                        ),
+                      ),
+                      dataCell(
+                        peer.aumCr != null
+                            ? Formatters.compactNumber(peer.aumCr!)
+                            : '\u2014',
+                      ),
+                      dataCell(
+                        peer.expenseRatio != null
+                            ? '${peer.expenseRatio!.toStringAsFixed(2)}%'
+                            : '\u2014',
+                      ),
+                    ]),
+                  );
+                }),
+              ],
+            ),
+          );
+        }
+
+        // Fixed name column
+        Widget buildNameColumn() {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: nameWidth,
+                child: Text('Name', style: headerStyle),
+              ),
+              Divider(
+                  height: 12,
+                  color: Colors.white.withValues(alpha: 0.08)),
+              ...peers.map((peer) => InkWell(
+                    onTap: () => context.push(
+                      '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
+                      extra: peer,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: SizedBox(
+                        width: nameWidth,
+                        child: Text(
+                          peer.displayName ?? peer.schemeName,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  )),
+            ],
+          );
+        }
+
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
@@ -898,95 +1030,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
-                // Header
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    SizedBox(
-                      width: nameWidth,
-                      child: Text('Name', style: headerStyle),
-                    ),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(children: [
-                          headerCell('NAV'),
-                          headerCell('Score'),
-                          headerCell('1Y Ret'),
-                          headerCell('AUM Cr'),
-                          headerCell('Exp %'),
-                        ]),
-                      ),
-                    ),
+                    buildNameColumn(),
+                    Expanded(child: buildDataColumns()),
                   ],
                 ),
-                Divider(
-                    height: 12, color: Colors.white.withValues(alpha: 0.08)),
-                // Data rows
-                ...peers.map((peer) {
-                  return InkWell(
-                    onTap: () => context.push(
-                      '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
-                      extra: peer,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            width: nameWidth,
-                            child: Text(
-                              peer.displayName ?? peer.schemeName,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Expanded(
-                            child: SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(children: [
-                                dataCell(Formatters.fullPrice(peer.nav)),
-                                dataCell(
-                                  ScoreBar.formatMinified(peer.score),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: ScoreBar.scoreColor(peer.score),
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                dataCell(
-                                  peer.returns1y != null
-                                      ? '${peer.returns1y!.toStringAsFixed(1)}%'
-                                      : '\u2014',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: peer.returns1y != null
-                                        ? (peer.returns1y! >= 0
-                                            ? AppTheme.accentGreen
-                                            : AppTheme.accentRed)
-                                        : Colors.white38,
-                                  ),
-                                ),
-                                dataCell(
-                                  peer.aumCr != null
-                                      ? Formatters.compactNumber(peer.aumCr!)
-                                      : '\u2014',
-                                ),
-                                dataCell(
-                                  peer.expenseRatio != null
-                                      ? '${peer.expenseRatio!.toStringAsFixed(2)}%'
-                                      : '\u2014',
-                                ),
-                              ]),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
               ],
             ),
           ),

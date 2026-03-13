@@ -24,8 +24,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
-  bool _showGainers3m = false;
-  bool _showLosers3m = false;
 
   @override
   void dispose() {
@@ -48,11 +46,13 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     setState(() => _searchQuery = '');
   }
 
-  void _onStockTap(DiscoverHomeStockItem item) {
+  void _onStockTap(DiscoverHomeStockItem item, {int? initialDays}) {
     ref
         .read(recentlyViewedProvider.notifier)
         .add(type: 'stock', id: item.symbol, name: item.displayName);
-    context.push('/discover/stock/${item.symbol}', extra: item);
+    final Map<String, dynamic>? extra =
+        initialDays != null ? {'initialDays': initialDays} : null;
+    context.push('/discover/stock/${item.symbol}', extra: extra);
   }
 
   void _onMfTap(DiscoverHomeMfItem item) {
@@ -123,9 +123,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildFeed(DiscoverHomeData data, List<RecentlyViewedItem> recent) {
-    final gainersToShow = _showGainers3m ? data.gainers3m : data.gainers;
-    final losersToShow = _showLosers3m ? data.losers3m : data.losers;
-
     return CustomScrollView(
       slivers: [
         // Search bar
@@ -164,19 +161,21 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-        // Recently Viewed (first, only if non-empty)
+        // Recently Viewed
         if (recent.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
               title: 'Recently Viewed',
-              children: recent.map((item) => _RecentCard(
-                item: item,
-                onTap: () => _onRecentTap(item),
-              )).toList(),
+              children: recent
+                  .map((item) => _RecentCard(
+                        item: item,
+                        onTap: () => _onRecentTap(item),
+                      ))
+                  .toList(),
             ),
           ),
 
-        // Top Stocks (3M data)
+        // Top Stocks
         if (data.topStocks.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
@@ -184,34 +183,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               seeAllRoute: '/discover/stocks',
               seeAllExtra: const {'preset': 'quality'},
               children: data.topStocks
-                  .map((s) => _StockCard(
-                        item: s,
-                        onTap: () => _onStockTap(s),
-                        use3mChange: true,
-                      ))
-                  .toList(),
-            ),
-          ),
-
-        // Hot Today 🔥
-        if (data.hotTodayStocks.isNotEmpty &&
-            data.hotTodaySectorName != null)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: '🔥 Hot Today · ${data.hotTodaySectorName}',
-              children: data.hotTodayStocks
-                  .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
-                  .toList(),
-            ),
-          ),
-
-        // 3M Sector Leader 📈
-        if (data.leader3mStocks.isNotEmpty &&
-            data.leader3mSectorName != null)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: '📈 3M Leader · ${data.leader3mSectorName}',
-              children: data.leader3mStocks
                   .map((s) => _StockCard(
                         item: s,
                         onTap: () => _onStockTap(s),
@@ -247,39 +218,17 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             ),
           ),
 
-        // Top Gainers (with Today / 3M toggle)
-        if (gainersToShow.isNotEmpty)
+        // Sector Champions
+        if (data.sectorChampions.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: 'Top Gainers',
-              trailing: _PeriodToggle(
-                is3m: _showGainers3m,
-                onChanged: (v) => setState(() => _showGainers3m = v),
-              ),
-              children: gainersToShow
+              title: 'Sector Champions',
+              children: data.sectorChampions
                   .map((s) => _StockCard(
                         item: s,
                         onTap: () => _onStockTap(s),
-                        use3mChange: _showGainers3m,
-                      ))
-                  .toList(),
-            ),
-          ),
-
-        // Top Losers (with Today / 3M toggle)
-        if (losersToShow.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Top Losers',
-              trailing: _PeriodToggle(
-                is3m: _showLosers3m,
-                onChanged: (v) => setState(() => _showLosers3m = v),
-              ),
-              children: losersToShow
-                  .map((s) => _StockCard(
-                        item: s,
-                        onTap: () => _onStockTap(s),
-                        use3mChange: _showLosers3m,
+                        use3mChange: true,
+                        showSector: true,
                       ))
                   .toList(),
             ),
@@ -291,7 +240,11 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             child: _HorizontalSection(
               title: 'Trending This Week',
               children: data.trendingThisWeek
-                  .map((s) => _StockCard(item: s, onTap: () => _onStockTap(s)))
+                  .map((s) => _StockCard(
+                        item: s,
+                        onTap: () => _onStockTap(s, initialDays: 7),
+                        use1wChange: true,
+                      ))
                   .toList(),
             ),
           ),
@@ -540,14 +493,12 @@ class _HorizontalSection extends StatelessWidget {
   final String title;
   final String? seeAllRoute;
   final Map<String, String>? seeAllExtra;
-  final Widget? trailing;
   final List<Widget> children;
 
   const _HorizontalSection({
     required this.title,
     this.seeAllRoute,
     this.seeAllExtra,
-    this.trailing,
     required this.children,
   });
 
@@ -574,8 +525,7 @@ class _HorizontalSection extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (trailing != null) trailing!,
-                if (seeAllRoute != null && trailing == null)
+                if (seeAllRoute != null)
                   TextButton(
                     onPressed: () => context.push(
                       seeAllRoute!,
@@ -623,22 +573,40 @@ class _StockCard extends StatelessWidget {
   final DiscoverHomeStockItem item;
   final VoidCallback onTap;
   final bool use3mChange;
+  final bool use1wChange;
+  final bool showSector;
 
   const _StockCard({
     required this.item,
     required this.onTap,
     this.use3mChange = false,
+    this.use1wChange = false,
+    this.showSector = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pct = use3mChange
-        ? (item.percentChange3m ?? item.percentChange ?? 0)
-        : (item.percentChange ?? 0);
+
+    // Determine which % to show and its label
+    late final double pct;
+    late final String periodLabel;
+    if (use1wChange && item.percentChange1w != null) {
+      pct = item.percentChange1w!;
+      periodLabel = ' 1W';
+    } else if (use3mChange && item.percentChange3m != null) {
+      pct = item.percentChange3m!;
+      periodLabel = ' 3M';
+    } else {
+      pct = item.percentChange ?? 0;
+      periodLabel = '';
+    }
+
     final isUp = pct >= 0;
     final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
-    final periodLabel = use3mChange ? ' 3M' : '';
+    final subtitle = showSector && item.sector != null
+        ? item.sector!
+        : item.displayName;
 
     return GestureDetector(
       onTap: onTap,
@@ -663,9 +631,9 @@ class _StockCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            // Display name
+            // Display name or sector
             Text(
-              item.displayName,
+              subtitle,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: Colors.white54,
                 fontSize: 10,
@@ -925,49 +893,3 @@ class _QuickNavChip extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// Period toggle chips (Today / 3M)
-// =============================================================================
-
-class _PeriodToggle extends StatelessWidget {
-  final bool is3m;
-  final ValueChanged<bool> onChanged;
-
-  const _PeriodToggle({required this.is3m, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _toggleChip(context, label: 'Today', selected: !is3m, onTap: () => onChanged(false)),
-        const SizedBox(width: 4),
-        _toggleChip(context, label: '3M', selected: is3m, onTap: () => onChanged(true)),
-      ],
-    );
-  }
-
-  Widget _toggleChip(BuildContext context,
-      {required String label, required bool selected, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: selected
-              ? AppTheme.accentBlue.withValues(alpha: 0.20)
-              : Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: selected ? AppTheme.accentBlue : Colors.white54,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                fontSize: 11,
-              ),
-        ),
-      ),
-    );
-  }
-}

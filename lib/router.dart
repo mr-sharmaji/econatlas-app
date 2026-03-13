@@ -160,8 +160,22 @@ final router = GoRouter(
       path: '/discover/stock/:symbol',
       builder: (context, state) {
         final symbol = Uri.decodeComponent(state.pathParameters['symbol']!);
-        final item = state.extra is DiscoverStockItem ? state.extra as DiscoverStockItem : null;
-        return StockDetailScreen(symbol: symbol, initialItem: item);
+        final extra = state.extra;
+        DiscoverStockItem? item;
+        int? initialDays;
+        if (extra is DiscoverStockItem) {
+          item = extra;
+        } else if (extra is Map<String, dynamic>) {
+          item = extra['item'] is DiscoverStockItem
+              ? extra['item'] as DiscoverStockItem
+              : null;
+          initialDays = extra['initialDays'] as int?;
+        }
+        return StockDetailScreen(
+          symbol: symbol,
+          initialItem: item,
+          initialDays: initialDays ?? 90,
+        );
       },
     ),
     GoRoute(

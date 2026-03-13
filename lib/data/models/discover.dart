@@ -171,6 +171,7 @@ class DiscoverStockItem {
   final double scoreVolatility;
   final double scoreGrowth;
   final double? percentChange3m;
+  final double? percentChange1w;
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
   final List<String> whyRanked;
@@ -208,6 +209,7 @@ class DiscoverStockItem {
     required this.scoreVolatility,
     required this.scoreGrowth,
     this.percentChange3m,
+    this.percentChange1w,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -247,6 +249,7 @@ class DiscoverStockItem {
       scoreVolatility: (json['score_volatility'] as num?)?.toDouble() ?? 0,
       scoreGrowth: (json['score_growth'] as num?)?.toDouble() ?? 0,
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
+      percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
@@ -348,6 +351,8 @@ class DiscoverMutualFundItem {
   final double? sortino;
   final int? categoryRank;
   final int? categoryTotal;
+  final int? subCategoryRank;
+  final int? subCategoryTotal;
   final double? fundAgeYears;
   final List<String> qualityBadges;
   final double? categoryAvgReturns1y;
@@ -389,6 +394,8 @@ class DiscoverMutualFundItem {
     required this.sortino,
     this.categoryRank,
     this.categoryTotal,
+    this.subCategoryRank,
+    this.subCategoryTotal,
     this.fundAgeYears,
     this.qualityBadges = const [],
     this.categoryAvgReturns1y,
@@ -434,6 +441,8 @@ class DiscoverMutualFundItem {
       sortino: (json['sortino'] as num?)?.toDouble(),
       categoryRank: (json['category_rank'] as num?)?.toInt(),
       categoryTotal: (json['category_total'] as num?)?.toInt(),
+      subCategoryRank: (json['sub_category_rank'] as num?)?.toInt(),
+      subCategoryTotal: (json['sub_category_total'] as num?)?.toInt(),
       fundAgeYears: (json['fund_age_years'] as num?)?.toDouble(),
       qualityBadges: (json['quality_badges'] as List<dynamic>? ?? const [])
           .map((e) => '$e')
@@ -597,6 +606,7 @@ class DiscoverHomeStockItem {
   final double lastPrice;
   final double? percentChange;
   final double? percentChange3m;
+  final double? percentChange1w;
   final double score;
   final String? qualityTier;
 
@@ -607,6 +617,7 @@ class DiscoverHomeStockItem {
     required this.lastPrice,
     this.percentChange,
     this.percentChange3m,
+    this.percentChange1w,
     required this.score,
     this.qualityTier,
   });
@@ -619,6 +630,7 @@ class DiscoverHomeStockItem {
       lastPrice: (json['last_price'] as num).toDouble(),
       percentChange: (json['percent_change'] as num?)?.toDouble(),
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
+      percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
       qualityTier: json['quality_tier'] as String?,
     );
@@ -693,14 +705,7 @@ class DiscoverHomeData {
   final List<DiscoverHomeMfItem> topEquityFunds;
   final List<DiscoverHomeMfItem> topDebtFunds;
   final List<DiscoverHomeStockItem> trendingThisWeek;
-  final List<DiscoverHomeStockItem> gainers;
-  final List<DiscoverHomeStockItem> gainers3m;
-  final List<DiscoverHomeStockItem> losers;
-  final List<DiscoverHomeStockItem> losers3m;
-  final String? hotTodaySectorName;
-  final List<DiscoverHomeStockItem> hotTodayStocks;
-  final String? leader3mSectorName;
-  final List<DiscoverHomeStockItem> leader3mStocks;
+  final List<DiscoverHomeStockItem> sectorChampions;
   final List<QuickCategory> quickCategories;
 
   const DiscoverHomeData({
@@ -708,14 +713,7 @@ class DiscoverHomeData {
     this.topEquityFunds = const [],
     this.topDebtFunds = const [],
     this.trendingThisWeek = const [],
-    this.gainers = const [],
-    this.gainers3m = const [],
-    this.losers = const [],
-    this.losers3m = const [],
-    this.hotTodaySectorName,
-    this.hotTodayStocks = const [],
-    this.leader3mSectorName,
-    this.leader3mStocks = const [],
+    this.sectorChampions = const [],
     this.quickCategories = const [],
   });
 
@@ -740,31 +738,8 @@ class DiscoverHomeData {
               .map((e) =>
                   DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
               .toList(),
-      gainers: (json['gainers'] as List<dynamic>? ?? const [])
-          .map((e) =>
-              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      gainers3m: (json['gainers_3m'] as List<dynamic>? ?? const [])
-          .map((e) =>
-              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      losers: (json['losers'] as List<dynamic>? ?? const [])
-          .map((e) =>
-              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      losers3m: (json['losers_3m'] as List<dynamic>? ?? const [])
-          .map((e) =>
-              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      hotTodaySectorName: json['hot_today_sector_name'] as String?,
-      hotTodayStocks:
-          (json['hot_today_stocks'] as List<dynamic>? ?? const [])
-              .map((e) =>
-                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-              .toList(),
-      leader3mSectorName: json['leader_3m_sector_name'] as String?,
-      leader3mStocks:
-          (json['leader_3m_stocks'] as List<dynamic>? ?? const [])
+      sectorChampions:
+          (json['sector_champions'] as List<dynamic>? ?? const [])
               .map((e) =>
                   DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
               .toList(),

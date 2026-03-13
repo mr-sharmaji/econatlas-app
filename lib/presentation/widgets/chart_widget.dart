@@ -274,7 +274,7 @@ class _PriceLineChartState extends State<PriceLineChart> {
                                 ? (widget.isIntraday
                                     ? Formatters.chartAxisTime(timestamps[idx],
                                         timeZoneId: tzId)
-                                    : Formatters.dateTime(timestamps[idx]))
+                                    : Formatters.date(timestamps[idx]))
                                 : '';
                             return LineTooltipItem(
                               '$prefix${Formatters.price(spot.y, unit: widget.unit)}\n$dateStr',
