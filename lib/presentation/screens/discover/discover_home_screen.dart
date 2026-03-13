@@ -264,6 +264,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     return TextField(
       controller: _searchController,
       onChanged: _onSearchChanged,
+      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+      cursorColor: AppTheme.accentBlue,
       decoration: InputDecoration(
         hintText: 'Search stocks or mutual funds...',
         prefixIcon: const Icon(Icons.search_rounded),
@@ -317,7 +319,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             child: GestureDetector(
               onTap: () {}, // absorb tap so card doesn't dismiss
               child: Container(
-                margin: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+                margin: const EdgeInsets.fromLTRB(12, 56, 12, 0),
                 constraints: BoxConstraints(
                   maxHeight: MediaQuery.of(context).size.height * 0.6,
                 ),

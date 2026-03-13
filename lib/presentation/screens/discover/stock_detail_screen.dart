@@ -574,126 +574,113 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       data: (peers) {
         if (peers.isEmpty) return const SizedBox.shrink();
 
-        const double nameWidth = 130;
-        const double colWidth = 72;
-        final headerStyle =
+        final bodyStyle = theme.textTheme.bodySmall;
+        final labelStyle =
             theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
 
-        Widget dataCell(String text, {TextStyle? style}) => SizedBox(
-              width: colWidth,
-              child: Text(text,
-                  textAlign: TextAlign.right,
-                  style: style ?? theme.textTheme.bodySmall),
-            );
+        Widget buildPeerTile(DiscoverStockItem peer) {
+          final pctChange = peer.percentChange;
+          final changeColor = pctChange != null
+              ? (pctChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed)
+              : Colors.white38;
 
-        Widget headerCell(String text) =>
-            dataCell(text, style: headerStyle);
-
-        // Build a unified scrollable data column block
-        Widget buildDataColumns() {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row
-                Row(children: [
-                  headerCell('Price'),
-                  headerCell('Score'),
-                  headerCell('ROE'),
-                  headerCell('P/E'),
-                  headerCell('Chg %'),
-                ]),
-                Divider(
-                    height: 12,
-                    color: Colors.white.withValues(alpha: 0.08)),
-                // Data rows
-                ...peers.map((peer) {
-                  final pctChange = peer.percentChange;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(children: [
-                      dataCell(Formatters.fullPrice(peer.lastPrice)),
-                      dataCell(
-                        ScoreBar.formatMinified(peer.score),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: ScoreBar.scoreColor(peer.score),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      dataCell(
-                        peer.roe != null
-                            ? '${peer.roe!.toStringAsFixed(1)}%'
-                            : '\u2014',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: _roeColor(peer.roe),
-                        ),
-                      ),
-                      dataCell(
-                        peer.peRatio != null
-                            ? peer.peRatio!.toStringAsFixed(1)
-                            : '\u2014',
-                      ),
-                      dataCell(
-                        pctChange != null
-                            ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
-                            : '\u2014',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: pctChange != null
-                              ? (pctChange >= 0
-                                  ? AppTheme.accentGreen
-                                  : AppTheme.accentRed)
-                              : null,
-                        ),
-                      ),
-                    ]),
-                  );
-                }),
-              ],
+          return InkWell(
+            onTap: () => context.push(
+              '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
+              extra: peer,
             ),
-          );
-        }
-
-        // Fixed name column
-        Widget buildNameColumn() {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: nameWidth,
-                child: Text('Name', style: headerStyle),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
               ),
-              Divider(
-                  height: 12,
-                  color: Colors.white.withValues(alpha: 0.08)),
-              ...peers.map((peer) => InkWell(
-                    onTap: () => context.push(
-                      '/discover/stock/${Uri.encodeComponent(peer.symbol)}',
-                      extra: peer,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: SizedBox(
-                        width: nameWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row 1: Name + Score badge
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
                           peer.displayName,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          style: bodyStyle?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  )),
-            ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ScoreBar.scoreColor(peer.score)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          ScoreBar.formatMinified(peer.score),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: ScoreBar.scoreColor(peer.score),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Row 2: Price, ROE, P/E, Change
+                  Row(
+                    children: [
+                      Text(
+                        Formatters.fullPrice(peer.lastPrice),
+                        style: bodyStyle,
+                      ),
+                      const SizedBox(width: 12),
+                      if (peer.roe != null) ...[
+                        Text('ROE ', style: labelStyle),
+                        Text(
+                          '${peer.roe!.toStringAsFixed(1)}%',
+                          style: bodyStyle?.copyWith(
+                            color: _roeColor(peer.roe),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      if (peer.peRatio != null) ...[
+                        Text('P/E ', style: labelStyle),
+                        Text(
+                          peer.peRatio!.toStringAsFixed(1),
+                          style: bodyStyle,
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        pctChange != null
+                            ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
+                            : '\u2014',
+                        style: bodyStyle?.copyWith(
+                          color: changeColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -702,14 +689,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildNameColumn(),
-                    Expanded(child: buildDataColumns()),
-                  ],
-                ),
+                const SizedBox(height: 8),
+                ...peers.map(buildPeerTile),
               ],
             ),
           ),

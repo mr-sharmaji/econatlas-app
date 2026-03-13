@@ -907,120 +907,112 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         if (peers.isEmpty) return const SizedBox.shrink();
 
         final peerLabel = item.subCategory ?? item.category ?? 'Category';
-        const double nameWidth = 130;
-        const double colWidth = 76;
-        final headerStyle =
+        final bodyStyle = theme.textTheme.bodySmall;
+        final labelStyle =
             theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
 
-        Widget dataCell(String text, {TextStyle? style}) => SizedBox(
-              width: colWidth,
-              child: Text(text,
-                  textAlign: TextAlign.right,
-                  style: style ?? theme.textTheme.bodySmall),
-            );
+        Widget buildPeerTile(DiscoverMutualFundItem peer) {
+          final ret1y = peer.returns1y;
+          final retColor = ret1y != null
+              ? (ret1y >= 0 ? AppTheme.accentGreen : AppTheme.accentRed)
+              : Colors.white38;
 
-        Widget headerCell(String text) =>
-            dataCell(text, style: headerStyle);
-
-        // Unified scrollable data columns
-        Widget buildDataColumns() {
-          return SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [
-                  headerCell('NAV'),
-                  headerCell('Score'),
-                  headerCell('1Y Ret'),
-                  headerCell('AUM Cr'),
-                  headerCell('Exp %'),
-                ]),
-                Divider(
-                    height: 12,
-                    color: Colors.white.withValues(alpha: 0.08)),
-                ...peers.map((peer) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(children: [
-                      dataCell(Formatters.fullPrice(peer.nav)),
-                      dataCell(
-                        ScoreBar.formatMinified(peer.score),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: ScoreBar.scoreColor(peer.score),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      dataCell(
-                        peer.returns1y != null
-                            ? '${peer.returns1y!.toStringAsFixed(1)}%'
-                            : '\u2014',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: peer.returns1y != null
-                              ? (peer.returns1y! >= 0
-                                  ? AppTheme.accentGreen
-                                  : AppTheme.accentRed)
-                              : Colors.white38,
-                        ),
-                      ),
-                      dataCell(
-                        peer.aumCr != null
-                            ? Formatters.compactNumber(peer.aumCr!)
-                            : '\u2014',
-                      ),
-                      dataCell(
-                        peer.expenseRatio != null
-                            ? '${peer.expenseRatio!.toStringAsFixed(2)}%'
-                            : '\u2014',
-                      ),
-                    ]),
-                  );
-                }),
-              ],
+          return InkWell(
+            onTap: () => context.push(
+              '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
+              extra: peer,
             ),
-          );
-        }
-
-        // Fixed name column
-        Widget buildNameColumn() {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: nameWidth,
-                child: Text('Name', style: headerStyle),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
               ),
-              Divider(
-                  height: 12,
-                  color: Colors.white.withValues(alpha: 0.08)),
-              ...peers.map((peer) => InkWell(
-                    onTap: () => context.push(
-                      '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
-                      extra: peer,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
-                      child: SizedBox(
-                        width: nameWidth,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row 1: Name + Score badge
+                  Row(
+                    children: [
+                      Expanded(
                         child: Text(
                           peer.displayName ?? peer.schemeName,
-                          style: theme.textTheme.bodySmall?.copyWith(
+                          style: bodyStyle?.copyWith(
                             fontWeight: FontWeight.w600,
                           ),
-                          maxLines: 2,
+                          maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    ),
-                  )),
-            ],
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: ScoreBar.scoreColor(peer.score)
+                              .withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          ScoreBar.formatMinified(peer.score),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: ScoreBar.scoreColor(peer.score),
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Row 2: NAV, AUM, Expense, 1Y Return
+                  Row(
+                    children: [
+                      Text(
+                        'NAV ${Formatters.fullPrice(peer.nav)}',
+                        style: bodyStyle,
+                      ),
+                      const SizedBox(width: 12),
+                      if (peer.aumCr != null) ...[
+                        Text('AUM ', style: labelStyle),
+                        Text(
+                          '${Formatters.compactNumber(peer.aumCr!)} Cr',
+                          style: bodyStyle,
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      if (peer.expenseRatio != null) ...[
+                        Text('Exp ', style: labelStyle),
+                        Text(
+                          '${peer.expenseRatio!.toStringAsFixed(2)}%',
+                          style: bodyStyle,
+                        ),
+                      ],
+                      const Spacer(),
+                      Text(
+                        ret1y != null
+                            ? '${ret1y >= 0 ? "+" : ""}${ret1y.toStringAsFixed(1)}%'
+                            : '\u2014',
+                        style: bodyStyle?.copyWith(
+                          color: retColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(' 1Y', style: labelStyle),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 4),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1029,14 +1021,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    buildNameColumn(),
-                    Expanded(child: buildDataColumns()),
-                  ],
-                ),
+                const SizedBox(height: 8),
+                ...peers.map(buildPeerTile),
               ],
             ),
           ),

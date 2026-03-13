@@ -1,3 +1,4 @@
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -6,9 +7,69 @@ import '../../../core/error_utils.dart';
 import '../../../core/square_badge_assets.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
+import '../../../data/models/institutional_flow_overview.dart';
 import '../../../data/models/macro_indicator.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+const _indicatorOrder = ['inflation', 'gdp_growth', 'unemployment', 'repo_rate'];
+const _countries = ['IN', 'US', 'EU', 'JP'];
+
+String _countryLabel(String code) {
+  switch (code.toUpperCase()) {
+    case 'IN': return 'India';
+    case 'US': return 'United States';
+    case 'EU': return 'Europe';
+    case 'JP': return 'Japan';
+    default: return code;
+  }
+}
+
+IconData _iconFor(String name) {
+  switch (name) {
+    case 'inflation_cpi':
+    case 'inflation': return Icons.trending_up;
+    case 'repo_rate': return Icons.account_balance;
+    case 'gdp_growth': return Icons.bar_chart;
+    case 'unemployment': return Icons.people_outline;
+    default: return Icons.analytics;
+  }
+}
+
+/// Directional color for macro values.
+/// inflation/unemployment: red (higher = worse).
+/// gdp_growth: green if positive, red if negative.
+/// repo_rate: neutral.
+Color _macroValueColor(String indicatorName, double value) {
+  switch (indicatorName) {
+    case 'inflation':
+    case 'inflation_cpi':
+      return value > 6 ? AppTheme.accentRed : (value > 4 ? AppTheme.accentOrange : AppTheme.accentGreen);
+    case 'unemployment':
+      return value > 6 ? AppTheme.accentRed : (value > 4 ? AppTheme.accentOrange : AppTheme.accentGreen);
+    case 'gdp_growth':
+      return value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    default:
+      return Colors.white70;
+  }
+}
+
+MacroIndicator? _latest(List<MacroIndicator> list, String name, String country) {
+  final matches = list
+      .where((i) => i.indicatorName == name && i.country == country)
+      .toList();
+  if (matches.isEmpty) return null;
+  matches.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+  return matches.first;
+}
+
+// =============================================================================
+// MacroScreen
+// =============================================================================
 
 class MacroScreen extends ConsumerStatefulWidget {
   const MacroScreen({super.key});
@@ -41,6 +102,13 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
     );
   }
 
+  void _openDetail(MacroIndicator ind) {
+    context.push(
+      '/macro/detail/${ind.country}/${ind.indicatorName}',
+      extra: ind,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<int>(bottomTabReselectTickProvider(4), (prev, next) {
@@ -49,6 +117,7 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
     });
 
     final macroAsync = ref.watch(allMacroIndicatorsProvider);
+    final flowAsync = ref.watch(institutionalFlowsOverviewProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -61,7 +130,10 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(allMacroIndicatorsProvider),
+        onRefresh: () async {
+          ref.invalidate(allMacroIndicatorsProvider);
+          ref.invalidate(institutionalFlowsOverviewProvider);
+        },
         child: macroAsync.when(
           loading: () => const ShimmerList(itemCount: 6),
           error: (err, _) => ErrorView(
@@ -70,7 +142,10 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
           ),
           data: (indicators) {
             final filtered = indicators
-                .where((i) => i.indicatorName != 'interest_rate')
+                .where((i) =>
+                    i.indicatorName != 'interest_rate' &&
+                    i.indicatorName != 'fii_net_cash' &&
+                    i.indicatorName != 'dii_net_cash')
                 .toList();
 
             if (filtered.isEmpty) {
@@ -80,111 +155,48 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
               );
             }
 
-            MacroIndicator? latestIndicator(
-                List<MacroIndicator> list, String name, String country) {
-              final matches = list
-                  .where((i) => i.indicatorName == name && i.country == country)
-                  .toList();
-              if (matches.isEmpty) return null;
-              matches.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-              return matches.first;
-            }
-
-            const inOrder = [
-              'inflation',
-              'gdp_growth',
-              'unemployment',
-              'repo_rate'
-            ];
-            const globalOrder = [
-              'inflation',
-              'gdp_growth',
-              'unemployment',
-              'repo_rate'
-            ];
-
-            final inIndicators = inOrder
-                .map((name) => latestIndicator(filtered, name, 'IN'))
-                .where((i) => i != null)
-                .cast<MacroIndicator>()
-                .toList();
-
-            final usIndicators = globalOrder
-                .map((name) => latestIndicator(filtered, name, 'US'))
-                .where((i) => i != null)
-                .cast<MacroIndicator>()
-                .toList();
-            final euIndicators = globalOrder
-                .map((name) => latestIndicator(filtered, name, 'EU'))
-                .where((i) => i != null)
-                .cast<MacroIndicator>()
-                .toList();
-            final jpIndicators = globalOrder
-                .map((name) => latestIndicator(filtered, name, 'JP'))
-                .where((i) => i != null)
-                .cast<MacroIndicator>()
-                .toList();
-
             return ListView(
               controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
               children: [
-                if (inIndicators.isNotEmpty) ...[
-                  const _CountryBanner(
-                    code: 'IN',
-                    title: 'India',
-                    subtitle: 'CPI, GDP growth, unemployment, policy rate',
-                  ),
-                  ...inIndicators.map((ind) => _MacroCard(
-                        indicator: ind,
-                        onTap: () => context.push(
-                          '/macro/detail/${ind.country}/${ind.indicatorName}',
-                          extra: ind,
-                        ),
-                      )),
-                ],
-                if (usIndicators.isNotEmpty) ...[
-                  const _CountryBanner(
-                    code: 'US',
-                    title: 'United States',
-                    subtitle: 'CPI, GDP growth, unemployment, policy rate',
-                  ),
-                  ...usIndicators.map((ind) => _MacroCard(
-                        indicator: ind,
-                        onTap: () => context.push(
-                          '/macro/detail/${ind.country}/${ind.indicatorName}',
-                          extra: ind,
-                        ),
-                      )),
-                ],
-                if (euIndicators.isNotEmpty) ...[
-                  const _CountryBanner(
-                    code: 'EU',
-                    title: 'Europe',
-                    subtitle: 'CPI, GDP growth, unemployment, policy rate',
-                  ),
-                  ...euIndicators.map((ind) => _MacroCard(
-                        indicator: ind,
-                        onTap: () => context.push(
-                          '/macro/detail/${ind.country}/${ind.indicatorName}',
-                          extra: ind,
-                        ),
-                      )),
-                ],
-                if (jpIndicators.isNotEmpty) ...[
-                  const _CountryBanner(
-                    code: 'JP',
-                    title: 'Japan',
-                    subtitle: 'CPI, GDP growth, unemployment, policy rate',
-                  ),
-                  ...jpIndicators.map((ind) => _MacroCard(
-                        indicator: ind,
-                        onTap: () => context.push(
-                          '/macro/detail/${ind.country}/${ind.indicatorName}',
-                          extra: ind,
-                        ),
-                      )),
-                ],
+                // Section 1: India Headline
+                _IndiaHeadlineCard(
+                  indicators: filtered,
+                  onTap: _openDetail,
+                ),
+                const SizedBox(height: 14),
+
+                // Section 2: Global Snapshot (horizontal)
+                _GlobalSnapshotSection(
+                  indicators: filtered,
+                  onTap: _openDetail,
+                ),
+                const SizedBox(height: 14),
+
+                // Section 3: Per-indicator comparison cards
+                ..._indicatorOrder.map((name) {
+                  final items = _countries
+                      .map((c) => _latest(filtered, name, c))
+                      .toList();
+                  if (items.every((i) => i == null)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: _IndicatorComparisonCard(
+                      indicatorName: name,
+                      countryIndicators: Map.fromIterables(
+                        _countries,
+                        items,
+                      ),
+                      onTap: _openDetail,
+                    ),
+                  );
+                }),
+
+                // Section 4: FII/DII Flows
+                _FlowsSection(flowAsync: flowAsync),
+                const SizedBox(height: 24),
               ],
             );
           },
@@ -194,59 +206,139 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
   }
 }
 
-class _CountryBanner extends StatelessWidget {
-  final String code;
-  final String title;
-  final String subtitle;
-  const _CountryBanner({
-    required this.code,
-    required this.title,
-    required this.subtitle,
-  });
+// =============================================================================
+// Section 1: India Headline Card
+// =============================================================================
+
+class _IndiaHeadlineCard extends StatelessWidget {
+  final List<MacroIndicator> indicators;
+  final ValueChanged<MacroIndicator> onTap;
+
+  const _IndiaHeadlineCard({required this.indicators, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final style = _countryStyleForCode(code);
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color:
-              theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.white10, width: 1),
-        ),
-        child: Row(
+    final items = _indicatorOrder
+        .map((name) => _latest(indicators, name, 'IN'))
+        .toList();
+
+    if (items.every((i) => i == null)) return const SizedBox.shrink();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: 28,
-              height: 28,
-              clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: _CountryFlagBox(style: style),
+            // Header
+            Row(
+              children: [
+                SquareBadgeSvg(
+                  assetPath: SquareBadgeAssets.flagPathForCountryCode('IN'),
+                  size: 28,
+                  borderRadius: 8,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'India',
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                      Text(
+                        'Key Economic Indicators',
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: Colors.white54),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+            const SizedBox(height: 14),
+            // 2×2 Grid
+            Row(
+              children: [
+                Expanded(child: _headlineTile(theme, items[0])),
+                const SizedBox(width: 10),
+                Expanded(child: _headlineTile(theme, items[1])),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(child: _headlineTile(theme, items[2])),
+                const SizedBox(width: 10),
+                Expanded(child: _headlineTile(theme, items[3])),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _headlineTile(ThemeData theme, MacroIndicator? ind) {
+    if (ind == null) {
+      return Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+        ),
+      );
+    }
+    final color = _macroValueColor(ind.indicatorName, ind.value);
+
+    return GestureDetector(
+      onTap: () => onTap(ind),
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(_iconFor(ind.indicatorName), size: 14, color: Colors.white54),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    displayName(ind.indicatorName),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: Colors.white54,
+                      fontSize: 10,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  Text(
-                    subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              Formatters.macroValue(ind.value, ind.indicatorName),
+              style: theme.textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              Formatters.relativeTime(ind.timestamp),
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white38,
+                fontSize: 9,
               ),
             ),
           ],
@@ -256,108 +348,423 @@ class _CountryBanner extends StatelessWidget {
   }
 }
 
-enum _CountryStyle { india, us, europe, japan }
+// =============================================================================
+// Section 2: Global Snapshot (Horizontal)
+// =============================================================================
 
-_CountryStyle _countryStyleForCode(String code) {
-  switch (code.toUpperCase()) {
-    case 'IN':
-      return _CountryStyle.india;
-    case 'US':
-      return _CountryStyle.us;
-    case 'EU':
-      return _CountryStyle.europe;
-    case 'JP':
-      return _CountryStyle.japan;
-    default:
-      return _CountryStyle.india;
-  }
-}
+class _GlobalSnapshotSection extends StatelessWidget {
+  final List<MacroIndicator> indicators;
+  final ValueChanged<MacroIndicator> onTap;
 
-class _CountryFlagBox extends StatelessWidget {
-  const _CountryFlagBox({required this.style});
-
-  final _CountryStyle style;
+  const _GlobalSnapshotSection({required this.indicators, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final path = switch (style) {
-      _CountryStyle.india => SquareBadgeAssets.flagPathForCountryCode('IN'),
-      _CountryStyle.us => SquareBadgeAssets.flagPathForCountryCode('US'),
-      _CountryStyle.europe => SquareBadgeAssets.flagPathForCountryCode('EU'),
-      _CountryStyle.japan => SquareBadgeAssets.flagPathForCountryCode('JP'),
-    };
-
-    switch (style) {
-      case _CountryStyle.india:
-        return SquareBadgeSvg(assetPath: path, size: 28, borderRadius: 8);
-      case _CountryStyle.us:
-        return SquareBadgeSvg(assetPath: path, size: 28, borderRadius: 8);
-      case _CountryStyle.europe:
-        return SquareBadgeSvg(assetPath: path, size: 28, borderRadius: 8);
-      case _CountryStyle.japan:
-        return SquareBadgeSvg(assetPath: path, size: 28, borderRadius: 8);
-    }
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            'Global Snapshot',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.2,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 170,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            itemCount: _countries.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            itemBuilder: (_, i) => _CountryCard(
+              countryCode: _countries[i],
+              indicators: indicators,
+              onTap: onTap,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _MacroCard extends StatelessWidget {
-  final MacroIndicator indicator;
-  final VoidCallback? onTap;
+class _CountryCard extends StatelessWidget {
+  final String countryCode;
+  final List<MacroIndicator> indicators;
+  final ValueChanged<MacroIndicator> onTap;
 
-  const _MacroCard({required this.indicator, this.onTap});
+  const _CountryCard({
+    required this.countryCode,
+    required this.indicators,
+    required this.onTap,
+  });
 
-  IconData _iconFor(String name) {
-    switch (name) {
-      case 'inflation_cpi':
-      case 'inflation':
-        return Icons.trending_up;
-      case 'repo_rate':
-        return Icons.account_balance;
-      case 'gdp_growth':
-        return Icons.bar_chart;
-      case 'unemployment':
-        return Icons.people_outline;
-      default:
-        return Icons.analytics;
-    }
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = _indicatorOrder
+        .map((name) => _latest(indicators, name, countryCode))
+        .toList();
+
+    return Container(
+      width: 160,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.cardDark,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header: flag + name
+          Row(
+            children: [
+              SquareBadgeSvg(
+                assetPath: SquareBadgeAssets.flagPathForCountryCode(countryCode),
+                size: 22,
+                borderRadius: 6,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _countryLabel(countryCode),
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          // Indicator rows
+          ...List.generate(_indicatorOrder.length, (i) {
+            final ind = items[i];
+            return _countryCardRow(theme, _indicatorOrder[i], ind);
+          }),
+        ],
+      ),
+    );
   }
+
+  Widget _countryCardRow(ThemeData theme, String name, MacroIndicator? ind) {
+    final value = ind != null
+        ? Formatters.macroValue(ind.value, ind.indicatorName)
+        : '—';
+    final color = ind != null
+        ? _macroValueColor(ind.indicatorName, ind.value)
+        : Colors.white38;
+
+    return GestureDetector(
+      onTap: ind != null ? () => onTap(ind) : null,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                displayName(name),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white54,
+                  fontSize: 10,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            Text(
+              value,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: color,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Section 3: Per-Indicator Comparison Card
+// =============================================================================
+
+class _IndicatorComparisonCard extends StatelessWidget {
+  final String indicatorName;
+  final Map<String, MacroIndicator?> countryIndicators;
+  final ValueChanged<MacroIndicator> onTap;
+
+  const _IndicatorComparisonCard({
+    required this.indicatorName,
+    required this.countryIndicators,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     return Card(
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: CircleAvatar(
-          backgroundColor:
-              theme.colorScheme.primaryContainer.withValues(alpha: 0.3),
-          child: Icon(_iconFor(indicator.indicatorName),
-              color: theme.colorScheme.primary, size: 22),
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title row
+            Row(
+              children: [
+                Icon(_iconFor(indicatorName), size: 18, color: AppTheme.accentBlue),
+                const SizedBox(width: 8),
+                Text(
+                  displayName(indicatorName),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Country rows
+            ...countryIndicators.entries.map((entry) {
+              final code = entry.key;
+              final ind = entry.value;
+              return _comparisonRow(theme, code, ind);
+            }),
+          ],
         ),
-        title: Text(
-          displayName(indicator.indicatorName),
-          style:
-              theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+  }
+
+  Widget _comparisonRow(ThemeData theme, String code, MacroIndicator? ind) {
+    final value = ind != null
+        ? Formatters.macroValue(ind.value, ind.indicatorName)
+        : '—';
+    final color = ind != null
+        ? _macroValueColor(ind.indicatorName, ind.value)
+        : Colors.white38;
+
+    return InkWell(
+      onTap: ind != null ? () => onTap(ind) : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
         ),
-        subtitle: Padding(
-          padding: const EdgeInsets.only(top: 2),
+        child: Row(
+          children: [
+            SquareBadgeSvg(
+              assetPath: SquareBadgeAssets.flagPathForCountryCode(code),
+              size: 18,
+              borderRadius: 4,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _countryLabel(code),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (ind != null)
+              Text(
+                Formatters.relativeTime(ind.timestamp),
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white38,
+                  fontSize: 9,
+                ),
+              ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                value,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Section 4: FII/DII Flows
+// =============================================================================
+
+class _FlowsSection extends StatelessWidget {
+  final AsyncValue<InstitutionalFlowsOverview> flowAsync;
+
+  const _FlowsSection({required this.flowAsync});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        child: flowAsync.when(
+          loading: () => const ShimmerCard(height: 118),
+          error: (err, _) => Text(
+            friendlyErrorMessage(err),
+            style: theme.textTheme.bodySmall,
+          ),
+          data: (overview) {
+            final fiiValue = overview.fiiValue;
+            final diiValue = overview.diiValue;
+            if (fiiValue == null && diiValue == null) {
+              return const Text('FII/DII flow data unavailable');
+            }
+            final netFlow =
+                overview.combinedValue ?? ((fiiValue ?? 0) + (diiValue ?? 0));
+            final lastTs = overview.asOf;
+            final fiiTrend = _trendSeries(overview.trend, isFii: true);
+            final diiTrend = _trendSeries(overview.trend, isFii: false);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Institutional Flows',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const Spacer(),
+                    if (lastTs != null)
+                      Text(
+                        Formatters.asOfDate(lastTs),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: Colors.white54),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                _flowRow(context, 'Foreign (FII)', fiiValue, trendValues: fiiTrend),
+                const SizedBox(height: 8),
+                _flowRow(context, 'Domestic (DII)', diiValue, trendValues: diiTrend),
+                const SizedBox(height: 8),
+                _flowRow(context, 'Net', netFlow),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _flowRow(
+    BuildContext context,
+    String label,
+    double? value, {
+    List<double>? trendValues,
+  }) {
+    final theme = Theme.of(context);
+    final color = (value ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    return Row(
+      children: [
+        Expanded(
           child: Text(
-            Formatters.relativeTime(indicator.timestamp),
+            label,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              fontSize: 11,
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        trailing: Text(
-          Formatters.macroValue(indicator.value, indicator.indicatorName),
-          style: theme.textTheme.titleMedium?.copyWith(
+        if (trendValues != null && trendValues.length >= 2) ...[
+          _miniSparkline(trendValues, color),
+          const SizedBox(width: 8),
+        ],
+        Text(
+          _flowValue(value),
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: color,
             fontWeight: FontWeight.w700,
             fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        onTap: onTap,
+      ],
+    );
+  }
+
+  String _flowValue(double? value) {
+    if (value == null) return 'N/A';
+    return '\u20B9 ${Formatters.fullPrice(value)} Cr';
+  }
+
+  List<double> _trendSeries(
+    List<InstitutionalFlowTrendPoint> trend, {
+    required bool isFii,
+  }) {
+    return trend
+        .map((point) => isFii ? point.fiiValue : point.diiValue)
+        .whereType<double>()
+        .toList();
+  }
+
+  Widget _miniSparkline(List<double> values, Color color) {
+    if (values.length < 2) return const SizedBox(width: 64, height: 18);
+
+    final points = values
+        .asMap()
+        .entries
+        .map((e) => FlSpot(e.key.toDouble(), e.value))
+        .toList();
+    final minY = values.reduce((a, b) => a < b ? a : b);
+    final maxY = values.reduce((a, b) => a > b ? a : b);
+    final span = (maxY - minY).abs();
+    final pad = span == 0 ? (maxY.abs() * 0.05 + 1) : span * 0.22;
+
+    return SizedBox(
+      width: 64,
+      height: 18,
+      child: LineChart(
+        LineChartData(
+          minX: 0,
+          maxX: (points.length - 1).toDouble(),
+          minY: minY - pad,
+          maxY: maxY + pad,
+          gridData: const FlGridData(show: false),
+          titlesData: const FlTitlesData(show: false),
+          borderData: FlBorderData(show: false),
+          lineTouchData: const LineTouchData(enabled: false),
+          lineBarsData: [
+            LineChartBarData(
+              spots: points,
+              isCurved: true,
+              barWidth: 1.8,
+              color: color,
+              dotData: const FlDotData(show: false),
+              belowBarData: BarAreaData(show: false),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -623,21 +1030,6 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
         ],
       ),
     );
-  }
-}
-
-String _countryLabel(String code) {
-  switch (code.toUpperCase()) {
-    case 'IN':
-      return 'India';
-    case 'US':
-      return 'United States';
-    case 'EU':
-      return 'Europe';
-    case 'JP':
-      return 'Japan';
-    default:
-      return code;
   }
 }
 
