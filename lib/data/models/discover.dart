@@ -674,12 +674,20 @@ class DiscoverHomeData {
   final List<DiscoverHomeStockItem> topStocks;
   final List<DiscoverHomeMfItem> topMutualFunds;
   final List<DiscoverHomeStockItem> trendingStocks;
+  final List<DiscoverHomeStockItem> gainers;
+  final List<DiscoverHomeStockItem> losers;
+  final List<DiscoverHomeStockItem> sectorSpotlight;
+  final String? spotlightSectorName;
   final List<QuickCategory> quickCategories;
 
   const DiscoverHomeData({
     this.topStocks = const [],
     this.topMutualFunds = const [],
     this.trendingStocks = const [],
+    this.gainers = const [],
+    this.losers = const [],
+    this.sectorSpotlight = const [],
+    this.spotlightSectorName,
     this.quickCategories = const [],
   });
 
@@ -699,6 +707,20 @@ class DiscoverHomeData {
               .map((e) =>
                   DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
               .toList(),
+      gainers: (json['gainers'] as List<dynamic>? ?? const [])
+          .map((e) =>
+              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      losers: (json['losers'] as List<dynamic>? ?? const [])
+          .map((e) =>
+              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      sectorSpotlight:
+          (json['sector_spotlight'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+              .toList(),
+      spotlightSectorName: json['spotlight_sector_name'] as String?,
       quickCategories:
           (json['quick_categories'] as List<dynamic>? ?? const [])
               .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))

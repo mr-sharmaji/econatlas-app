@@ -346,18 +346,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         children: _periodOptions.map((opt) {
           final isSelected = opt.days == _selectedDays;
           return Padding(
-            padding: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
               label: Text(opt.label),
               selected: isSelected,
               onSelected: (_) => setState(() => _selectedDays = opt.days),
-              visualDensity: VisualDensity.compact,
-              labelStyle: theme.textTheme.labelSmall?.copyWith(
-                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? Colors.white : Colors.white60,
+              selectedColor: AppTheme.accentBlue.withValues(alpha: 0.25),
+              side: BorderSide(
+                color: isSelected
+                    ? AppTheme.accentBlue.withValues(alpha: 0.5)
+                    : Colors.white.withValues(alpha: 0.1),
               ),
-              selectedColor: AppTheme.primaryColor,
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+              labelStyle: theme.textTheme.labelMedium?.copyWith(
+                color: isSelected ? AppTheme.accentBlue : Colors.white60,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
           );
         }).toList(),

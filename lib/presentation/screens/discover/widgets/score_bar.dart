@@ -23,9 +23,8 @@ class ScoreBar extends StatelessWidget {
   }
 
   static String formatMinified(double score) {
-    final scaled = score / 10.0;
-    final bounded = scaled < 0 ? 0.0 : (scaled > 10 ? 10.0 : scaled);
-    return '${bounded.toStringAsFixed(1)}/10';
+    final bounded = score < 0 ? 0.0 : (score > 100 ? 100.0 : score);
+    return bounded.toStringAsFixed(0);
   }
 
   @override

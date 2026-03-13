@@ -83,7 +83,7 @@ class _PriceLineChartState extends State<PriceLineChart> {
       )..layout();
       if (tp.width > maxLabelWidth) maxLabelWidth = tp.width;
     }
-    final yAxisReservedSize = (maxLabelWidth + 10).clamp(32.0, 100.0);
+    final yAxisReservedSize = (maxLabelWidth + 6).clamp(28.0, 90.0);
 
     final touchedIndex = _touchedSpotIndex;
     final showIndicators = touchedIndex != null &&
@@ -154,7 +154,7 @@ class _PriceLineChartState extends State<PriceLineChart> {
             clipBehavior: Clip.antiAlias,
             child: Padding(
               padding:
-                  const EdgeInsets.only(left: 4, right: 20, top: 12, bottom: 4),
+                  const EdgeInsets.only(left: 0, right: 20, top: 12, bottom: 4),
               child: AspectRatio(
                 aspectRatio: 1.75,
                 child: LineChart(

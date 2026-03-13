@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/discover.dart';
+import '../../data/services/recently_viewed_service.dart';
 import '../../domain/repositories/discover_repository.dart';
 import 'repository_providers.dart';
+import 'settings_providers.dart';
 
 enum DiscoverSegment { stocks, mutualFunds }
 
@@ -854,31 +856,6 @@ final discoverHomeDataProvider =
   return ref.watch(discoverRepoProvider).getHomeData();
 });
 
-/// Top 20 stocks sorted by score (for the Discover home tab).
-final homeTopStocksProvider =
-    FutureProvider.autoDispose<DiscoverStockListResponse>((ref) {
-  return ref.watch(discoverRepoProvider).getStocks(
-        preset: 'quality',
-        sortBy: 'score',
-        sortOrder: 'desc',
-        limit: 20,
-        offset: 0,
-      );
-});
-
-/// Top 20 mutual funds sorted by score (for the Discover home tab).
-final homeTopMutualFundsProvider =
-    FutureProvider.autoDispose<DiscoverMutualFundListResponse>((ref) {
-  return ref.watch(discoverRepoProvider).getMutualFunds(
-        preset: 'all',
-        directOnly: true,
-        sortBy: 'score',
-        sortOrder: 'desc',
-        limit: 20,
-        offset: 0,
-      );
-});
-
 final discoverSearchProvider =
     FutureProvider.autoDispose.family<UnifiedSearchResponse, String>(
         (ref, query) {
@@ -922,4 +899,36 @@ final discoverStockPeersProvider = FutureProvider.autoDispose
 final discoverMfPeersProvider = FutureProvider.autoDispose
     .family<List<DiscoverMutualFundItem>, String>((ref, schemeCode) {
   return ref.watch(discoverRepoProvider).getMfPeers(schemeCode: schemeCode, limit: 5);
+});
+
+// ---------------------------------------------------------------------------
+// Recently Viewed
+// ---------------------------------------------------------------------------
+
+class RecentlyViewedNotifier extends StateNotifier<List<RecentlyViewedItem>> {
+  late final RecentlyViewedService _service;
+
+  RecentlyViewedNotifier(RecentlyViewedService service)
+      : _service = service,
+        super(service.load());
+
+  Future<void> add({
+    required String type,
+    required String id,
+    required String name,
+  }) async {
+    state = await _service.addItem(type: type, id: id, name: name);
+  }
+
+  Future<void> clear() async {
+    await _service.clear();
+    state = [];
+  }
+}
+
+final recentlyViewedProvider =
+    StateNotifierProvider<RecentlyViewedNotifier, List<RecentlyViewedItem>>(
+        (ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return RecentlyViewedNotifier(RecentlyViewedService(prefs));
 });
