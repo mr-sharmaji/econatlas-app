@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +6,6 @@ import '../../../core/error_utils.dart';
 import '../../../core/square_badge_assets.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
-import '../../../data/models/institutional_flow_overview.dart';
 import '../../../data/models/macro_indicator.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
@@ -117,7 +115,6 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
     });
 
     final macroAsync = ref.watch(allMacroIndicatorsProvider);
-    final flowAsync = ref.watch(institutionalFlowsOverviewProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -132,7 +129,6 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(allMacroIndicatorsProvider);
-          ref.invalidate(institutionalFlowsOverviewProvider);
         },
         child: macroAsync.when(
           loading: () => const ShimmerList(itemCount: 6),
@@ -159,21 +155,7 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
               children: [
-                // Section 1: India Headline
-                _IndiaHeadlineCard(
-                  indicators: filtered,
-                  onTap: _openDetail,
-                ),
-                const SizedBox(height: 14),
-
-                // Section 2: Global Snapshot (horizontal)
-                _GlobalSnapshotSection(
-                  indicators: filtered,
-                  onTap: _openDetail,
-                ),
-                const SizedBox(height: 14),
-
-                // Section 3: Per-indicator comparison cards
+                // Per-indicator comparison cards
                 ..._indicatorOrder.map((name) {
                   final items = _countries
                       .map((c) => _latest(filtered, name, c))
@@ -193,9 +175,6 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
                     ),
                   );
                 }),
-
-                // Section 4: FII/DII Flows
-                _FlowsSection(flowAsync: flowAsync),
                 const SizedBox(height: 24),
               ],
             );
@@ -207,296 +186,7 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
 }
 
 // =============================================================================
-// Section 1: India Headline Card
-// =============================================================================
-
-class _IndiaHeadlineCard extends StatelessWidget {
-  final List<MacroIndicator> indicators;
-  final ValueChanged<MacroIndicator> onTap;
-
-  const _IndiaHeadlineCard({required this.indicators, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final items = _indicatorOrder
-        .map((name) => _latest(indicators, name, 'IN'))
-        .toList();
-
-    if (items.every((i) => i == null)) return const SizedBox.shrink();
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                SquareBadgeSvg(
-                  assetPath: SquareBadgeAssets.flagPathForCountryCode('IN'),
-                  size: 28,
-                  borderRadius: 8,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'India',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                      Text(
-                        'Key Economic Indicators',
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            // 2×2 Grid
-            Row(
-              children: [
-                Expanded(child: _headlineTile(theme, items[0])),
-                const SizedBox(width: 10),
-                Expanded(child: _headlineTile(theme, items[1])),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(child: _headlineTile(theme, items[2])),
-                const SizedBox(width: 10),
-                Expanded(child: _headlineTile(theme, items[3])),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _headlineTile(ThemeData theme, MacroIndicator? ind) {
-    if (ind == null) {
-      return Container(
-        height: 64,
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-        ),
-      );
-    }
-    final color = _macroValueColor(ind.indicatorName, ind.value);
-
-    return GestureDetector(
-      onTap: () => onTap(ind),
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(_iconFor(ind.indicatorName), size: 14, color: Colors.white54),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    displayName(ind.indicatorName),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white54,
-                      fontSize: 10,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              Formatters.macroValue(ind.value, ind.indicatorName),
-              style: theme.textTheme.bodyLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              Formatters.relativeTime(ind.timestamp),
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.white38,
-                fontSize: 9,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Section 2: Global Snapshot (Horizontal)
-// =============================================================================
-
-class _GlobalSnapshotSection extends StatelessWidget {
-  final List<MacroIndicator> indicators;
-  final ValueChanged<MacroIndicator> onTap;
-
-  const _GlobalSnapshotSection({required this.indicators, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Text(
-            'Global Snapshot',
-            style: theme.textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 170,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            itemCount: _countries.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, i) => _CountryCard(
-              countryCode: _countries[i],
-              indicators: indicators,
-              onTap: onTap,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _CountryCard extends StatelessWidget {
-  final String countryCode;
-  final List<MacroIndicator> indicators;
-  final ValueChanged<MacroIndicator> onTap;
-
-  const _CountryCard({
-    required this.countryCode,
-    required this.indicators,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final items = _indicatorOrder
-        .map((name) => _latest(indicators, name, countryCode))
-        .toList();
-
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header: flag + name
-          Row(
-            children: [
-              SquareBadgeSvg(
-                assetPath: SquareBadgeAssets.flagPathForCountryCode(countryCode),
-                size: 22,
-                borderRadius: 6,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  _countryLabel(countryCode),
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Indicator rows
-          ...List.generate(_indicatorOrder.length, (i) {
-            final ind = items[i];
-            return _countryCardRow(theme, _indicatorOrder[i], ind);
-          }),
-        ],
-      ),
-    );
-  }
-
-  Widget _countryCardRow(ThemeData theme, String name, MacroIndicator? ind) {
-    final value = ind != null
-        ? Formatters.macroValue(ind.value, ind.indicatorName)
-        : '—';
-    final color = ind != null
-        ? _macroValueColor(ind.indicatorName, ind.value)
-        : Colors.white38;
-
-    return GestureDetector(
-      onTap: ind != null ? () => onTap(ind) : null,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                displayName(name),
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white54,
-                  fontSize: 10,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            Text(
-              value,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Section 3: Per-Indicator Comparison Card
+// Per-Indicator Comparison Card
 // =============================================================================
 
 class _IndicatorComparisonCard extends StatelessWidget {
@@ -603,165 +293,6 @@ class _IndicatorComparisonCard extends StatelessWidget {
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Section 4: FII/DII Flows
-// =============================================================================
-
-class _FlowsSection extends StatelessWidget {
-  final AsyncValue<InstitutionalFlowsOverview> flowAsync;
-
-  const _FlowsSection({required this.flowAsync});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        child: flowAsync.when(
-          loading: () => const ShimmerCard(height: 118),
-          error: (err, _) => Text(
-            friendlyErrorMessage(err),
-            style: theme.textTheme.bodySmall,
-          ),
-          data: (overview) {
-            final fiiValue = overview.fiiValue;
-            final diiValue = overview.diiValue;
-            if (fiiValue == null && diiValue == null) {
-              return const Text('FII/DII flow data unavailable');
-            }
-            final netFlow =
-                overview.combinedValue ?? ((fiiValue ?? 0) + (diiValue ?? 0));
-            final lastTs = overview.asOf;
-            final fiiTrend = _trendSeries(overview.trend, isFii: true);
-            final diiTrend = _trendSeries(overview.trend, isFii: false);
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      'Institutional Flows',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const Spacer(),
-                    if (lastTs != null)
-                      Text(
-                        Formatters.asOfDate(lastTs),
-                        style: theme.textTheme.labelSmall
-                            ?.copyWith(color: Colors.white54),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                _flowRow(context, 'Foreign (FII)', fiiValue, trendValues: fiiTrend),
-                const SizedBox(height: 8),
-                _flowRow(context, 'Domestic (DII)', diiValue, trendValues: diiTrend),
-                const SizedBox(height: 8),
-                _flowRow(context, 'Net', netFlow),
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _flowRow(
-    BuildContext context,
-    String label,
-    double? value, {
-    List<double>? trendValues,
-  }) {
-    final theme = Theme.of(context);
-    final color = (value ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-        if (trendValues != null && trendValues.length >= 2) ...[
-          _miniSparkline(trendValues, color),
-          const SizedBox(width: 8),
-        ],
-        Text(
-          _flowValue(value),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _flowValue(double? value) {
-    if (value == null) return 'N/A';
-    return '\u20B9 ${Formatters.fullPrice(value)} Cr';
-  }
-
-  List<double> _trendSeries(
-    List<InstitutionalFlowTrendPoint> trend, {
-    required bool isFii,
-  }) {
-    return trend
-        .map((point) => isFii ? point.fiiValue : point.diiValue)
-        .whereType<double>()
-        .toList();
-  }
-
-  Widget _miniSparkline(List<double> values, Color color) {
-    if (values.length < 2) return const SizedBox(width: 64, height: 18);
-
-    final points = values
-        .asMap()
-        .entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value))
-        .toList();
-    final minY = values.reduce((a, b) => a < b ? a : b);
-    final maxY = values.reduce((a, b) => a > b ? a : b);
-    final span = (maxY - minY).abs();
-    final pad = span == 0 ? (maxY.abs() * 0.05 + 1) : span * 0.22;
-
-    return SizedBox(
-      width: 64,
-      height: 18,
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: (points.length - 1).toDouble(),
-          minY: minY - pad,
-          maxY: maxY + pad,
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineTouchData: const LineTouchData(enabled: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: points,
-              isCurved: true,
-              barWidth: 1.8,
-              color: color,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
             ),
           ],
         ),
