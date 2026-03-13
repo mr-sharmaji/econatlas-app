@@ -585,6 +585,17 @@ class RemoteDataSource {
     );
   }
 
+  Future<Map<String, dynamic>> triggerJob(String jobName) async {
+    final response = await _dio.post('/ops/jobs/trigger/$jobName');
+    return response.data as Map<String, dynamic>;
+  }
+
+  Future<List<String>> listJobs() async {
+    final response = await _dio.get('/ops/jobs');
+    final data = response.data as Map<String, dynamic>;
+    return (data['jobs'] as List<dynamic>).map((e) => '$e').toList();
+  }
+
   Future<TaxConfig> getTaxConfig() async {
     final response = await _dio.get('/tax/config');
     return TaxConfig.fromJson(response.data as Map<String, dynamic>);

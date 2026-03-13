@@ -27,6 +27,9 @@ class _DeveloperOptionsScreenState
   bool _tailEnabled = true;
   bool _loadingLogs = false;
   bool _loadingFeedback = false;
+  bool _loadingJobs = false;
+  List<String> _jobs = const [];
+  final Map<String, String> _jobStatus = {}; // jobName → 'enqueued' | 'error' | 'loading'
   int _latestLogId = 0;
   String _minLevel = '';
   String? _logsState;
@@ -41,6 +44,7 @@ class _DeveloperOptionsScreenState
     super.initState();
     _loadLogs(fullReload: true);
     _loadFeedbackSubmissions();
+    _loadJobsList();
     _syncTailTimer();
   }
 
@@ -163,6 +167,47 @@ class _DeveloperOptionsScreenState
     }
   }
 
+  Future<void> _loadJobsList() async {
+    if (_loadingJobs) return;
+    setState(() => _loadingJobs = true);
+    try {
+      final ds = ref.read(remoteDataSourceProvider);
+      final jobs = await ds.listJobs();
+      if (mounted) setState(() => _jobs = jobs);
+    } catch (_) {
+      // silently ignore — jobs section just won't show
+    } finally {
+      if (mounted) setState(() => _loadingJobs = false);
+    }
+  }
+
+  Future<void> _triggerJob(String jobName) async {
+    setState(() => _jobStatus[jobName] = 'loading');
+    try {
+      final ds = ref.read(remoteDataSourceProvider);
+      final result = await ds.triggerJob(jobName);
+      if (mounted) {
+        setState(() => _jobStatus[jobName] = result['status'] as String? ?? 'enqueued');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('$jobName: ${_jobStatus[jobName]}'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (err) {
+      if (mounted) {
+        setState(() => _jobStatus[jobName] = 'error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to trigger $jobName'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final baseUrl = ref.watch(baseUrlProvider);
@@ -268,6 +313,70 @@ class _DeveloperOptionsScreenState
               ),
             ),
           ),
+          if (_jobs.isNotEmpty) ...[
+            const _SectionTitle(title: 'Background Jobs'),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Trigger jobs manually',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.refresh_rounded),
+                          tooltip: 'Refresh job list',
+                          onPressed: _loadJobsList,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _jobs.map((job) {
+                        final status = _jobStatus[job];
+                        final isLoading = status == 'loading';
+                        return ActionChip(
+                          avatar: isLoading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : Icon(
+                                  status == 'enqueued' || status == 'already_queued'
+                                      ? Icons.check_circle_outline
+                                      : status == 'error'
+                                          ? Icons.error_outline
+                                          : Icons.play_arrow_rounded,
+                                  size: 18,
+                                  color: status == 'enqueued' || status == 'already_queued'
+                                      ? Colors.greenAccent
+                                      : status == 'error'
+                                          ? Colors.redAccent
+                                          : null,
+                                ),
+                          label: Text(
+                            job.replaceAll('_', ' '),
+                            style: theme.textTheme.labelSmall,
+                          ),
+                          onPressed: isLoading ? null : () => _triggerJob(job),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
           const _SectionTitle(title: 'Ops logs'),
           Card(
             child: Padding(
