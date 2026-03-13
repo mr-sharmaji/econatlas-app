@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ethereum logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#627EEA"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#FFFFFF" opacity="0.18"/>
+  <polygon points="32,12 20,32 32,27 44,32" fill="#C8D4F8"/>
+  <polygon points="32,27 20,32 32,40 44,32" fill="#F8FAFC"/>
+  <polygon points="32,43 20,35 32,52 44,35" fill="#C8D4F8"/>
+</svg>

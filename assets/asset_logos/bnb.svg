@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="bnb logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#F3BA2F"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#FFFFFF" opacity="0.18"/>
+  <polygon points="32,16 38,22 35,25 32,22 29,25 26,22" fill="#FFFFFF"/>
+  <polygon points="22,28 28,34 25,37 22,34 19,37 16,34" fill="#FFFFFF" transform="translate(6,0)"/>
+  <polygon points="42,28 48,34 45,37 42,34 39,37 36,34" fill="#FFFFFF" transform="translate(-6,0)"/>
+  <polygon points="32,40 38,46 35,49 32,46 29,49 26,46" fill="#FFFFFF"/>
+  <rect x="30" y="27" width="4" height="10" rx="1" fill="#FFFFFF"/>
+</svg>

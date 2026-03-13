@@ -94,6 +94,7 @@ class SquareBadgeAssets {
     'currencies_other': 'assets/badge_svgs/categories/currencies_other.svg',
     'metals': 'assets/badge_svgs/categories/metals.svg',
     'energy': 'assets/badge_svgs/categories/energy.svg',
+    'crypto': 'assets/badge_svgs/categories/crypto.svg',
     'fallback': 'assets/badge_svgs/categories/fallback.svg',
   };
 

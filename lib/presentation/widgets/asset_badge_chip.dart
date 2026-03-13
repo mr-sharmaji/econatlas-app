@@ -403,11 +403,12 @@ class AssetBadgeChip extends StatelessWidget {
         return SquareBadgeAssets.categoryPathForKey('energy');
       case AssetBadgeStyle.fallback:
         return SquareBadgeAssets.categoryPathForKey('fallback');
+      case AssetBadgeStyle.crypto:
+        return SquareBadgeAssets.categoryPathForKey('crypto');
       case AssetBadgeStyle.india:
       case AssetBadgeStyle.us:
       case AssetBadgeStyle.europe:
       case AssetBadgeStyle.japan:
-      case AssetBadgeStyle.crypto:
         return SquareBadgeAssets.globalCategoryPath;
     }
   }

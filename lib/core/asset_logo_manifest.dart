@@ -353,6 +353,58 @@ const Map<String, AssetLogoMeta> assetLogoManifest = {
     logoPath: 'assets/asset_logos/zar_inr.svg',
     sourceType: 'custom_pictogram',
   ),
+  // ── Crypto ──
+  'bitcoin': AssetLogoMeta(
+    assetKey: 'bitcoin',
+    logoPath: 'assets/asset_logos/bitcoin.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'ethereum': AssetLogoMeta(
+    assetKey: 'ethereum',
+    logoPath: 'assets/asset_logos/ethereum.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'bnb': AssetLogoMeta(
+    assetKey: 'bnb',
+    logoPath: 'assets/asset_logos/bnb.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'solana': AssetLogoMeta(
+    assetKey: 'solana',
+    logoPath: 'assets/asset_logos/solana.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'xrp': AssetLogoMeta(
+    assetKey: 'xrp',
+    logoPath: 'assets/asset_logos/xrp.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'cardano': AssetLogoMeta(
+    assetKey: 'cardano',
+    logoPath: 'assets/asset_logos/cardano.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'dogecoin': AssetLogoMeta(
+    assetKey: 'dogecoin',
+    logoPath: 'assets/asset_logos/dogecoin.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'polkadot': AssetLogoMeta(
+    assetKey: 'polkadot',
+    logoPath: 'assets/asset_logos/polkadot.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'avalanche': AssetLogoMeta(
+    assetKey: 'avalanche',
+    logoPath: 'assets/asset_logos/avalanche.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  'chainlink': AssetLogoMeta(
+    assetKey: 'chainlink',
+    logoPath: 'assets/asset_logos/chainlink.svg',
+    sourceType: 'custom_pictogram',
+  ),
+  // ── Commodities ──
   'copper': AssetLogoMeta(
     assetKey: 'copper',
     logoPath: 'assets/asset_logos/copper.svg',

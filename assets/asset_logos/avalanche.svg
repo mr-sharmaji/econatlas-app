@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="avalanche logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#E84142"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#FFFFFF" opacity="0.18"/>
+  <path d="M32 16L48 46H16Z" fill="none" stroke="#F8FAFC" stroke-width="3" stroke-linejoin="round"/>
+  <line x1="32" y1="28" x2="32" y2="38" stroke="#F8FAFC" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="42" r="2" fill="#F8FAFC"/>
+</svg>

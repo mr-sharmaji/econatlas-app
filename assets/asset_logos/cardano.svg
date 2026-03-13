@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="cardano logo">
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#0033AD"/>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity="0.14"/>
+  <circle cx="48" cy="16" r="8" fill="#FFFFFF" opacity="0.18"/>
+  <circle cx="32" cy="32" r="4" fill="#F8FAFC"/>
+  <circle cx="32" cy="20" r="2.5" fill="#F8FAFC"/>
+  <circle cx="32" cy="44" r="2.5" fill="#F8FAFC"/>
+  <circle cx="21" cy="26" r="2.5" fill="#F8FAFC"/>
+  <circle cx="43" cy="26" r="2.5" fill="#F8FAFC"/>
+  <circle cx="21" cy="38" r="2.5" fill="#F8FAFC"/>
+  <circle cx="43" cy="38" r="2.5" fill="#F8FAFC"/>
+  <circle cx="26" cy="15" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+  <circle cx="38" cy="15" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+  <circle cx="26" cy="49" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+  <circle cx="38" cy="49" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+  <circle cx="15" cy="32" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+  <circle cx="49" cy="32" r="1.5" fill="#F8FAFC" opacity="0.5"/>
+</svg>

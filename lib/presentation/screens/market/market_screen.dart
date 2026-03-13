@@ -837,19 +837,35 @@ class _CryptoTab extends ConsumerWidget {
 
   final ScrollController scrollController;
 
+  static const _layer1 = {'bitcoin', 'ethereum', 'bnb', 'solana', 'cardano', 'avalanche'};
+  static const _defi = {'chainlink', 'polkadot'};
+  static const _meme = {'dogecoin', 'xrp'};
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestCryptoProvider);
     final unitSystem = ref.watch(unitSystemProvider);
     final useIndian = unitSystem == UnitSystem.indian;
     final marketAsync = ref.watch(latestMarketPricesProvider);
+    final statusAsync = ref.watch(marketStatusProvider);
+    final status = statusAsync.valueOrNull;
     final usdInrRate = marketAsync.valueOrNull
             ?.where((p) => p.asset == 'USD/INR')
             .map((p) => p.price)
             .firstOrNull ??
         84.0;
+    bool isLiveFor(MarketPrice p) =>
+        status != null &&
+        isLiveForAsset(
+          p.asset,
+          'crypto',
+          status,
+          lastUpdate: p.lastTickTimestamp ?? p.timestamp,
+        );
+
     return RefreshIndicator(
       onRefresh: () async {
+        ref.invalidate(marketStatusProvider);
         ref.invalidate(latestCryptoProvider);
       },
       child: pricesAsync.when(
@@ -873,16 +889,55 @@ class _CryptoTab extends ConsumerWidget {
             if (!ordered.any((o) => o.asset == p.asset)) ordered.add(p);
           }
 
+          final layer1 =
+              ordered.where((p) => _layer1.contains(p.asset)).toList();
+          final defi =
+              ordered.where((p) => _defi.contains(p.asset)).toList();
+          final meme =
+              ordered.where((p) => _meme.contains(p.asset)).toList();
+          final others = ordered
+              .where((p) =>
+                  !_layer1.contains(p.asset) &&
+                  !_defi.contains(p.asset) &&
+                  !_meme.contains(p.asset))
+              .toList();
+
+          Widget tile(MarketPrice p) => _CryptoTile(
+                price: p,
+                isLive: isLiveFor(p),
+                useIndian: useIndian,
+                usdInrRate: usdInrRate,
+              );
+
           return ListView(
             controller: scrollController,
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 112),
             children: [
-              ...ordered.map((p) => _CryptoTile(
-                    price: p,
-                    isLive: true,
-                    useIndian: useIndian,
-                    usdInrRate: usdInrRate,
-                  )),
+              if (layer1.isNotEmpty) ...[
+                const _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.crypto,
+                  title: 'Layer 1',
+                  subtitle: 'Core blockchain networks',
+                ),
+                ...layer1.map(tile),
+              ],
+              if (defi.isNotEmpty) ...[
+                const _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.crypto,
+                  title: 'Infrastructure',
+                  subtitle: 'Oracles and interoperability',
+                ),
+                ...defi.map(tile),
+              ],
+              if (meme.isNotEmpty) ...[
+                const _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.crypto,
+                  title: 'Payments & Meme',
+                  subtitle: 'Payment networks and community tokens',
+                ),
+                ...meme.map(tile),
+              ],
+              ...others.map(tile),
             ],
           );
         },
@@ -926,12 +981,9 @@ class _CryptoTile extends StatelessWidget {
     final pctColor = (price.changePercent ?? 0) >= 0
         ? AppTheme.accentGreen
         : AppTheme.accentRed;
-    final subtitle = phase == 'live'
-        ? Formatters.updatedFreshness(
-            tickTs,
-            allowJustNow: true,
-          )
-        : Formatters.updatedFreshness(tickTs);
+    final subtitle = Formatters.marketFreshnessSubtitle(
+      tickTime: tickTs,
+    );
 
     return Card(
       child: InkWell(
@@ -941,7 +993,7 @@ class _CryptoTile extends StatelessWidget {
         },
         borderRadius: BorderRadius.circular(14),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
             children: [
               AssetLogoBadge(
@@ -950,23 +1002,35 @@ class _CryptoTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      displayName(price.asset),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Flexible(
+                          child: Text(
+                            displayName(price.asset),
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        MarketStatusPill(phase: phase),
+                      ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white38,
+                        color: Colors.white30,
+                        fontSize: 10,
                       ),
                     ),
                   ],
@@ -977,19 +1041,22 @@ class _CryptoTile extends StatelessWidget {
                 children: [
                   Text(
                     displayPrice,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    changeTag,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: pctColor,
-                      fontWeight: FontWeight.w500,
+                  if (changeTag.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      changeTag,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: pctColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 11,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(width: 4),
