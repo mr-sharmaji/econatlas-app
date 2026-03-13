@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme.dart';
-import '../../../../core/utils.dart';
 import '../../../../data/models/discover.dart';
-import 'score_bar.dart';
 
 /// A compact mutual fund card for the screener list.
+///
+/// 3-row layout:
+/// Row 1: scheme name + 1Y return badge
+/// Row 2: category · risk · #rank of total
+/// Row 3: quality badges + compact score
 class MfListTile extends StatelessWidget {
   final DiscoverMutualFundItem item;
   final VoidCallback? onTap;
@@ -31,16 +34,12 @@ class MfListTile extends StatelessWidget {
     return AppTheme.accentBlue;
   }
 
-  /// Format AUM with Indian numbering, e.g. "2,450 Cr".
-  static String _formatAumCr(double? aumCr) {
-    if (aumCr == null) return '';
-    // Use Indian formatting via Formatters for the integer part.
-    return '\u20b9${Formatters.price(aumCr)} Cr';
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final ret1y = item.returns1y;
+    final retPositive = (ret1y ?? 0) >= 0;
+    final retColor = retPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return GestureDetector(
       onTap: onTap,
@@ -56,24 +55,54 @@ class MfListTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Scheme name
-            Text(
-              item.displayName ?? item.schemeName,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+            // Row 1: Scheme name + 1Y return badge
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.displayName ?? item.schemeName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (ret1y != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: retColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}%',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: retColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
+
             const SizedBox(height: 4),
 
-            // Category, risk badge, category rank
+            // Row 2: Category · Risk · #Rank of Total
             Row(
               children: [
                 if (item.category != null)
-                  Text(
-                    item.category!,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white54),
+                  Flexible(
+                    child: Text(
+                      item.category!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: Colors.white54),
+                    ),
                   ),
                 if (item.riskLevel != null) ...[
                   const SizedBox(width: 8),
@@ -91,91 +120,38 @@ class MfListTile extends StatelessWidget {
               ],
             ),
 
-            // Quality badges
-            if (item.qualityBadges.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: item.qualityBadges.take(2).map((badge) {
-                  final color = _badgeColor(badge);
-                  return Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      badge,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 10,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-
             const SizedBox(height: 8),
 
-            // Score bar
-            ScoreBar(score: item.score),
-            const SizedBox(height: 6),
-
-            // Metrics row: 1Y, 3Y, Expense, AUM
+            // Row 3: Quality badges (show all) + compact score number
             Row(
               children: [
-                if (item.returns1y != null)
-                  _inlineMetric(
-                    context,
-                    '1Y',
-                    '${item.returns1y!.toStringAsFixed(1)}%',
-                    color: item.returns1y! >= 0
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentRed,
+                Expanded(
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: item.qualityBadges.map((badge) {
+                      final color = _badgeColor(badge);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          badge,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: color,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 10,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                if (item.returns1y != null && item.returns3y != null)
-                  const SizedBox(width: 12),
-                if (item.returns3y != null)
-                  _inlineMetric(
-                    context,
-                    '3Y',
-                    '${item.returns3y!.toStringAsFixed(1)}%',
-                    color: item.returns3y! >= 0
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentRed,
-                  ),
-                if (item.returns3y != null && item.returns5y != null)
-                  const SizedBox(width: 12),
-                if (item.returns5y != null)
-                  _inlineMetric(
-                    context,
-                    '5Y',
-                    '${item.returns5y!.toStringAsFixed(1)}%',
-                    color: item.returns5y! >= 0
-                        ? AppTheme.accentGreen
-                        : AppTheme.accentRed,
-                  ),
-                if ((item.returns1y != null || item.returns3y != null || item.returns5y != null) &&
-                    item.expenseRatio != null)
-                  const SizedBox(width: 12),
-                if (item.expenseRatio != null)
-                  _inlineMetric(
-                    context,
-                    'Exp',
-                    '${item.expenseRatio!.toStringAsFixed(2)}%',
-                  ),
-                if (item.aumCr != null) ...[
-                  const Spacer(),
-                  Text(
-                    _formatAumCr(item.aumCr),
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: Colors.white38),
-                  ),
-                ],
+                ),
+                const SizedBox(width: 8),
+                _CompactScore(score: item.score),
               ],
             ),
           ],
@@ -202,18 +178,40 @@ class MfListTile extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _inlineMetric(
-    BuildContext context,
-    String label,
-    String value, {
-    Color? color,
-  }) {
-    final theme = Theme.of(context);
-    return Text(
-      '$label: $value',
-      style: theme.textTheme.labelSmall?.copyWith(
-        color: color ?? Colors.white54,
+/// Compact circular score indicator showing just the number.
+class _CompactScore extends StatelessWidget {
+  final double score;
+
+  const _CompactScore({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = score >= 75
+        ? AppTheme.accentGreen
+        : score >= 50
+            ? AppTheme.accentBlue
+            : score >= 25
+                ? AppTheme.accentOrange
+                : AppTheme.accentRed;
+
+    return Container(
+      width: 36,
+      height: 36,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        score.toInt().toString(),
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

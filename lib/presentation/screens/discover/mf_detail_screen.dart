@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +14,8 @@ import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
 import 'widgets/metric_grid.dart';
 
+enum _ReturnMode { xirr, cagr }
+
 class MfDetailScreen extends ConsumerStatefulWidget {
   final String schemeCode;
   final DiscoverMutualFundItem? initialItem;
@@ -25,6 +29,10 @@ class MfDetailScreen extends ConsumerStatefulWidget {
 class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   int _selectedDays = 365;
   double? _periodChange; // persists across rebuilds to avoid flash
+  _ReturnMode _returnMode = _ReturnMode.xirr;
+
+  // Cached chart data for CAGR computation
+  List<double> _chartPrices = [];
 
   static const _periodOptions = [
     (label: '1W', days: 7),
@@ -95,6 +103,10 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
+
+        // Cache for CAGR computation
+        _chartPrices = List.of(chartPrices);
+
         // Prefer API return values for known periods
         double? apiReturn;
         if (_selectedDays == 365) {
@@ -122,6 +134,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     final isPositive = (_periodChange ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
+    // Determine period label for badge
+    final periodLabel = _periodOptions
+        .firstWhere((o) => o.days == _selectedDays,
+            orElse: () => (label: '', days: 0))
+        .label;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Fund Detail')),
       body: SingleChildScrollView(
@@ -129,23 +147,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Quality Badges ──
+            // -- Quality Badges --
             if (item.qualityBadges.isNotEmpty) ...[
               _buildQualityBadges(theme),
               const SizedBox(height: 12),
             ],
 
-            // ── Header ──
+            // -- Header --
             _buildHeader(theme),
             const SizedBox(height: 12),
 
-            // ── NAV Price + Period Change ──
+            // -- NAV Price + Period Change --
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
                 Text(
-                  '₹ ${Formatters.fullPrice(item.nav)}',
+                  '\u20B9 ${Formatters.fullPrice(item.nav)}',
                   style: theme.textTheme.headlineMedium
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -159,7 +177,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${isPositive ? "+" : ""}${_periodChange!.toStringAsFixed(2)}%',
+                      '$periodLabel ${isPositive ? "+" : ""}${_periodChange!.toStringAsFixed(2)}%',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: changeColor,
                         fontWeight: FontWeight.w600,
@@ -170,7 +188,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // ── Period Selector + Chart ──
+            // -- Period Selector + Chart --
             _buildPeriodSelector(theme),
             const SizedBox(height: 10),
             historyAsync.when(
@@ -186,7 +204,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   prices: chartPrices,
                   timestamps: chartTimestamps,
                   isShortRange: _selectedDays <= 90,
-                  pricePrefix: '₹ ',
+                  pricePrefix: '\u20B9 ',
                 );
               },
               loading: () => const SizedBox(
@@ -208,32 +226,36 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // ── Score ──
+            // -- Score --
             _buildScoreCard(theme),
             const SizedBox(height: 12),
 
-            // ── What Makes This Fund Stand Out ──
+            // -- What Makes This Fund Stand Out --
             if (_buildQualityReasons().length >= 2) ...[
               _buildQualityReasonsInline(theme),
               const SizedBox(height: 12),
             ],
 
-            // ── Category Rank ──
+            // -- Category Rank --
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
               const SizedBox(height: 12),
             ],
 
-            // ── Returns ──
+            // -- Returns (with XIRR/CAGR toggle) --
             _buildReturnsCard(theme),
             const SizedBox(height: 12),
 
-            // ── Key Metrics ──
+            // -- Risk & Performance --
+            _buildRiskPerformanceCard(theme),
+            const SizedBox(height: 12),
+
+            // -- Key Metrics --
             _buildMetricsCard(theme),
             const SizedBox(height: 12),
 
-            // ── Peer Comparison ──
+            // -- Peer Comparison --
             _buildPeerComparison(theme),
             const SizedBox(height: 12),
 
@@ -244,7 +266,18 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Quality Badges ──────────────────────────────────────────────────────
+  // -- CAGR Helpers --
+
+  static double? _computeCagrFromPrices(List<double> prices, double years) {
+    if (prices.length < 2) return null;
+    final startNAV = prices.first;
+    final endNAV = prices.last;
+    if (startNAV <= 0) return null;
+    final cagr = (math.pow(endNAV / startNAV, 1.0 / years) - 1) * 100;
+    return cagr.toDouble();
+  }
+
+  // -- Quality Badges --
 
   Widget _buildQualityBadges(ThemeData theme) {
     return Wrap(
@@ -300,7 +333,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return Icons.star_rounded;
   }
 
-  // ── Header ──────────────────────────────────────────────────────────────
+  // -- Header --
 
   Widget _buildHeader(ThemeData theme) {
     return Column(
@@ -333,7 +366,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         if (item.amc != null) ...[
           const SizedBox(height: 4),
           Text(
-            '${item.amc!} · Direct · Growth',
+            '${item.amc!} \u00B7 Direct \u00B7 Growth',
             style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
@@ -370,7 +403,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Period Selector ─────────────────────────────────────────────────────
+  // -- Period Selector --
 
   Widget _buildPeriodSelector(ThemeData theme) {
     return SingleChildScrollView(
@@ -404,9 +437,48 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Score Card ──────────────────────────────────────────────────────────
+  // -- Score Card --
 
   Widget _buildScoreCard(ThemeData theme) {
+    final segments = <ScoreSegment>[
+      ScoreSegment(
+        label: 'Return',
+        value: item.scoreReturn,
+        color: AppTheme.accentGreen,
+      ),
+      ScoreSegment(
+        label: 'Risk',
+        value: item.scoreRisk,
+        color: AppTheme.accentBlue,
+      ),
+      ScoreSegment(
+        label: 'Cost',
+        value: item.scoreCost,
+        color: AppTheme.accentTeal,
+      ),
+      ScoreSegment(
+        label: 'Consistency',
+        value: item.scoreConsistency,
+        color: AppTheme.accentOrange,
+      ),
+    ];
+
+    // Add alpha/beta score segments if non-null
+    if (item.scoreBreakdown.alphaScore != null) {
+      segments.add(ScoreSegment(
+        label: 'Alpha',
+        value: item.scoreBreakdown.alphaScore!,
+        color: AppTheme.accentGreen,
+      ));
+    }
+    if (item.scoreBreakdown.betaScore != null) {
+      segments.add(ScoreSegment(
+        label: 'Beta',
+        value: item.scoreBreakdown.betaScore!,
+        color: AppTheme.accentBlue,
+      ));
+    }
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -431,37 +503,14 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            ScoreBreakdownBar(
-              segments: [
-                ScoreSegment(
-                  label: 'Return',
-                  value: item.scoreReturn,
-                  color: AppTheme.accentGreen,
-                ),
-                ScoreSegment(
-                  label: 'Risk',
-                  value: item.scoreRisk,
-                  color: AppTheme.accentBlue,
-                ),
-                ScoreSegment(
-                  label: 'Cost',
-                  value: item.scoreCost,
-                  color: AppTheme.accentTeal,
-                ),
-                ScoreSegment(
-                  label: 'Consistency',
-                  value: item.scoreConsistency,
-                  color: AppTheme.accentOrange,
-                ),
-              ],
-            ),
+            ScoreBreakdownBar(segments: segments),
           ],
         ),
       ),
     );
   }
 
-  // ── Category Rank Card ─────────────────────────────────────────────────
+  // -- Category Rank Card --
 
   Widget _buildCategoryRankCard(ThemeData theme) {
     return Card(
@@ -621,7 +670,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Returns Card ────────────────────────────────────────────────────────
+  // -- Returns Card (with XIRR/CAGR toggle) --
 
   Widget _buildReturnsCard(ThemeData theme) {
     return Card(
@@ -631,16 +680,58 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Returns', style: theme.textTheme.titleSmall),
+            // Header row with title + segmented toggle
+            Row(
+              children: [
+                Text('Returns', style: theme.textTheme.titleSmall),
+                const Spacer(),
+                SizedBox(
+                  height: 32,
+                  child: SegmentedButton<_ReturnMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: _ReturnMode.xirr,
+                        label: Text('XIRR', style: TextStyle(fontSize: 11)),
+                      ),
+                      ButtonSegment(
+                        value: _ReturnMode.cagr,
+                        label: Text('CAGR', style: TextStyle(fontSize: 11)),
+                      ),
+                    ],
+                    selected: {_returnMode},
+                    onSelectionChanged: (newSelection) {
+                      setState(() => _returnMode = newSelection.first);
+                    },
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      padding: WidgetStatePropertyAll(
+                        EdgeInsets.symmetric(horizontal: 10),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             Row(
               children: [
-                Expanded(child: _returnColumn(theme, '1Y', item.returns1y)),
-                Expanded(child: _returnColumn(theme, '3Y', item.returns3y)),
-                Expanded(child: _returnColumn(theme, '5Y', item.returns5y)),
+                Expanded(
+                  child: _returnColumn(theme, '1Y',
+                      _getReturnValue(item.returns1y, 365, 1)),
+                ),
+                Expanded(
+                  child: _returnColumn(theme, '3Y',
+                      _getReturnValue(item.returns3y, 1095, 3)),
+                ),
+                Expanded(
+                  child: _returnColumn(theme, '5Y',
+                      _getReturnValue(item.returns5y, 1825, 5)),
+                ),
               ],
             ),
-            // Returns vs category average
+            // Returns vs category average (always XIRR-based from API)
             if (_hasAnyCategoryAvg()) ...[
               const SizedBox(height: 14),
               Divider(color: Colors.white.withValues(alpha: 0.08)),
@@ -677,6 +768,37 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         ),
       ),
     );
+  }
+
+  /// Returns the display value for a return period based on the current mode.
+  /// For XIRR: uses the API-provided value.
+  /// For CAGR: computes from chart history if the current chart period matches,
+  /// otherwise fetches the relevant period via provider.
+  double? _getReturnValue(double? xirrValue, int days, double years) {
+    if (_returnMode == _ReturnMode.xirr) return xirrValue;
+
+    // CAGR mode: compute from chart history
+    // If the currently selected period matches, use cached chart data
+    if (_selectedDays == days && _chartPrices.length >= 2) {
+      return _computeCagrFromPrices(_chartPrices, years);
+    }
+
+    // For periods not currently selected, try to use a separate provider watch.
+    // We watch the history for each period needed.
+    final historyAsync = ref.watch(
+      discoverMfHistoryProvider(
+        (schemeCode: item.schemeCode, days: days),
+      ),
+    );
+
+    double? cagr;
+    historyAsync.whenData((history) {
+      if (history.points.length >= 2) {
+        final prices = history.points.map((p) => p.value).toList();
+        cagr = _computeCagrFromPrices(prices, years);
+      }
+    });
+    return cagr;
   }
 
   bool _hasAnyCategoryAvg() {
@@ -736,6 +858,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   }
 
   Widget _returnColumn(ThemeData theme, String label, double? value) {
+    final modeLabel = _returnMode == _ReturnMode.xirr ? 'XIRR' : 'CAGR';
     final String display;
     final Color color;
     if (value != null) {
@@ -749,7 +872,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return Column(
       children: [
         Text(
-          label,
+          '$label $modeLabel',
           style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
         ),
         const SizedBox(height: 4),
@@ -764,7 +887,63 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Key Metrics Card ────────────────────────────────────────────────────
+  // -- Risk & Performance Card --
+
+  Widget _buildRiskPerformanceCard(ThemeData theme) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Risk & Performance', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 12),
+            MetricGrid(
+              items: [
+                MetricItem(
+                  label: 'Sharpe',
+                  value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: _sharpeColor(item.sharpe),
+                ),
+                MetricItem(
+                  label: 'Sortino',
+                  value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: _sharpeColor(item.sortino),
+                ),
+                MetricItem(
+                  label: 'Std Dev',
+                  value: item.stdDev?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: item.stdDev == null ? Colors.white38 : null,
+                ),
+                MetricItem(
+                  label: 'Max DD',
+                  value: item.maxDrawdown != null
+                      ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
+                      : '\u2014',
+                  valueColor: _maxDrawdownColor(item.maxDrawdown),
+                ),
+                MetricItem(
+                  label: 'Alpha',
+                  value: item.alpha != null
+                      ? '${item.alpha!.toStringAsFixed(1)}%'
+                      : '\u2014',
+                  valueColor: _alphaColor(item.alpha),
+                ),
+                MetricItem(
+                  label: 'Beta',
+                  value: item.beta?.toStringAsFixed(2) ?? '\u2014',
+                  valueColor: _betaColor(item.beta),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Key Metrics Card (without Sharpe/Sortino/StdDev - moved to Risk card) --
 
   Widget _buildMetricsCard(ThemeData theme) {
     return Card(
@@ -792,25 +971,16 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       : '\u2014',
                   valueColor: _expenseColor(item.expenseRatio),
                 ),
-                MetricItem(
-                  label: 'Sharpe',
-                  value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: _sharpeColor(item.sharpe),
-                ),
-                MetricItem(
-                  label: 'Sortino',
-                  value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: _sharpeColor(item.sortino),
-                ),
-                MetricItem(
-                  label: 'Std Dev',
-                  value: item.stdDev?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: item.stdDev == null ? Colors.white38 : null,
-                ),
                 if (item.fundAgeYears != null)
                   MetricItem(
                     label: 'Fund Age',
                     value: '${item.fundAgeYears!.toStringAsFixed(1)} years',
+                  ),
+                if (item.rollingReturnConsistency != null)
+                  MetricItem(
+                    label: 'Rolling Return Consistency',
+                    value:
+                        '${item.rollingReturnConsistency!.toStringAsFixed(1)}%',
                   ),
               ],
             ),
@@ -820,7 +990,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── What Makes This Fund Good ─────────────────────────────────────────
+  // -- What Makes This Fund Good --
 
   List<(IconData, Color, String)> _buildQualityReasons() {
     final reasons = <(IconData, Color, String)>[];
@@ -927,7 +1097,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Peer Comparison ──────────────────────────────────────────────────────
+  // -- Peer Comparison --
 
   Widget _buildPeerComparison(ThemeData theme) {
     final peersAsync = ref.watch(discoverMfPeersProvider(item.schemeCode));
@@ -1063,7 +1233,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // ── Metric Color Helpers ─────────────────────────────────────────────────
+  // -- Metric Color Helpers --
 
   static Color? _expenseColor(double? expense) {
     if (expense == null) return Colors.white38;
@@ -1076,6 +1246,28 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     if (sharpe == null) return Colors.white38;
     if (sharpe > 1.5) return AppTheme.accentGreen;
     if (sharpe < 0.5) return AppTheme.accentRed;
+    return null;
+  }
+
+  static Color? _maxDrawdownColor(double? dd) {
+    if (dd == null) return Colors.white38;
+    // Max drawdown is typically negative; more negative = worse
+    if (dd > -5) return AppTheme.accentGreen;
+    if (dd < -15) return AppTheme.accentRed;
+    return AppTheme.accentOrange;
+  }
+
+  static Color? _alphaColor(double? alpha) {
+    if (alpha == null) return Colors.white38;
+    if (alpha > 0) return AppTheme.accentGreen;
+    if (alpha < 0) return AppTheme.accentRed;
+    return null;
+  }
+
+  static Color? _betaColor(double? beta) {
+    if (beta == null) return Colors.white38;
+    if (beta < 0.8) return AppTheme.accentGreen;
+    if (beta > 1.2) return AppTheme.accentRed;
     return null;
   }
 }

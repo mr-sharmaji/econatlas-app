@@ -35,6 +35,7 @@ extension DiscoverSegmentX on DiscoverSegment {
 }
 
 enum DiscoverStockPreset {
+  all,
   momentum,
   value,
   lowVolatility,
@@ -47,6 +48,8 @@ enum DiscoverStockPreset {
 extension DiscoverStockPresetX on DiscoverStockPreset {
   String get apiValue {
     switch (this) {
+      case DiscoverStockPreset.all:
+        return 'all';
       case DiscoverStockPreset.momentum:
         return 'momentum';
       case DiscoverStockPreset.value:
@@ -66,6 +69,8 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
 
   String get label {
     switch (this) {
+      case DiscoverStockPreset.all:
+        return 'All';
       case DiscoverStockPreset.momentum:
         return 'Momentum';
       case DiscoverStockPreset.value:
@@ -85,6 +90,8 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
 
   static DiscoverStockPreset fromApi(String? value) {
     switch (value) {
+      case 'all':
+        return DiscoverStockPreset.all;
       case 'value':
         return DiscoverStockPreset.value;
       case 'low-volatility':

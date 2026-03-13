@@ -33,16 +33,6 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
   late final ScrollController _listScrollController;
   Timer? _debounce;
 
-  static const _sortOptions = [
-    (value: 'score', label: 'Score'),
-    (value: 'change', label: 'Change'),
-    (value: 'volume', label: 'Volume'),
-    (value: 'pe', label: 'P/E'),
-    (value: 'roe', label: 'ROE'),
-    (value: 'price', label: 'Price'),
-    (value: 'market_cap', label: 'Mkt Cap'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -53,7 +43,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     if (widget.initialPreset != null) {
       final preset = DiscoverStockPreset.values.firstWhere(
         (p) => p.apiValue == widget.initialPreset,
-        orElse: () => DiscoverStockPreset.momentum,
+        orElse: () => DiscoverStockPreset.all,
       );
       Future.microtask(() {
         ref.read(discoverStockPresetProvider.notifier).setPreset(preset);
@@ -120,18 +110,33 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     return _activeFilterCount(filters) > 0;
   }
 
+  /// Map sort field to which change field to display in tiles.
+  StockChangeField _changeFieldForSort(String sortBy) {
+    switch (sortBy) {
+      case 'change_3m':
+        return StockChangeField.threeMonth;
+      case 'change_1y':
+        return StockChangeField.oneYear;
+      case 'change':
+        return StockChangeField.daily;
+      default:
+        return StockChangeField.daily;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final preset = ref.watch(discoverStockPresetProvider);
     final filters = ref.watch(discoverStockFiltersProvider);
     final stocksAsync = ref.watch(discoverStocksProvider);
+    final changeField = _changeFieldForSort(filters.sortBy);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Stocks')),
       body: Column(
         children: [
-          // Row 1: Search + Sort dropdown + Filter icon
+          // Row 1: Search + Sort button + Filter icon
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -177,76 +182,20 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Sort dropdown
-                SizedBox(
-                  height: 40,
-                  child: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      ref
-                          .read(discoverStockFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(sortBy: value));
-                    },
-                    itemBuilder: (_) => _sortOptions
-                        .map((opt) => PopupMenuItem(
-                              value: opt.value,
-                              child: Text(opt.label,
-                                  style: theme.textTheme.bodySmall),
-                            ))
-                        .toList(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _sortOptions
-                                .firstWhere((o) => o.value == filters.sortBy,
-                                    orElse: () => _sortOptions.first)
-                                .label,
-                            style: theme.textTheme.labelSmall,
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            filters.sortOrder == 'desc'
-                                ? Icons.arrow_downward_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 14,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                // Sort button — single unified button with direction arrow
+                _SortButton(
+                  currentSort: filters.sortBy,
+                  currentOrder: filters.sortOrder,
+                  onSortChanged: (sortBy, sortOrder) {
+                    ref
+                        .read(discoverStockFiltersProvider.notifier)
+                        .setFilters(filters.copyWith(
+                          sortBy: sortBy,
+                          sortOrder: sortOrder,
+                        ));
+                  },
                 ),
-                // Sort order toggle
-                SizedBox(
-                  width: 32,
-                  height: 40,
-                  child: IconButton(
-                    icon: Icon(
-                      filters.sortOrder == 'desc'
-                          ? Icons.arrow_downward_rounded
-                          : Icons.arrow_upward_rounded,
-                      size: 16,
-                    ),
-                    onPressed: () {
-                      ref
-                          .read(discoverStockFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(
-                              sortOrder:
-                                  filters.sortOrder == 'desc' ? 'asc' : 'desc'));
-                    },
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    tooltip:
-                        filters.sortOrder == 'desc' ? 'Descending' : 'Ascending',
-                  ),
-                ),
+                const SizedBox(width: 4),
                 // Filter icon with badge
                 SizedBox(
                   width: 36,
@@ -272,7 +221,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
             ),
           ),
 
-          // Row 2: Preset chips
+          // Row 2: Preset chips (with "All" first)
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -396,6 +345,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                       final item = items[index];
                       return StockListTile(
                         item: item,
+                        changeField: changeField,
                         onTap: () => context.push(
                           '/discover/stock/${Uri.encodeComponent(item.symbol)}',
                           extra: item,
@@ -424,14 +374,14 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       }));
     }
     if (filters.minScore != 40) {
-      chips.add(_filterChip('Score ≥${filters.minScore.round()}', () {
+      chips.add(_filterChip('Score \u2265${filters.minScore.round()}', () {
         ref
             .read(discoverStockFiltersProvider.notifier)
             .setFilters(filters.copyWith(minScore: 40));
       }));
     }
     if (filters.minPe != null) {
-      chips.add(_filterChip('P/E ≥${filters.minPe!.round()}', () {
+      chips.add(_filterChip('P/E \u2265${filters.minPe!.round()}', () {
         ref
             .read(discoverStockFiltersProvider.notifier)
             .setFilters(const DiscoverStockFilters().copyWith(
@@ -445,7 +395,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       }));
     }
     if (filters.maxPe != null) {
-      chips.add(_filterChip('P/E ≤${filters.maxPe!.round()}', () {
+      chips.add(_filterChip('P/E \u2264${filters.maxPe!.round()}', () {
         ref
             .read(discoverStockFiltersProvider.notifier)
             .setFilters(const DiscoverStockFilters().copyWith(
@@ -459,7 +409,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       }));
     }
     if (filters.minRoe != null) {
-      chips.add(_filterChip('ROE ≥${filters.minRoe!.round()}%', () {
+      chips.add(_filterChip('ROE \u2265${filters.minRoe!.round()}%', () {
         ref
             .read(discoverStockFiltersProvider.notifier)
             .setFilters(const DiscoverStockFilters().copyWith(
@@ -472,7 +422,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       }));
     }
     if (filters.maxDebtToEquity != null) {
-      chips.add(_filterChip('D/E ≤${filters.maxDebtToEquity!.toStringAsFixed(1)}', () {
+      chips.add(_filterChip('D/E \u2264${filters.maxDebtToEquity!.toStringAsFixed(1)}', () {
         ref
             .read(discoverStockFiltersProvider.notifier)
             .setFilters(const DiscoverStockFilters().copyWith(
@@ -500,42 +450,42 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       }));
     }
     if (filters.minDividendYield != null) {
-      chips.add(_filterChip('Div ≥${filters.minDividendYield!.toStringAsFixed(1)}%', () {
+      chips.add(_filterChip('Div \u2265${filters.minDividendYield!.toStringAsFixed(1)}%', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(minDividendYield: null),
         );
       }));
     }
     if (filters.minPb != null) {
-      chips.add(_filterChip('P/B ≥${filters.minPb!.toStringAsFixed(1)}', () {
+      chips.add(_filterChip('P/B \u2265${filters.minPb!.toStringAsFixed(1)}', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(minPb: null),
         );
       }));
     }
     if (filters.maxPb != null) {
-      chips.add(_filterChip('P/B ≤${filters.maxPb!.toStringAsFixed(1)}', () {
+      chips.add(_filterChip('P/B \u2264${filters.maxPb!.toStringAsFixed(1)}', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(maxPb: null),
         );
       }));
     }
     if (filters.minRoce != null) {
-      chips.add(_filterChip('ROCE ≥${filters.minRoce!.round()}%', () {
+      chips.add(_filterChip('ROCE \u2265${filters.minRoce!.round()}%', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(minRoce: null),
         );
       }));
     }
     if (filters.minPrice != null) {
-      chips.add(_filterChip('Price ≥₹${filters.minPrice!.round()}', () {
+      chips.add(_filterChip('Price \u2265\u20b9${filters.minPrice!.round()}', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(minPrice: null),
         );
       }));
     }
     if (filters.maxPrice != null) {
-      chips.add(_filterChip('Price ≤₹${filters.maxPrice!.round()}', () {
+      chips.add(_filterChip('Price \u2264\u20b9${filters.maxPrice!.round()}', () {
         ref.read(discoverStockFiltersProvider.notifier).setFilters(
           filters.copyWith(maxPrice: null),
         );
@@ -581,185 +531,355 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F1E31),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
         double localMinScore = current.minScore;
         String localSector = current.sector;
-        String localMarketCapRange = current.minMarketCap == null && current.maxMarketCap == null
-            ? 'All'
-            : current.minMarketCap != null && current.minMarketCap! >= 50000
-                ? 'Large'
-                : current.maxMarketCap != null && current.maxMarketCap! <= 5000
-                    ? 'Small'
-                    : 'Mid';
-        final minPeCtrl = TextEditingController(text: current.minPe?.toString() ?? '');
-        final maxPeCtrl = TextEditingController(text: current.maxPe?.toString() ?? '');
-        final minRoeCtrl = TextEditingController(text: current.minRoe?.toString() ?? '');
-        final maxDeCtrl = TextEditingController(text: current.maxDebtToEquity?.toString() ?? '');
-        final minDivCtrl = TextEditingController(text: current.minDividendYield?.toString() ?? '');
-        final minPbCtrl = TextEditingController(text: current.minPb?.toString() ?? '');
-        final maxPbCtrl = TextEditingController(text: current.maxPb?.toString() ?? '');
-        final minPriceCtrl = TextEditingController(text: current.minPrice?.toString() ?? '');
-        final maxPriceCtrl = TextEditingController(text: current.maxPrice?.toString() ?? '');
-        final minRoceCtrl = TextEditingController(text: current.minRoce?.toString() ?? '');
+        int localMarketCapIdx =
+            current.minMarketCap == null && current.maxMarketCap == null
+                ? 0
+                : current.minMarketCap != null && current.minMarketCap! >= 50000
+                    ? 3
+                    : current.maxMarketCap != null &&
+                            current.maxMarketCap! <= 5000
+                        ? 1
+                        : 2;
+        final minPeCtrl =
+            TextEditingController(text: current.minPe?.toString() ?? '');
+        final maxPeCtrl =
+            TextEditingController(text: current.maxPe?.toString() ?? '');
+        final minRoeCtrl =
+            TextEditingController(text: current.minRoe?.toString() ?? '');
+        final minRoceCtrl =
+            TextEditingController(text: current.minRoce?.toString() ?? '');
+        final maxDeCtrl = TextEditingController(
+            text: current.maxDebtToEquity?.toString() ?? '');
+        final minDivCtrl = TextEditingController(
+            text: current.minDividendYield?.toString() ?? '');
+        final minPbCtrl =
+            TextEditingController(text: current.minPb?.toString() ?? '');
+        final maxPbCtrl =
+            TextEditingController(text: current.maxPb?.toString() ?? '');
+        final minPriceCtrl =
+            TextEditingController(text: current.minPrice?.toString() ?? '');
+        final maxPriceCtrl =
+            TextEditingController(text: current.maxPrice?.toString() ?? '');
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
             final theme = Theme.of(ctx);
-            const inputDeco = InputDecoration(border: OutlineInputBorder(), isDense: true);
             const numKb = TextInputType.numberWithOptions(decimal: true);
+
+            InputDecoration compactInput(String label) => InputDecoration(
+                  labelText: label,
+                  labelStyle:
+                      theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                );
 
             return Padding(
               padding: EdgeInsets.only(
-                left: 16, right: 16, top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                left: 16,
+                right: 16,
+                top: 8,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
               ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Filters', style: theme.textTheme.titleMedium),
-                    const SizedBox(height: 12),
-
-                    // Score slider
-                    Text('Min Score: ${localMinScore.round()}', style: theme.textTheme.titleSmall),
-                    Slider(
-                      value: localMinScore, min: 0, max: 100, divisions: 100,
-                      label: localMinScore.round().toString(),
-                      onChanged: (v) => setSheetState(() => localMinScore = v),
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 8),
 
-                    // Sector
-                    DropdownButtonFormField<String>(
-                      initialValue: localSector,
-                      decoration: inputDeco.copyWith(labelText: 'Sector'),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All')),
-                        DropdownMenuItem(value: 'Financials', child: Text('Financials')),
-                        DropdownMenuItem(value: 'IT', child: Text('IT')),
-                        DropdownMenuItem(value: 'Energy', child: Text('Energy')),
-                        DropdownMenuItem(value: 'Healthcare', child: Text('Healthcare')),
-                        DropdownMenuItem(value: 'Consumer', child: Text('Consumer')),
-                        DropdownMenuItem(value: 'Auto', child: Text('Auto')),
-                        DropdownMenuItem(value: 'Industrials', child: Text('Industrials')),
-                        DropdownMenuItem(value: 'Materials', child: Text('Materials')),
-                        DropdownMenuItem(value: 'Telecom', child: Text('Telecom')),
-                        DropdownMenuItem(value: 'Real Estate', child: Text('Real Estate')),
-                        DropdownMenuItem(value: 'Media', child: Text('Media')),
-                        DropdownMenuItem(value: 'Other', child: Text('Other')),
-                      ],
-                      onChanged: (v) => setSheetState(() => localSector = v ?? 'All'),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Market Cap
-                    DropdownButtonFormField<String>(
-                      initialValue: localMarketCapRange,
-                      decoration: inputDeco.copyWith(labelText: 'Market Cap'),
-                      items: const [
-                        DropdownMenuItem(value: 'All', child: Text('All')),
-                        DropdownMenuItem(value: 'Small', child: Text('Small (< 5K Cr)')),
-                        DropdownMenuItem(value: 'Mid', child: Text('Mid (5K-50K Cr)')),
-                        DropdownMenuItem(value: 'Large', child: Text('Large (> 50K Cr)')),
-                      ],
-                      onChanged: (v) => setSheetState(() => localMarketCapRange = v ?? 'All'),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // P/E range
-                    Row(children: [
-                      Expanded(child: TextField(controller: minPeCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min P/E'))),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: maxPeCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Max P/E'))),
-                    ]),
-                    const SizedBox(height: 12),
-
-                    // ROE + ROCE
-                    Row(children: [
-                      Expanded(child: TextField(controller: minRoeCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min ROE %'))),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: minRoceCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min ROCE %'))),
-                    ]),
-                    const SizedBox(height: 12),
-
-                    // D/E + Dividend Yield
-                    Row(children: [
-                      Expanded(child: TextField(controller: maxDeCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Max D/E'))),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: minDivCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min Div Yield %'))),
-                    ]),
-                    const SizedBox(height: 12),
-
-                    // P/B range
-                    Row(children: [
-                      Expanded(child: TextField(controller: minPbCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min P/B'))),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: maxPbCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Max P/B'))),
-                    ]),
-                    const SizedBox(height: 12),
-
-                    // Price range
-                    Row(children: [
-                      Expanded(child: TextField(controller: minPriceCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Min Price'))),
-                      const SizedBox(width: 12),
-                      Expanded(child: TextField(controller: maxPriceCtrl, keyboardType: numKb, decoration: inputDeco.copyWith(labelText: 'Max Price'))),
-                    ]),
-                    const SizedBox(height: 20),
-
-                    // Actions
-                    Row(children: [
-                      Expanded(
-                        child: OutlinedButton(
+                    // Header: Filters + Reset
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Filters', style: theme.textTheme.titleMedium),
+                        TextButton(
                           onPressed: () {
-                            ref.read(discoverStockFiltersProvider.notifier)
+                            ref
+                                .read(discoverStockFiltersProvider.notifier)
                                 .setFilters(const DiscoverStockFilters());
                             _searchController.clear();
                             Navigator.pop(ctx);
                           },
                           child: const Text('Reset'),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: FilledButton(
-                          onPressed: () {
-                            double? minMcap, maxMcap;
-                            if (localMarketCapRange == 'Small') {
-                              maxMcap = 5000;
-                            } else if (localMarketCapRange == 'Mid') {
-                              minMcap = 5000;
-                              maxMcap = 50000;
-                            } else if (localMarketCapRange == 'Large') {
-                              minMcap = 50000;
-                            }
-                            ref.read(discoverStockFiltersProvider.notifier).setFilters(
-                              DiscoverStockFilters(
-                                search: current.search,
-                                sector: localSector,
-                                minScore: localMinScore,
-                                minPe: double.tryParse(minPeCtrl.text),
-                                maxPe: double.tryParse(maxPeCtrl.text),
-                                minRoe: double.tryParse(minRoeCtrl.text),
-                                minRoce: double.tryParse(minRoceCtrl.text),
-                                maxDebtToEquity: double.tryParse(maxDeCtrl.text),
-                                minDividendYield: double.tryParse(minDivCtrl.text),
-                                minPb: double.tryParse(minPbCtrl.text),
-                                maxPb: double.tryParse(maxPbCtrl.text),
-                                minPrice: double.tryParse(minPriceCtrl.text),
-                                maxPrice: double.tryParse(maxPriceCtrl.text),
-                                minMarketCap: minMcap,
-                                maxMarketCap: maxMcap,
-                                sortBy: current.sortBy,
-                                sortOrder: current.sortOrder,
-                              ),
-                            );
-                            Navigator.pop(ctx);
-                          },
-                          child: const Text('Apply'),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Score Range
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Score Range',
+                            style: theme.textTheme.titleSmall),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${localMinScore.round()}+',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Slider(
+                      value: localMinScore,
+                      min: 0,
+                      max: 100,
+                      divisions: 20,
+                      onChanged: (v) =>
+                          setSheetState(() => localMinScore = v),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Market Cap — SegmentedButton
+                    Text('Market Cap', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: SegmentedButton<int>(
+                        segments: const [
+                          ButtonSegment(value: 0, label: Text('All')),
+                          ButtonSegment(value: 1, label: Text('Small')),
+                          ButtonSegment(value: 2, label: Text('Mid')),
+                          ButtonSegment(value: 3, label: Text('Large')),
+                        ],
+                        selected: {localMarketCapIdx},
+                        onSelectionChanged: (s) =>
+                            setSheetState(() => localMarketCapIdx = s.first),
+                        style: ButtonStyle(
+                          visualDensity: VisualDensity.compact,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          textStyle: WidgetStatePropertyAll(
+                            theme.textTheme.labelSmall,
+                          ),
                         ),
                       ),
-                    ]),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Sector
+                    DropdownButtonFormField<String>(
+                      initialValue: localSector,
+                      decoration: compactInput('Sector'),
+                      items: const [
+                        DropdownMenuItem(value: 'All', child: Text('All')),
+                        DropdownMenuItem(
+                            value: 'Financials', child: Text('Financials')),
+                        DropdownMenuItem(value: 'IT', child: Text('IT')),
+                        DropdownMenuItem(
+                            value: 'Energy', child: Text('Energy')),
+                        DropdownMenuItem(
+                            value: 'Healthcare', child: Text('Healthcare')),
+                        DropdownMenuItem(
+                            value: 'Consumer', child: Text('Consumer')),
+                        DropdownMenuItem(value: 'Auto', child: Text('Auto')),
+                        DropdownMenuItem(
+                            value: 'Industrials', child: Text('Industrials')),
+                        DropdownMenuItem(
+                            value: 'Materials', child: Text('Materials')),
+                        DropdownMenuItem(
+                            value: 'Telecom', child: Text('Telecom')),
+                        DropdownMenuItem(
+                            value: 'Real Estate', child: Text('Real Estate')),
+                        DropdownMenuItem(
+                            value: 'Media', child: Text('Media')),
+                        DropdownMenuItem(
+                            value: 'Other', child: Text('Other')),
+                      ],
+                      onChanged: (v) =>
+                          setSheetState(() => localSector = v ?? 'All'),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Valuation ──
+                    _sectionDivider(theme, 'Valuation'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                              controller: minPeCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Min P/E')),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('\u2014',
+                              style: TextStyle(color: Colors.white38)),
+                        ),
+                        Expanded(
+                          child: TextField(
+                              controller: maxPeCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Max P/E')),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                              controller: minPbCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Min P/B')),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('\u2014',
+                              style: TextStyle(color: Colors.white38)),
+                        ),
+                        Expanded(
+                          child: TextField(
+                              controller: maxPbCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Max P/B')),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Quality ──
+                    _sectionDivider(theme, 'Quality'),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                              controller: minRoeCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Min ROE %')),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                              controller: minRoceCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Min ROCE %')),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: maxDeCtrl,
+                      keyboardType: numKb,
+                      decoration: compactInput('Max D/E'),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Other ──
+                    _sectionDivider(theme, 'Other'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: minDivCtrl,
+                      keyboardType: numKb,
+                      decoration: compactInput('Min Dividend Yield %'),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                              controller: minPriceCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Min Price')),
+                        ),
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 8),
+                          child: Text('\u2014',
+                              style: TextStyle(color: Colors.white38)),
+                        ),
+                        Expanded(
+                          child: TextField(
+                              controller: maxPriceCtrl,
+                              keyboardType: numKb,
+                              decoration: compactInput('Max Price')),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Apply button — full width
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () {
+                          double? minMcap, maxMcap;
+                          if (localMarketCapIdx == 1) {
+                            maxMcap = 5000;
+                          } else if (localMarketCapIdx == 2) {
+                            minMcap = 5000;
+                            maxMcap = 50000;
+                          } else if (localMarketCapIdx == 3) {
+                            minMcap = 50000;
+                          }
+                          ref
+                              .read(discoverStockFiltersProvider.notifier)
+                              .setFilters(
+                                DiscoverStockFilters(
+                                  search: current.search,
+                                  sector: localSector,
+                                  minScore: localMinScore,
+                                  minPe: double.tryParse(minPeCtrl.text),
+                                  maxPe: double.tryParse(maxPeCtrl.text),
+                                  minRoe: double.tryParse(minRoeCtrl.text),
+                                  minRoce: double.tryParse(minRoceCtrl.text),
+                                  maxDebtToEquity:
+                                      double.tryParse(maxDeCtrl.text),
+                                  minDividendYield:
+                                      double.tryParse(minDivCtrl.text),
+                                  minPb: double.tryParse(minPbCtrl.text),
+                                  maxPb: double.tryParse(maxPbCtrl.text),
+                                  minPrice: double.tryParse(minPriceCtrl.text),
+                                  maxPrice: double.tryParse(maxPriceCtrl.text),
+                                  minMarketCap: minMcap,
+                                  maxMarketCap: maxMcap,
+                                  sortBy: current.sortBy,
+                                  sortOrder: current.sortOrder,
+                                ),
+                              );
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Apply Filters'),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -767,6 +887,127 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _sectionDivider(ThemeData theme, String title) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            title,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white38,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+      ],
+    );
+  }
+}
+
+/// Unified sort button: shows current sort + direction.
+/// Tapping opens a popup. Tapping the same option toggles direction.
+class _SortButton extends StatelessWidget {
+  final String currentSort;
+  final String currentOrder;
+  final void Function(String sortBy, String sortOrder) onSortChanged;
+
+  const _SortButton({
+    required this.currentSort,
+    required this.currentOrder,
+    required this.onSortChanged,
+  });
+
+  static const _options = [
+    (value: 'score', label: 'Score'),
+    (value: 'change', label: 'Change'),
+    (value: 'change_3m', label: 'Change (3M)'),
+    (value: 'change_1y', label: 'Change (1Y)'),
+    (value: 'volume', label: 'Volume'),
+    (value: 'pe', label: 'P/E'),
+    (value: 'roe', label: 'ROE'),
+    (value: 'price', label: 'Price'),
+    (value: 'market_cap', label: 'Mkt Cap'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentLabel = _options
+        .firstWhere((o) => o.value == currentSort,
+            orElse: () => _options.first)
+        .label;
+    final isDesc = currentOrder == 'desc';
+
+    return SizedBox(
+      height: 40,
+      child: PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == currentSort) {
+            // Toggle direction
+            onSortChanged(currentSort, isDesc ? 'asc' : 'desc');
+          } else {
+            // New sort field, default to desc
+            onSortChanged(value, 'desc');
+          }
+        },
+        itemBuilder: (_) => _options.map((opt) {
+          final isSelected = opt.value == currentSort;
+          return PopupMenuItem(
+            value: opt.value,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    opt.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : null,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    isDesc
+                        ? Icons.arrow_downward_rounded
+                        : Icons.arrow_upward_rounded,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border:
+                Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(currentLabel, style: theme.textTheme.labelSmall),
+              const SizedBox(width: 4),
+              Icon(
+                isDesc
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 14,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

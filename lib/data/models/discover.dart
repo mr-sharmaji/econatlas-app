@@ -120,6 +120,13 @@ class DiscoverStockScoreBreakdown {
   final double volatility;
   final double growth;
   final double combinedSignal;
+  // v0.2.4 scores
+  final double? financialHealth;
+  final double? ownership;
+  final double? analyst;
+  final double? position52w;
+  final String? fundamentalsCoverage;
+  final String? dataQuality;
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
@@ -128,6 +135,12 @@ class DiscoverStockScoreBreakdown {
     required this.volatility,
     required this.growth,
     required this.combinedSignal,
+    this.financialHealth,
+    this.ownership,
+    this.analyst,
+    this.position52w,
+    this.fundamentalsCoverage,
+    this.dataQuality,
   });
 
   factory DiscoverStockScoreBreakdown.fromJson(Map<String, dynamic> json) {
@@ -138,6 +151,12 @@ class DiscoverStockScoreBreakdown {
       volatility: (json['volatility'] as num?)?.toDouble() ?? 0,
       growth: (json['growth'] as num?)?.toDouble() ?? 0,
       combinedSignal: (json['combined_signal'] as num?)?.toDouble() ?? 0,
+      financialHealth: (json['financial_health'] as num?)?.toDouble(),
+      ownership: (json['ownership'] as num?)?.toDouble(),
+      analyst: (json['analyst'] as num?)?.toDouble(),
+      position52w: (json['52w_position'] as num?)?.toDouble(),
+      fundamentalsCoverage: json['fundamentals_coverage'] as String?,
+      dataQuality: json['data_quality'] as String?,
     );
   }
 }
@@ -148,6 +167,7 @@ class DiscoverStockItem {
   final String displayName;
   final String market;
   final String? sector;
+  final String? industry;
   final double lastPrice;
   final double? pointChange;
   final double? percentChange;
@@ -170,8 +190,44 @@ class DiscoverStockItem {
   final double scoreFundamentals;
   final double scoreVolatility;
   final double scoreGrowth;
+  // v0.2.4 scores
+  final double? scoreFinancialHealth;
+  final double? scoreOwnership;
+  final double? scoreAnalyst;
   final double? percentChange3m;
   final double? percentChange1w;
+  final double? percentChange1y;
+  final double? percentChange3y;
+  // Shareholding
+  final double? promoterHolding;
+  final double? fiiHolding;
+  final double? diiHolding;
+  final double? governmentHolding;
+  final double? publicHolding;
+  final int? numShareholders;
+  final double? promoterHoldingChange;
+  final double? fiiHoldingChange;
+  final double? diiHoldingChange;
+  // Yahoo fundamentals
+  final double? beta;
+  final double? freeCashFlow;
+  final double? operatingCashFlow;
+  final double? totalCash;
+  final double? totalDebt;
+  final double? totalRevenue;
+  final double? grossMargins;
+  final double? operatingMargins;
+  final double? profitMargins;
+  final double? revenueGrowth;
+  final double? earningsGrowth;
+  final double? forwardPe;
+  final double? payoutRatio;
+  // Analyst
+  final double? analystTargetMean;
+  final int? analystCount;
+  final String? analystRecommendation;
+  final double? analystRecommendationMean;
+
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
   final List<String> whyRanked;
@@ -186,6 +242,7 @@ class DiscoverStockItem {
     required this.displayName,
     required this.market,
     required this.sector,
+    this.industry,
     required this.lastPrice,
     required this.pointChange,
     required this.percentChange,
@@ -208,8 +265,39 @@ class DiscoverStockItem {
     required this.scoreFundamentals,
     required this.scoreVolatility,
     required this.scoreGrowth,
+    this.scoreFinancialHealth,
+    this.scoreOwnership,
+    this.scoreAnalyst,
     this.percentChange3m,
     this.percentChange1w,
+    this.percentChange1y,
+    this.percentChange3y,
+    this.promoterHolding,
+    this.fiiHolding,
+    this.diiHolding,
+    this.governmentHolding,
+    this.publicHolding,
+    this.numShareholders,
+    this.promoterHoldingChange,
+    this.fiiHoldingChange,
+    this.diiHoldingChange,
+    this.beta,
+    this.freeCashFlow,
+    this.operatingCashFlow,
+    this.totalCash,
+    this.totalDebt,
+    this.totalRevenue,
+    this.grossMargins,
+    this.operatingMargins,
+    this.profitMargins,
+    this.revenueGrowth,
+    this.earningsGrowth,
+    this.forwardPe,
+    this.payoutRatio,
+    this.analystTargetMean,
+    this.analystCount,
+    this.analystRecommendation,
+    this.analystRecommendationMean,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -226,6 +314,7 @@ class DiscoverStockItem {
       displayName: json['display_name'] as String,
       market: json['market'] as String? ?? 'IN',
       sector: json['sector'] as String?,
+      industry: json['industry'] as String?,
       lastPrice: (json['last_price'] as num).toDouble(),
       pointChange: (json['point_change'] as num?)?.toDouble(),
       percentChange: (json['percent_change'] as num?)?.toDouble(),
@@ -248,8 +337,42 @@ class DiscoverStockItem {
       scoreFundamentals: (json['score_fundamentals'] as num?)?.toDouble() ?? 0,
       scoreVolatility: (json['score_volatility'] as num?)?.toDouble() ?? 0,
       scoreGrowth: (json['score_growth'] as num?)?.toDouble() ?? 0,
+      scoreFinancialHealth:
+          (json['score_financial_health'] as num?)?.toDouble(),
+      scoreOwnership: (json['score_ownership'] as num?)?.toDouble(),
+      scoreAnalyst: (json['score_analyst'] as num?)?.toDouble(),
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
+      percentChange1y: (json['percent_change_1y'] as num?)?.toDouble(),
+      percentChange3y: (json['percent_change_3y'] as num?)?.toDouble(),
+      promoterHolding: (json['promoter_holding'] as num?)?.toDouble(),
+      fiiHolding: (json['fii_holding'] as num?)?.toDouble(),
+      diiHolding: (json['dii_holding'] as num?)?.toDouble(),
+      governmentHolding: (json['government_holding'] as num?)?.toDouble(),
+      publicHolding: (json['public_holding'] as num?)?.toDouble(),
+      numShareholders: (json['num_shareholders'] as num?)?.toInt(),
+      promoterHoldingChange:
+          (json['promoter_holding_change'] as num?)?.toDouble(),
+      fiiHoldingChange: (json['fii_holding_change'] as num?)?.toDouble(),
+      diiHoldingChange: (json['dii_holding_change'] as num?)?.toDouble(),
+      beta: (json['beta'] as num?)?.toDouble(),
+      freeCashFlow: (json['free_cash_flow'] as num?)?.toDouble(),
+      operatingCashFlow: (json['operating_cash_flow'] as num?)?.toDouble(),
+      totalCash: (json['total_cash'] as num?)?.toDouble(),
+      totalDebt: (json['total_debt'] as num?)?.toDouble(),
+      totalRevenue: (json['total_revenue'] as num?)?.toDouble(),
+      grossMargins: (json['gross_margins'] as num?)?.toDouble(),
+      operatingMargins: (json['operating_margins'] as num?)?.toDouble(),
+      profitMargins: (json['profit_margins'] as num?)?.toDouble(),
+      revenueGrowth: (json['revenue_growth'] as num?)?.toDouble(),
+      earningsGrowth: (json['earnings_growth'] as num?)?.toDouble(),
+      forwardPe: (json['forward_pe'] as num?)?.toDouble(),
+      payoutRatio: (json['payout_ratio'] as num?)?.toDouble(),
+      analystTargetMean: (json['analyst_target_mean'] as num?)?.toDouble(),
+      analystCount: (json['analyst_count'] as num?)?.toInt(),
+      analystRecommendation: json['analyst_recommendation'] as String?,
+      analystRecommendationMean:
+          (json['analyst_recommendation_mean'] as num?)?.toDouble(),
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
@@ -310,12 +433,16 @@ class DiscoverMutualFundScoreBreakdown {
   final double riskScore;
   final double costScore;
   final double consistencyScore;
+  final double? alphaScore;
+  final double? betaScore;
 
   const DiscoverMutualFundScoreBreakdown({
     required this.returnScore,
     required this.riskScore,
     required this.costScore,
     required this.consistencyScore,
+    this.alphaScore,
+    this.betaScore,
   });
 
   factory DiscoverMutualFundScoreBreakdown.fromJson(Map<String, dynamic> json) {
@@ -324,6 +451,8 @@ class DiscoverMutualFundScoreBreakdown {
       riskScore: (json['risk_score'] as num?)?.toDouble() ?? 0,
       costScore: (json['cost_score'] as num?)?.toDouble() ?? 0,
       consistencyScore: (json['consistency_score'] as num?)?.toDouble() ?? 0,
+      alphaScore: (json['alpha_score'] as num?)?.toDouble(),
+      betaScore: (json['beta_score'] as num?)?.toDouble(),
     );
   }
 }
@@ -358,6 +487,14 @@ class DiscoverMutualFundItem {
   final double? categoryAvgReturns1y;
   final double? categoryAvgReturns3y;
   final double? categoryAvgReturns5y;
+  // v0.2.4 risk/performance fields
+  final double? maxDrawdown;
+  final double? rollingReturnConsistency;
+  final double? alpha;
+  final double? beta;
+  final double? scoreAlpha;
+  final double? scoreBeta;
+
   final double score;
   final double scoreReturn;
   final double scoreRisk;
@@ -401,6 +538,12 @@ class DiscoverMutualFundItem {
     this.categoryAvgReturns1y,
     this.categoryAvgReturns3y,
     this.categoryAvgReturns5y,
+    this.maxDrawdown,
+    this.rollingReturnConsistency,
+    this.alpha,
+    this.beta,
+    this.scoreAlpha,
+    this.scoreBeta,
     required this.score,
     required this.scoreReturn,
     required this.scoreRisk,
@@ -453,6 +596,13 @@ class DiscoverMutualFundItem {
           (json['category_avg_returns_3y'] as num?)?.toDouble(),
       categoryAvgReturns5y:
           (json['category_avg_returns_5y'] as num?)?.toDouble(),
+      maxDrawdown: (json['max_drawdown'] as num?)?.toDouble(),
+      rollingReturnConsistency:
+          (json['rolling_return_consistency'] as num?)?.toDouble(),
+      alpha: (json['alpha'] as num?)?.toDouble(),
+      beta: (json['beta'] as num?)?.toDouble(),
+      scoreAlpha: (json['score_alpha'] as num?)?.toDouble(),
+      scoreBeta: (json['score_beta'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
       scoreReturn: (json['score_return'] as num?)?.toDouble() ?? 0,
       scoreRisk: (json['score_risk'] as num?)?.toDouble() ?? 0,
@@ -608,6 +758,11 @@ class DiscoverHomeStockItem {
   final double? percentChange3m;
   final double? percentChange1w;
   final double score;
+  final double? scoreVolatility;
+  final double? scoreGrowth;
+  final double? high52w;
+  final double? low52w;
+  final double? marketCap;
   final String? qualityTier;
 
   const DiscoverHomeStockItem({
@@ -619,6 +774,11 @@ class DiscoverHomeStockItem {
     this.percentChange3m,
     this.percentChange1w,
     required this.score,
+    this.scoreVolatility,
+    this.scoreGrowth,
+    this.high52w,
+    this.low52w,
+    this.marketCap,
     this.qualityTier,
   });
 
@@ -632,6 +792,11 @@ class DiscoverHomeStockItem {
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
+      scoreVolatility: (json['score_volatility'] as num?)?.toDouble(),
+      scoreGrowth: (json['score_growth'] as num?)?.toDouble(),
+      high52w: (json['high_52w'] as num?)?.toDouble(),
+      low52w: (json['low_52w'] as num?)?.toDouble(),
+      marketCap: (json['market_cap'] as num?)?.toDouble(),
       qualityTier: json['quality_tier'] as String?,
     );
   }
@@ -706,6 +871,10 @@ class DiscoverHomeData {
   final List<DiscoverHomeMfItem> topDebtFunds;
   final List<DiscoverHomeStockItem> trendingThisWeek;
   final List<DiscoverHomeStockItem> sectorChampions;
+  final List<DiscoverHomeStockItem> gainers;
+  final List<DiscoverHomeStockItem> gainers3m;
+  final List<DiscoverHomeStockItem> losers;
+  final List<DiscoverHomeStockItem> losers3m;
   final List<QuickCategory> quickCategories;
 
   const DiscoverHomeData({
@@ -714,15 +883,22 @@ class DiscoverHomeData {
     this.topDebtFunds = const [],
     this.trendingThisWeek = const [],
     this.sectorChampions = const [],
+    this.gainers = const [],
+    this.gainers3m = const [],
+    this.losers = const [],
+    this.losers3m = const [],
     this.quickCategories = const [],
   });
 
   factory DiscoverHomeData.fromJson(Map<String, dynamic> json) {
+    List<DiscoverHomeStockItem> parseStocks(String key) =>
+        (json[key] as List<dynamic>? ?? const [])
+            .map((e) =>
+                DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+
     return DiscoverHomeData(
-      topStocks: (json['top_stocks'] as List<dynamic>? ?? const [])
-          .map((e) =>
-              DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      topStocks: parseStocks('top_stocks'),
       topEquityFunds:
           (json['top_equity_funds'] as List<dynamic>? ?? const [])
               .map((e) =>
@@ -733,16 +909,12 @@ class DiscoverHomeData {
               .map((e) =>
                   DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
               .toList(),
-      trendingThisWeek:
-          (json['trending_this_week'] as List<dynamic>? ?? const [])
-              .map((e) =>
-                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-              .toList(),
-      sectorChampions:
-          (json['sector_champions'] as List<dynamic>? ?? const [])
-              .map((e) =>
-                  DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-              .toList(),
+      trendingThisWeek: parseStocks('trending_this_week'),
+      sectorChampions: parseStocks('sector_champions'),
+      gainers: parseStocks('gainers'),
+      gainers3m: parseStocks('gainers_3m'),
+      losers: parseStocks('losers'),
+      losers3m: parseStocks('losers_3m'),
       quickCategories:
           (json['quick_categories'] as List<dynamic>? ?? const [])
               .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))

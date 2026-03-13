@@ -27,16 +27,6 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
   /// Tracks which top-level segment is selected (All, Equity, Debt, Hybrid).
   DiscoverMutualFundPreset? _selectedSegment;
 
-  static const _sortOptions = [
-    (value: 'score', label: 'Score'),
-    (value: 'returns_3y', label: '3Y Return'),
-    (value: 'returns_5y', label: '5Y Return'),
-    (value: 'returns_1y', label: '1Y Return'),
-    (value: 'aum', label: 'AUM'),
-    (value: 'expense', label: 'Expense'),
-    (value: 'risk', label: 'Risk'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -144,7 +134,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
       appBar: AppBar(title: const Text('Mutual Funds')),
       body: Column(
         children: [
-          // Row 1: Search + Sort dropdown + Sort order toggle + Filter icon
+          // Row 1: Search + Sort button + Filter icon
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             child: Row(
@@ -192,78 +182,20 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Sort dropdown
-                SizedBox(
-                  height: 40,
-                  child: PopupMenuButton<String>(
-                    onSelected: (value) {
-                      ref
-                          .read(discoverMutualFundFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(sortBy: value));
-                    },
-                    itemBuilder: (_) => _sortOptions
-                        .map((opt) => PopupMenuItem(
-                              value: opt.value,
-                              child: Text(opt.label,
-                                  style: theme.textTheme.bodySmall),
-                            ))
-                        .toList(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.12)),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            _sortOptions
-                                .firstWhere((o) => o.value == filters.sortBy,
-                                    orElse: () => _sortOptions.first)
-                                .label,
-                            style: theme.textTheme.labelSmall,
-                          ),
-                          const SizedBox(width: 2),
-                          Icon(
-                            filters.sortOrder == 'desc'
-                                ? Icons.arrow_downward_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 14,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                // Sort button — single unified button with direction arrow
+                _SortButton(
+                  currentSort: filters.sortBy,
+                  currentOrder: filters.sortOrder,
+                  onSortChanged: (sortBy, sortOrder) {
+                    ref
+                        .read(discoverMutualFundFiltersProvider.notifier)
+                        .setFilters(filters.copyWith(
+                          sortBy: sortBy,
+                          sortOrder: sortOrder,
+                        ));
+                  },
                 ),
-                // Sort order toggle
-                SizedBox(
-                  width: 32,
-                  height: 40,
-                  child: IconButton(
-                    icon: Icon(
-                      filters.sortOrder == 'desc'
-                          ? Icons.arrow_downward_rounded
-                          : Icons.arrow_upward_rounded,
-                      size: 16,
-                    ),
-                    onPressed: () {
-                      ref
-                          .read(discoverMutualFundFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(
-                              sortOrder: filters.sortOrder == 'desc'
-                                  ? 'asc'
-                                  : 'desc'));
-                    },
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    tooltip: filters.sortOrder == 'desc'
-                        ? 'Descending'
-                        : 'Ascending',
-                  ),
-                ),
+                const SizedBox(width: 4),
                 // Filter icon with badge
                 SizedBox(
                   width: 36,
@@ -490,7 +422,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     final chips = <Widget>[];
 
     if (filters.minScore != 40) {
-      chips.add(_filterChip('Score ≥${filters.minScore.round()}', () {
+      chips.add(_filterChip('Score \u2265${filters.minScore.round()}', () {
         ref
             .read(discoverMutualFundFiltersProvider.notifier)
             .setFilters(filters.copyWith(minScore: 40));
@@ -505,7 +437,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.maxExpenseRatio != null) {
       chips.add(
-          _filterChip('Exp ≤${filters.maxExpenseRatio!.toStringAsFixed(2)}%', () {
+          _filterChip('Exp \u2264${filters.maxExpenseRatio!.toStringAsFixed(2)}%', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -527,7 +459,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.minReturn1y != null) {
       chips.add(
-          _filterChip('1Y ≥${filters.minReturn1y!.toStringAsFixed(1)}%', () {
+          _filterChip('1Y \u2265${filters.minReturn1y!.toStringAsFixed(1)}%', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -549,7 +481,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.minReturn3y != null) {
       chips.add(
-          _filterChip('3Y ≥${filters.minReturn3y!.toStringAsFixed(1)}%', () {
+          _filterChip('3Y \u2265${filters.minReturn3y!.toStringAsFixed(1)}%', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -571,7 +503,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.minReturn5y != null) {
       chips.add(
-          _filterChip('5Y ≥${filters.minReturn5y!.toStringAsFixed(1)}%', () {
+          _filterChip('5Y \u2265${filters.minReturn5y!.toStringAsFixed(1)}%', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -593,7 +525,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.minAumCr != null) {
       chips.add(
-          _filterChip('AUM ≥${filters.minAumCr!.toStringAsFixed(0)} Cr', () {
+          _filterChip('AUM \u2265${filters.minAumCr!.toStringAsFixed(0)} Cr', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -615,7 +547,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (filters.minFundAge != null) {
       chips.add(
-          _filterChip('Age ≥${filters.minFundAge!.toStringAsFixed(0)}y', () {
+          _filterChip('Age \u2265${filters.minFundAge!.toStringAsFixed(0)}y', () {
         final reset = DiscoverMutualFundFilters(
           search: filters.search,
           category: filters.category,
@@ -677,6 +609,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: const Color(0xFF0F1E31),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (sheetContext) {
         double localMinScore = current.minScore;
         String localRiskLevel = current.riskLevel;
@@ -701,32 +637,93 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
 
         return StatefulBuilder(
           builder: (ctx, setSheetState) {
+            final theme = Theme.of(ctx);
+            const numKb = TextInputType.numberWithOptions(decimal: true);
+
+            InputDecoration compactInput(String label) => InputDecoration(
+                  labelText: label,
+                  labelStyle:
+                      theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  isDense: true,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                );
+
             return Padding(
               padding: EdgeInsets.only(
                 left: 16,
                 right: 16,
-                top: 16,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+                top: 8,
+                bottom: MediaQuery.of(ctx).viewInsets.bottom + 16,
               ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Min Score
-                    Text(
-                      'Min Score: ${localMinScore.round()}',
-                      style: Theme.of(ctx).textTheme.titleSmall,
+                    // Handle bar
+                    Center(
+                      child: Container(
+                        width: 32,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+
+                    // Header: Filters + Reset
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Filters', style: theme.textTheme.titleMedium),
+                        TextButton(
+                          onPressed: () {
+                            ref
+                                .read(discoverMutualFundFiltersProvider.notifier)
+                                .setFilters(const DiscoverMutualFundFilters());
+                            _searchController.clear();
+                            Navigator.pop(ctx);
+                          },
+                          child: const Text('Reset'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Score Range
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Min Score', style: theme.textTheme.titleSmall),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            '${localMinScore.round()}+',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     Slider(
                       value: localMinScore,
                       min: 0,
                       max: 100,
-                      divisions: 100,
-                      label: localMinScore.round().toString(),
-                      onChanged: (v) => setSheetState(() {
-                        localMinScore = v;
-                      }),
+                      divisions: 20,
+                      onChanged: (v) =>
+                          setSheetState(() => localMinScore = v),
                     ),
 
                     const SizedBox(height: 12),
@@ -734,10 +731,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                     // Risk Level
                     DropdownButtonFormField<String>(
                       initialValue: localRiskLevel,
-                      decoration: const InputDecoration(
-                        labelText: 'Risk Level',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: compactInput('Risk Level'),
                       items: const [
                         DropdownMenuItem(value: 'All', child: Text('All')),
                         DropdownMenuItem(value: 'Low', child: Text('Low')),
@@ -750,153 +744,111 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                       }),
                     ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                    // Max Expense Ratio
-                    TextField(
-                      controller: maxExpenseController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Max Expense Ratio %',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Return fields row 1: 1Y + 3Y
+                    // ── Returns ──
+                    _sectionDivider(theme, 'Returns'),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
                             controller: minReturn1yController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Min 1Y Return %',
-                              border: OutlineInputBorder(),
-                            ),
+                            keyboardType: numKb,
+                            decoration: compactInput('Min 1Y %'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
                             controller: minReturn3yController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Min 3Y Return %',
-                              border: OutlineInputBorder(),
-                            ),
+                            keyboardType: numKb,
+                            decoration: compactInput('Min 3Y %'),
                           ),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: minReturn5yController,
+                      keyboardType: numKb,
+                      decoration: compactInput('Min 5Y Return %'),
+                    ),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
 
-                    // Return fields row 2: 5Y + AUM
+                    // ── Risk ──
+                    _sectionDivider(theme, 'Risk'),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: maxExpenseController,
+                      keyboardType: numKb,
+                      decoration: compactInput('Max Expense Ratio %'),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Other ──
+                    _sectionDivider(theme, 'Other'),
+                    const SizedBox(height: 8),
                     Row(
                       children: [
                         Expanded(
                           child: TextField(
-                            controller: minReturn5yController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Min 5Y Return %',
-                              border: OutlineInputBorder(),
-                            ),
+                            controller: minAumController,
+                            keyboardType: numKb,
+                            decoration: compactInput('Min AUM Cr'),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: TextField(
-                            controller: minAumController,
-                            keyboardType:
-                                const TextInputType.numberWithOptions(
-                                    decimal: true),
-                            decoration: const InputDecoration(
-                              labelText: 'Min AUM Cr',
-                              border: OutlineInputBorder(),
-                            ),
+                            controller: minFundAgeController,
+                            keyboardType: numKb,
+                            decoration: compactInput('Min Age (yrs)'),
                           ),
                         ),
                       ],
-                    ),
-
-                    const SizedBox(height: 12),
-
-                    // Min Fund Age
-                    TextField(
-                      controller: minFundAgeController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      decoration: const InputDecoration(
-                        labelText: 'Min Fund Age (years)',
-                        border: OutlineInputBorder(),
-                      ),
                     ),
 
                     const SizedBox(height: 20),
 
-                    // Reset / Apply
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton(
-                            onPressed: () {
-                              ref
-                                  .read(discoverMutualFundFiltersProvider
-                                      .notifier)
-                                  .setFilters(
-                                      const DiscoverMutualFundFilters());
-                              _searchController.clear();
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text('Reset'),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: FilledButton(
-                            onPressed: () {
-                              final expenseRatio =
-                                  double.tryParse(maxExpenseController.text);
-                              final return1y =
-                                  double.tryParse(minReturn1yController.text);
-                              final return3y =
-                                  double.tryParse(minReturn3yController.text);
-                              final return5y =
-                                  double.tryParse(minReturn5yController.text);
-                              final aum =
-                                  double.tryParse(minAumController.text);
-                              final fundAge =
-                                  double.tryParse(minFundAgeController.text);
-                              ref
-                                  .read(discoverMutualFundFiltersProvider
-                                      .notifier)
-                                  .setFilters(current.copyWith(
-                                    minScore: localMinScore,
-                                    riskLevel: localRiskLevel,
-                                    maxExpenseRatio: expenseRatio,
-                                    minReturn1y: return1y,
-                                    minReturn3y: return3y,
-                                    minReturn5y: return5y,
-                                    minAumCr: aum,
-                                    minFundAge: fundAge,
-                                    directOnly: true,
-                                  ));
-                              Navigator.pop(ctx);
-                            },
-                            child: const Text('Apply'),
-                          ),
-                        ),
-                      ],
+                    // Apply button — full width
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: FilledButton(
+                        onPressed: () {
+                          final expenseRatio =
+                              double.tryParse(maxExpenseController.text);
+                          final return1y =
+                              double.tryParse(minReturn1yController.text);
+                          final return3y =
+                              double.tryParse(minReturn3yController.text);
+                          final return5y =
+                              double.tryParse(minReturn5yController.text);
+                          final aum =
+                              double.tryParse(minAumController.text);
+                          final fundAge =
+                              double.tryParse(minFundAgeController.text);
+                          ref
+                              .read(discoverMutualFundFiltersProvider
+                                  .notifier)
+                              .setFilters(current.copyWith(
+                                minScore: localMinScore,
+                                riskLevel: localRiskLevel,
+                                maxExpenseRatio: expenseRatio,
+                                minReturn1y: return1y,
+                                minReturn3y: return3y,
+                                minReturn5y: return5y,
+                                minAumCr: aum,
+                                minFundAge: fundAge,
+                                directOnly: true,
+                              ));
+                          Navigator.pop(ctx);
+                        },
+                        child: const Text('Apply Filters'),
+                      ),
                     ),
                   ],
                 ),
@@ -905,6 +857,125 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _sectionDivider(ThemeData theme, String title) {
+    return Row(
+      children: [
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            title,
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white38,
+              letterSpacing: 0.8,
+            ),
+          ),
+        ),
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+      ],
+    );
+  }
+}
+
+/// Unified sort button: shows current sort + direction.
+/// Tapping opens a popup. Tapping the same option toggles direction.
+class _SortButton extends StatelessWidget {
+  final String currentSort;
+  final String currentOrder;
+  final void Function(String sortBy, String sortOrder) onSortChanged;
+
+  const _SortButton({
+    required this.currentSort,
+    required this.currentOrder,
+    required this.onSortChanged,
+  });
+
+  static const _options = [
+    (value: 'score', label: 'Score'),
+    (value: 'returns_3y', label: '3Y Return'),
+    (value: 'returns_5y', label: '5Y Return'),
+    (value: 'returns_1y', label: '1Y Return'),
+    (value: 'aum', label: 'AUM'),
+    (value: 'expense', label: 'Expense'),
+    (value: 'risk', label: 'Risk'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final currentLabel = _options
+        .firstWhere((o) => o.value == currentSort,
+            orElse: () => _options.first)
+        .label;
+    final isDesc = currentOrder == 'desc';
+
+    return SizedBox(
+      height: 40,
+      child: PopupMenuButton<String>(
+        onSelected: (value) {
+          if (value == currentSort) {
+            // Toggle direction
+            onSortChanged(currentSort, isDesc ? 'asc' : 'desc');
+          } else {
+            // New sort field, default to desc
+            onSortChanged(value, 'desc');
+          }
+        },
+        itemBuilder: (_) => _options.map((opt) {
+          final isSelected = opt.value == currentSort;
+          return PopupMenuItem(
+            value: opt.value,
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    opt.label,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight:
+                          isSelected ? FontWeight.w600 : FontWeight.normal,
+                      color: isSelected
+                          ? theme.colorScheme.primary
+                          : null,
+                    ),
+                  ),
+                ),
+                if (isSelected)
+                  Icon(
+                    isDesc
+                        ? Icons.arrow_downward_rounded
+                        : Icons.arrow_upward_rounded,
+                    size: 14,
+                    color: theme.colorScheme.primary,
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            border:
+                Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(currentLabel, style: theme.textTheme.labelSmall),
+              const SizedBox(width: 4),
+              Icon(
+                isDesc
+                    ? Icons.arrow_downward_rounded
+                    : Icons.arrow_upward_rounded,
+                size: 14,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -13,6 +13,9 @@ import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
 
+/// Bottom padding to clear the FAB.
+const double _kBottomPadding = 112;
+
 class DiscoverHomeScreen extends ConsumerStatefulWidget {
   const DiscoverHomeScreen({super.key});
 
@@ -25,6 +28,10 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _searchQuery = '';
+
+  // LayerLink for anchoring the search overlay to the search bar.
+  final LayerLink _searchLayerLink = LayerLink();
+  final GlobalKey _searchBarKey = GlobalKey();
 
   @override
   void dispose() {
@@ -71,6 +78,30 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     } else {
       context.push('/discover/mf/${item.id}');
     }
+  }
+
+  void _onQuickCategoryTap(QuickCategory cat) {
+    if (cat.segment == 'mutual_funds') {
+      context.push('/discover/mutual-funds', extra: {
+        if (cat.preset != null) 'preset': cat.preset,
+        if (cat.filterKey != null && cat.filterValue != null)
+          cat.filterKey!: cat.filterValue,
+      });
+    } else {
+      context.push('/discover/stocks', extra: {
+        if (cat.preset != null) 'preset': cat.preset,
+        if (cat.filterKey != null && cat.filterValue != null)
+          cat.filterKey!: cat.filterValue,
+      });
+    }
+  }
+
+  void _onSectorChampionTap(DiscoverHomeStockItem item) {
+    // Navigate to stock screener filtered by this sector
+    context.push('/discover/stocks', extra: {
+      'preset': 'quality',
+      if (item.sector != null) 'sector': item.sector,
+    });
   }
 
   @override
@@ -140,35 +171,17 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         SliverToBoxAdapter(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: _buildSearchBar(),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 8)),
-
-        // Quick nav: All Stocks / All MFs
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _QuickNavChip(
-                    icon: Icons.bar_chart_rounded,
-                    label: 'All Stocks',
-                    onTap: () => context.push('/discover/stocks'),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _QuickNavChip(
-                    icon: Icons.account_balance_rounded,
-                    label: 'All Mutual Funds',
-                    onTap: () => context.push('/discover/mutual-funds'),
-                  ),
-                ),
-              ],
+            child: CompositedTransformTarget(
+              link: _searchLayerLink,
+              child: _buildSearchBar(),
             ),
           ),
+        ),
+        const SliverToBoxAdapter(child: SizedBox(height: 10)),
+
+        // Quick category chips
+        SliverToBoxAdapter(
+          child: _buildQuickCategories(data.quickCategories),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
@@ -186,18 +199,20 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             ),
           ),
 
-        // Top Stocks
+        // Top Rated Stocks
         if (data.topStocks.isNotEmpty)
           SliverToBoxAdapter(
             child: _HorizontalSection(
-              title: 'Top Stocks',
+              title: 'Top Rated Stocks',
               seeAllRoute: '/discover/stocks',
               seeAllExtra: const {'preset': 'quality'},
+              cardWidth: 160,
               children: data.topStocks
                   .map((s) => _StockCard(
                         item: s,
                         onTap: () => _onStockTap(s),
                         use3mChange: true,
+                        showQualityTier: true,
                       ))
                   .toList(),
             ),
@@ -210,6 +225,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               title: 'Top Equity Funds',
               seeAllRoute: '/discover/mutual-funds',
               seeAllExtra: const {'preset': 'equity'},
+              cardWidth: 160,
               children: data.topEquityFunds
                   .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
                   .toList(),
@@ -223,25 +239,19 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               title: 'Top Debt Funds',
               seeAllRoute: '/discover/mutual-funds',
               seeAllExtra: const {'preset': 'debt'},
+              cardWidth: 160,
               children: data.topDebtFunds
                   .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
                   .toList(),
             ),
           ),
 
-        // Sector Champions
+        // Sector Champions — vertical list cards
         if (data.sectorChampions.isNotEmpty)
           SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Sector Champions',
-              children: data.sectorChampions
-                  .map((s) => _StockCard(
-                        item: s,
-                        onTap: () => _onStockTap(s),
-                        use3mChange: true,
-                        showSector: true,
-                      ))
-                  .toList(),
+            child: _SectorChampionsSection(
+              items: data.sectorChampions,
+              onTap: _onSectorChampionTap,
             ),
           ),
 
@@ -250,6 +260,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
           SliverToBoxAdapter(
             child: _HorizontalSection(
               title: 'Trending This Week',
+              cardWidth: 160,
               children: data.trendingThisWeek
                   .map((s) => _StockCard(
                         item: s,
@@ -260,9 +271,44 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             ),
           ),
 
-        // Bottom padding
-        const SliverToBoxAdapter(child: SizedBox(height: 24)),
+        // Bottom padding for FAB
+        const SliverToBoxAdapter(child: SizedBox(height: _kBottomPadding)),
       ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Quick category chips
+  // ---------------------------------------------------------------------------
+
+  Widget _buildQuickCategories(List<QuickCategory> apiCategories) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          _CategoryChip(
+            label: 'All Stocks',
+            icon: Icons.bar_chart_rounded,
+            onTap: () => context.push('/discover/stocks', extra: const {'preset': 'all'}),
+          ),
+          const SizedBox(width: 8),
+          _CategoryChip(
+            label: 'All MFs',
+            icon: Icons.account_balance_rounded,
+            onTap: () => context.push('/discover/mutual-funds'),
+          ),
+          ...apiCategories.map((cat) {
+            return Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: _CategoryChip(
+                label: cat.name,
+                onTap: () => _onQuickCategoryTap(cat),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
@@ -273,12 +319,13 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   Widget _buildSearchBar() {
     final theme = Theme.of(context);
     return TextField(
+      key: _searchBarKey,
       controller: _searchController,
       onChanged: _onSearchChanged,
       style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
       cursorColor: AppTheme.accentBlue,
       decoration: InputDecoration(
-        hintText: 'Search stocks or mutual funds...',
+        hintText: 'Search stocks & mutual funds...',
         prefixIcon: const Icon(Icons.search_rounded),
         suffixIcon: _searchQuery.isNotEmpty
             ? IconButton(
@@ -309,7 +356,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Search overlay
+  // Search overlay — anchored to search bar via CompositedTransformFollower
   // ---------------------------------------------------------------------------
 
   Widget _buildSearchOverlay() {
@@ -322,73 +369,98 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
       right: 0,
       bottom: 0,
       child: GestureDetector(
-        onTap: _clearSearch,
+        onTap: () {
+          _clearSearch();
+          FocusScope.of(context).unfocus();
+        },
         child: Container(
           color: Colors.black54,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: GestureDetector(
-              onTap: () {}, // absorb tap so card doesn't dismiss
-              child: Container(
-                margin: const EdgeInsets.fromLTRB(12, 56, 12, 0),
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.6,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardDark,
-                  borderRadius: BorderRadius.circular(14),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                ),
-                child: searchAsync.when(
-                  loading: () => const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(
-                        child: CircularProgressIndicator(strokeWidth: 2)),
-                  ),
-                  error: (err, _) => Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      friendlyErrorMessage(err),
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ),
-                  data: (result) {
-                    final hasStocks = result.stocks.isNotEmpty;
-                    final hasMf = result.mutualFunds.isNotEmpty;
-
-                    if (!hasStocks && !hasMf) {
-                      return Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Center(
-                          child: Text(
-                            'No results found',
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: Colors.white54),
+          child: CompositedTransformFollower(
+            link: _searchLayerLink,
+            showWhenUnlinked: false,
+            offset: const Offset(0, 52), // just below the search bar
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: GestureDetector(
+                onTap: () {}, // absorb tap so card doesn't dismiss
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 0),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: Container(
+                      constraints: BoxConstraints(
+                        maxHeight: MediaQuery.of(context).size.height * 0.55,
+                        maxWidth: MediaQuery.of(context).size.width - 24,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardDark,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.4),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
                           ),
-                        ),
-                      );
-                    }
-
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: ListView(
-                        shrinkWrap: true,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        children: [
-                          if (hasStocks) ...[
-                            _searchSectionHeader('Stocks'),
-                            ...result.stocks.map(_buildStockSearchTile),
-                          ],
-                          if (hasMf) ...[
-                            if (hasStocks) const Divider(height: 1),
-                            _searchSectionHeader('Mutual Funds'),
-                            ...result.mutualFunds.map(_buildMfSearchTile),
-                          ],
                         ],
                       ),
-                    );
-                  },
+                      child: searchAsync.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(24),
+                          child: Center(
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2)),
+                        ),
+                        error: (err, _) => Padding(
+                          padding: const EdgeInsets.all(16),
+                          child: Text(
+                            friendlyErrorMessage(err),
+                            style: theme.textTheme.bodySmall,
+                          ),
+                        ),
+                        data: (result) {
+                          final hasStocks = result.stocks.isNotEmpty;
+                          final hasMf = result.mutualFunds.isNotEmpty;
+
+                          if (!hasStocks && !hasMf) {
+                            return Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Center(
+                                child: Text(
+                                  'No results found',
+                                  style: theme.textTheme.bodyMedium
+                                      ?.copyWith(color: Colors.white54),
+                                ),
+                              ),
+                            );
+                          }
+
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(14),
+                            child: ListView(
+                              shrinkWrap: true,
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8),
+                              children: [
+                                if (hasStocks) ...[
+                                  _searchSectionHeader('Stocks'),
+                                  ...result.stocks
+                                      .map(_buildStockSearchTile),
+                                ],
+                                if (hasMf) ...[
+                                  if (hasStocks) const Divider(height: 1),
+                                  _searchSectionHeader('Mutual Funds'),
+                                  ...result.mutualFunds
+                                      .map(_buildMfSearchTile),
+                                ],
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -499,6 +571,53 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
 }
 
 // =============================================================================
+// Quick category chip
+// =============================================================================
+
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 14, color: AppTheme.accentBlue),
+                const SizedBox(width: 6),
+              ],
+              Text(
+                label,
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
 // Horizontal Section
 // =============================================================================
 
@@ -507,12 +626,14 @@ class _HorizontalSection extends StatelessWidget {
   final String? seeAllRoute;
   final Map<String, String>? seeAllExtra;
   final List<Widget> children;
+  final double cardWidth;
 
   const _HorizontalSection({
     required this.title,
     this.seeAllRoute,
     this.seeAllExtra,
     required this.children,
+    this.cardWidth = 160,
   });
 
   @override
@@ -550,7 +671,7 @@ class _HorizontalSection extends StatelessWidget {
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                     child: Text(
-                      'See All →',
+                      'See All',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: AppTheme.accentBlue,
                         fontWeight: FontWeight.w600,
@@ -563,7 +684,7 @@ class _HorizontalSection extends StatelessWidget {
           const SizedBox(height: 8),
           // Horizontal list
           SizedBox(
-            height: 148,
+            height: 152,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -579,7 +700,7 @@ class _HorizontalSection extends StatelessWidget {
 }
 
 // =============================================================================
-// Stock Card
+// Stock Card — wider (160px), quality tier badge, score bar
 // =============================================================================
 
 class _StockCard extends StatelessWidget {
@@ -587,14 +708,14 @@ class _StockCard extends StatelessWidget {
   final VoidCallback onTap;
   final bool use3mChange;
   final bool use1wChange;
-  final bool showSector;
+  final bool showQualityTier;
 
   const _StockCard({
     required this.item,
     required this.onTap,
     this.use3mChange = false,
     this.use1wChange = false,
-    this.showSector = false,
+    this.showQualityTier = false,
   });
 
   @override
@@ -617,14 +738,11 @@ class _StockCard extends StatelessWidget {
 
     final isUp = pct >= 0;
     final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
-    final subtitle = showSector && item.sector != null
-        ? item.sector!
-        : item.displayName;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 140,
+        width: 160,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
@@ -634,19 +752,43 @@ class _StockCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Symbol
-            Text(
-              item.symbol,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            // Quality tier badge + symbol row
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.symbol,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (showQualityTier && item.qualityTier != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: _qualityTierColor(item.qualityTier!)
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      item.qualityTier!,
+                      style: TextStyle(
+                        color: _qualityTierColor(item.qualityTier!),
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: 2),
-            // Display name or sector
+            // Display name
             Text(
-              subtitle,
+              item.displayName,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: Colors.white54,
                 fontSize: 10,
@@ -688,6 +830,19 @@ class _StockCard extends StatelessWidget {
       ),
     );
   }
+
+  static Color _qualityTierColor(String tier) {
+    switch (tier.toLowerCase()) {
+      case 'excellent':
+        return AppTheme.accentGreen;
+      case 'good':
+        return AppTheme.accentTeal;
+      case 'average':
+        return AppTheme.accentOrange;
+      default:
+        return AppTheme.accentRed;
+    }
+  }
 }
 
 // =============================================================================
@@ -707,11 +862,13 @@ class _MfCard extends StatelessWidget {
     final hasReturn = ret1y != null;
     final isUp = (ret1y ?? 0) >= 0;
     final returnColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
+    final firstBadge =
+        item.qualityBadges.isNotEmpty ? item.qualityBadges.first : null;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 150,
+        width: 160,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
@@ -744,28 +901,284 @@ class _MfCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             const Spacer(),
-            // 1Y return
-            if (hasReturn)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: returnColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
-                  style: TextStyle(
-                    color: returnColor,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
+            // Badge + 1Y return row
+            Row(
+              children: [
+                if (hasReturn)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: returnColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                      style: TextStyle(
+                        color: returnColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                if (firstBadge != null) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentTeal.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        firstBadge,
+                        style: const TextStyle(
+                          color: AppTheme.accentTeal,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
             const SizedBox(height: 6),
             // Score bar
             ScoreBar(score: item.score, height: 4, showLabel: false),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Sector Champions — vertical list cards
+// =============================================================================
+
+class _SectorChampionsSection extends StatelessWidget {
+  final List<DiscoverHomeStockItem> items;
+  final void Function(DiscoverHomeStockItem) onTap;
+
+  const _SectorChampionsSection({
+    required this.items,
+    required this.onTap,
+  });
+
+  static IconData _sectorIcon(String? sector) {
+    switch (sector?.toLowerCase()) {
+      case 'energy':
+      case 'oil & gas':
+        return Icons.bolt_rounded;
+      case 'information technology':
+      case 'it':
+        return Icons.computer_rounded;
+      case 'financial services':
+      case 'financials':
+        return Icons.account_balance_rounded;
+      case 'healthcare':
+      case 'pharma':
+        return Icons.local_hospital_rounded;
+      case 'automobile':
+      case 'auto':
+        return Icons.directions_car_rounded;
+      case 'fmcg':
+      case 'consumer goods':
+        return Icons.shopping_cart_rounded;
+      case 'metals':
+      case 'metal':
+        return Icons.hardware_rounded;
+      case 'realty':
+      case 'real estate':
+        return Icons.apartment_rounded;
+      case 'telecom':
+      case 'telecommunication':
+        return Icons.cell_tower_rounded;
+      case 'media':
+        return Icons.movie_rounded;
+      case 'construction':
+        return Icons.construction_rounded;
+      case 'chemicals':
+        return Icons.science_rounded;
+      case 'textiles':
+        return Icons.checkroom_rounded;
+      default:
+        return Icons.business_rounded;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Sector Champions',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => context.push('/discover/stocks'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                  child: Text(
+                    'See All',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: AppTheme.accentBlue,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Vertical list of sector cards
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardDark,
+                borderRadius: BorderRadius.circular(14),
+                border:
+                    Border.all(color: Colors.white.withValues(alpha: 0.06)),
+              ),
+              child: Column(
+                children: [
+                  for (int i = 0; i < items.length; i++) ...[
+                    if (i > 0)
+                      Divider(
+                        height: 1,
+                        indent: 16,
+                        endIndent: 16,
+                        color: Colors.white.withValues(alpha: 0.06),
+                      ),
+                    _SectorChampionRow(
+                      item: items[i],
+                      icon: _sectorIcon(items[i].sector),
+                      onTap: () => onTap(items[i]),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectorChampionRow extends StatelessWidget {
+  final DiscoverHomeStockItem item;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _SectorChampionRow({
+    required this.item,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scoreColor = ScoreBar.scoreColor(item.score);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              // Sector icon
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppTheme.accentBlue.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, size: 16, color: AppTheme.accentBlue),
+              ),
+              const SizedBox(width: 12),
+              // Sector name
+              Expanded(
+                flex: 3,
+                child: Text(
+                  item.sector ?? 'Other',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white70,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Champion stock symbol
+              Expanded(
+                flex: 2,
+                child: Text(
+                  item.symbol,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              // Score
+              Container(
+                width: 40,
+                alignment: Alignment.centerRight,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: scoreColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    item.score.toStringAsFixed(0),
+                    style: TextStyle(
+                      color: scoreColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -854,55 +1267,3 @@ class _RecentCard extends StatelessWidget {
     );
   }
 }
-
-// =============================================================================
-// Quick nav chip (top shortcuts)
-// =============================================================================
-
-class _QuickNavChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _QuickNavChip({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white.withValues(alpha: 0.06),
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 16, color: AppTheme.accentBlue),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.85),
-                      fontWeight: FontWeight.w600,
-                    ),
-              ),
-              const SizedBox(width: 4),
-              Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 11,
-                color: Colors.white.withValues(alpha: 0.4),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-

@@ -27,9 +27,12 @@ class StockDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<StockDetailScreen> createState() => _StockDetailScreenState();
 }
 
-class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
+class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
+    with SingleTickerProviderStateMixin {
   late int _selectedDays = widget.initialDays;
-  double? _periodChange; // persists across rebuilds to avoid flash
+  double? _periodChange;
+  late final TabController _tabController;
+  int _tabIndex = 0;
 
   static const _periods = [
     (label: '1W', days: 7),
@@ -40,6 +43,80 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     (label: '3Y', days: 1095),
     (label: '5Y', days: 1825),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() => _tabIndex = _tabController.index);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // ── Backend return values ─────────────────────────────────────
+  double? _getBackendReturn(DiscoverStockItem item) {
+    switch (_selectedDays) {
+      case 7:
+        return item.percentChange1w;
+      case 90:
+        return item.percentChange3m;
+      case 365:
+        return item.percentChange1y;
+      case 1095:
+        return item.percentChange3y;
+      default:
+        return null;
+    }
+  }
+
+  // ── Format helpers ────────────────────────────────────────────
+  static String _formatLargeNumber(double? value) {
+    if (value == null) return '\u2014';
+    final abs = value.abs();
+    final sign = value < 0 ? '-' : '';
+    if (abs >= 1e7) {
+      final crores = abs / 1e7;
+      if (crores >= 1e5) {
+        return '$sign\u20B9${(crores / 1e5).toStringAsFixed(2)} L Cr';
+      }
+      return '$sign\u20B9${Formatters.price(crores)} Cr';
+    }
+    if (abs >= 1e5) {
+      return '$sign\u20B9${(abs / 1e5).toStringAsFixed(2)} L';
+    }
+    return '$sign\u20B9${Formatters.fullPrice(value)}';
+  }
+
+  static String _pct(double? value) {
+    if (value == null) return '\u2014';
+    return '${value.toStringAsFixed(1)}%';
+  }
+
+  static String _pctSigned(double? value) {
+    if (value == null) return '\u2014';
+    final sign = value >= 0 ? '+' : '';
+    return '$sign${value.toStringAsFixed(1)}%';
+  }
+
+  static String _ratio(double? value, {int decimals = 2}) {
+    if (value == null) return '\u2014';
+    return value.toStringAsFixed(decimals);
+  }
+
+  static Color _changeColor(double? value) {
+    if (value == null) return Colors.white38;
+    return value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+  }
+
+  // ── Build ─────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -66,8 +143,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               const Text('Error loading stock details'),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () => ref.invalidate(
-                    discoverStockDetailProvider(widget.symbol)),
+                onPressed: () =>
+                    ref.invalidate(discoverStockDetailProvider(widget.symbol)),
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Retry'),
               ),
@@ -84,26 +161,24 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
       discoverStockHistoryProvider((symbol: item.symbol, days: _selectedDays)),
     );
 
-    // Compute period change % from chart data (persist to avoid flash)
     List<double> chartPrices = [];
     List<DateTime> chartTimestamps = [];
     historyAsync.whenData((history) {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
-        // Compute % change from raw historical close prices (no live override)
-        // so the value matches the discover page's percent_change_3m etc.
         final first = chartPrices.first;
         final last = chartPrices.last;
         if (first > 0) _periodChange = ((last - first) / first) * 100;
-        // Override last chart point with live price for visual display only
         if (chartPrices.isNotEmpty) {
           chartPrices[chartPrices.length - 1] = item.lastPrice;
         }
       }
     });
 
-    final displayChange = _periodChange ?? item.percentChange;
+    // Prefer backend return over chart-computed value
+    final backendReturn = _getBackendReturn(item);
+    final displayChange = backendReturn ?? _periodChange ?? item.percentChange;
     final isPositive = (displayChange ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
@@ -114,11 +189,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -- Quality Verdict Banner --------------------------
+            // ── Quality Verdict Banner ──
             _buildQualityBanner(theme, item),
             const SizedBox(height: 14),
 
-            // -- Header ------------------------------------------
+            // ── Header ──
             Text(
               item.displayName,
               style: theme.textTheme.titleLarge
@@ -134,28 +209,22 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 ),
                 if (item.sector != null && item.sector != 'Other') ...[
                   const SizedBox(width: 8),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      item.sector!,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white54),
-                    ),
-                  ),
+                  _buildChipLabel(theme, item.sector!),
+                ],
+                if (item.industry != null) ...[
+                  const SizedBox(width: 6),
+                  Flexible(child: _buildChipLabel(theme, item.industry!)),
                 ],
               ],
             ),
             const SizedBox(height: 4),
             Text(
-              '${item.sector != null && item.sector != "Other" ? "${item.sector} · " : ""}NSE · Mkt Cap: ₹${item.marketCap != null ? Formatters.price(item.marketCap!) : "—"} Cr',
+              'NSE \u00B7 Mkt Cap: ${_formatLargeNumber(item.marketCap != null ? item.marketCap! * 1e7 : null)}',
               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
             ),
             const SizedBox(height: 12),
+
+            // ── Price + Change Badge ──
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
@@ -186,9 +255,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // -- Price Chart -------------------------------------
+            // ── Period Selector ──
             _buildPeriodSelector(theme),
             const SizedBox(height: 10),
+
+            // ── Price Chart ──
             historyAsync.when(
               data: (history) {
                 if (history.points.isEmpty) {
@@ -216,130 +287,40 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
             ),
             const SizedBox(height: 20),
 
-            // -- 52-Week Range -----------------------------------
-            if (item.high52w != null && item.low52w != null) ...[
-              _build52WeekRange(theme, item),
-              const SizedBox(height: 14),
-            ],
+            // ── Score Card (8 segments) ──
+            _buildScoreCard(theme, item),
+            const SizedBox(height: 14),
 
-            // -- Score -------------------------------------------
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'Score',
-                          style: theme.textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(width: 10),
-                        Text(
-                          ScoreBar.formatMinified(item.score),
-                          style: theme.textTheme.headlineMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: ScoreBar.scoreColor(item.score),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
-                    ScoreBreakdownBar(
-                      segments: [
-                        ScoreSegment(
-                          label: 'Momentum',
-                          value: item.scoreMomentum,
-                          color: AppTheme.accentBlue,
-                        ),
-                        ScoreSegment(
-                          label: 'Liquidity',
-                          value: item.scoreLiquidity,
-                          color: AppTheme.accentTeal,
-                        ),
-                        ScoreSegment(
-                          label: 'Fundamentals',
-                          value: item.scoreFundamentals,
-                          color: AppTheme.accentOrange,
-                        ),
-                        ScoreSegment(
-                          label: 'Volatility',
-                          value: item.scoreVolatility,
-                          color: const Color(0xFFAB47BC),
-                        ),
-                        ScoreSegment(
-                          label: 'Growth',
-                          value: item.scoreGrowth,
-                          color: const Color(0xFF26C6DA),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
+            // ── TabBar ──
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.cardDark,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: TabBar(
+                controller: _tabController,
+                isScrollable: false,
+                indicatorSize: TabBarIndicatorSize.tab,
+                dividerColor: Colors.transparent,
+                labelStyle: theme.textTheme.labelMedium
+                    ?.copyWith(fontWeight: FontWeight.w700),
+                unselectedLabelStyle: theme.textTheme.labelMedium,
+                tabs: const [
+                  Tab(text: 'Overview'),
+                  Tab(text: 'Fundamentals'),
+                  Tab(text: 'Ownership'),
+                  Tab(text: 'Analyst'),
+                ],
               ),
             ),
             const SizedBox(height: 14),
 
-            // -- Key Metrics (Valuation + Quality + Activity) ------
-            _buildMetricSection(theme, 'Key Metrics', [
-              MetricItem(
-                label: 'Market Cap',
-                value: item.marketCap != null
-                    ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
-                    : '\u2014',
-                valueColor: item.marketCap == null ? Colors.white38 : null,
-              ),
-              MetricItem(
-                label: 'Price to Earnings',
-                value: item.peRatio?.toStringAsFixed(1) ?? '\u2014',
-                valueColor: _peColor(item.peRatio),
-              ),
-              MetricItem(
-                label: 'Price to Book',
-                value: item.priceToBook?.toStringAsFixed(2) ?? '\u2014',
-                valueColor: item.priceToBook == null ? Colors.white38 : null,
-              ),
-              MetricItem(
-                label: 'Earnings Per Share',
-                value: item.eps?.toStringAsFixed(2) ?? '\u2014',
-                valueColor: item.eps == null ? Colors.white38 : null,
-              ),
-              MetricItem(
-                label: 'Return on Equity',
-                value: item.roe != null
-                    ? '${item.roe!.toStringAsFixed(1)}%'
-                    : '\u2014',
-                valueColor: _roeColor(item.roe),
-              ),
-              MetricItem(
-                label: 'Return on Capital',
-                value: item.roce != null
-                    ? '${item.roce!.toStringAsFixed(1)}%'
-                    : '\u2014',
-                valueColor: _roeColor(item.roce),
-              ),
-              MetricItem(
-                label: 'Debt to Equity',
-                value: item.debtToEquity?.toStringAsFixed(2) ?? '\u2014',
-                valueColor: _deColor(item.debtToEquity),
-              ),
-              MetricItem(
-                label: 'Dividend Yield',
-                value: item.dividendYield != null
-                    ? '${item.dividendYield!.toStringAsFixed(2)}%'
-                    : '\u2014',
-                valueColor: item.dividendYield == null ? Colors.white38 : null,
-              ),
-            ]),
-
+            // ── Tab Content (indexed, no TabBarView) ──
+            _buildTabContent(theme, item),
             const SizedBox(height: 14),
 
-            // -- Peer Comparison -----------------------------------
+            // ── Peer Comparison (always visible) ──
             _buildPeerComparison(theme, item),
-
             const SizedBox(height: 16),
           ],
         ),
@@ -347,7 +328,25 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── Quality Verdict Banner ──────────────────────────────────────
+  // ── Small chip label ──────────────────────────────────────────
+
+  Widget _buildChipLabel(ThemeData theme, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  // ── Quality Verdict Banner ────────────────────────────────────
 
   Widget _buildQualityBanner(ThemeData theme, DiscoverStockItem item) {
     final tier = item.qualityTier?.toLowerCase() ?? '';
@@ -406,9 +405,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                 const SizedBox(height: 2),
                 Text(
                   explanation,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                  ),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Colors.white70),
                 ),
               ],
             ),
@@ -418,7 +416,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── Period Selector Pills ───────────────────────────────────────
+  // ── Period Selector Pills ─────────────────────────────────────
 
   Widget _buildPeriodSelector(ThemeData theme) {
     return SingleChildScrollView(
@@ -452,7 +450,713 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── 52-Week Range Bar ───────────────────────────────────────────
+  // ── Score Card (8 components) ─────────────────────────────────
+
+  Widget _buildScoreCard(ThemeData theme, DiscoverStockItem item) {
+    final segments = <ScoreSegment>[
+      ScoreSegment(
+          label: 'Momentum', value: item.scoreMomentum, color: AppTheme.accentBlue),
+      ScoreSegment(
+          label: 'Liquidity', value: item.scoreLiquidity, color: AppTheme.accentTeal),
+      ScoreSegment(
+          label: 'Fundamentals',
+          value: item.scoreFundamentals,
+          color: AppTheme.accentOrange),
+      ScoreSegment(
+          label: 'Volatility',
+          value: item.scoreVolatility,
+          color: const Color(0xFFAB47BC)),
+      ScoreSegment(
+          label: 'Growth', value: item.scoreGrowth, color: const Color(0xFF26C6DA)),
+    ];
+
+    // v0.2.4 scores -- only show when non-null
+    if (item.scoreFinancialHealth != null) {
+      segments.add(ScoreSegment(
+          label: 'Financial Health',
+          value: item.scoreFinancialHealth!,
+          color: Colors.green));
+    }
+    if (item.scoreOwnership != null) {
+      segments.add(ScoreSegment(
+          label: 'Ownership', value: item.scoreOwnership!, color: Colors.purple));
+    }
+    if (item.scoreAnalyst != null) {
+      segments.add(ScoreSegment(
+          label: 'Analyst', value: item.scoreAnalyst!, color: Colors.lightBlue));
+    }
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Score',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  ScoreBar.formatMinified(item.score),
+                  style: theme.textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: ScoreBar.scoreColor(item.score),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ScoreBreakdownBar(segments: segments),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Tab Content ───────────────────────────────────────────────
+
+  Widget _buildTabContent(ThemeData theme, DiscoverStockItem item) {
+    switch (_tabIndex) {
+      case 0:
+        return _buildOverviewTab(theme, item);
+      case 1:
+        return _buildFundamentalsTab(theme, item);
+      case 2:
+        return _buildOwnershipTab(theme, item);
+      case 3:
+        return _buildAnalystTab(theme, item);
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // ── OVERVIEW TAB ──────────────────────────────────────────────
+
+  Widget _buildOverviewTab(ThemeData theme, DiscoverStockItem item) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Tags
+        if (item.tags.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: item.tags.map((tag) {
+              final color = _tagColor(tag);
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: color.withValues(alpha: 0.3)),
+                ),
+                child: Text(
+                  tag,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Why Ranked
+        if (item.whyRanked.isNotEmpty) ...[
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Why Ranked',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  ...item.whyRanked.map((reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
+                              child: Icon(Icons.circle,
+                                  size: 5, color: Colors.white38),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(color: Colors.white70),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // 52-Week Range
+        if (item.high52w != null && item.low52w != null) ...[
+          _build52WeekRange(theme, item),
+          const SizedBox(height: 14),
+        ],
+
+        // Key Metrics grid
+        _buildMetricSection(theme, 'Key Metrics', [
+          MetricItem(
+            label: 'Market Cap',
+            value: item.marketCap != null
+                ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
+                : '\u2014',
+            valueColor: item.marketCap == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Price to Earnings',
+            value: _ratio(item.peRatio, decimals: 1),
+            valueColor: _peColor(item.peRatio),
+          ),
+          MetricItem(
+            label: 'Price to Book',
+            value: _ratio(item.priceToBook),
+            valueColor: item.priceToBook == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Earnings Per Share',
+            value: _ratio(item.eps),
+            valueColor: item.eps == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Return on Equity',
+            value: _pct(item.roe),
+            valueColor: _roeColor(item.roe),
+          ),
+          MetricItem(
+            label: 'Return on Capital',
+            value: _pct(item.roce),
+            valueColor: _roeColor(item.roce),
+          ),
+          MetricItem(
+            label: 'Debt to Equity',
+            value: _ratio(item.debtToEquity),
+            valueColor: _deColor(item.debtToEquity),
+          ),
+          MetricItem(
+            label: 'Dividend Yield',
+            value: item.dividendYield != null
+                ? '${item.dividendYield!.toStringAsFixed(2)}%'
+                : '\u2014',
+            valueColor: item.dividendYield == null ? Colors.white38 : null,
+          ),
+        ]),
+      ],
+    );
+  }
+
+  // ── FUNDAMENTALS TAB ──────────────────────────────────────────
+
+  Widget _buildFundamentalsTab(ThemeData theme, DiscoverStockItem item) {
+    // FCF Yield = freeCashFlow / (marketCap * 1e7) * 100  (marketCap is in Cr)
+    double? fcfYield;
+    if (item.freeCashFlow != null && item.marketCap != null && item.marketCap! > 0) {
+      fcfYield = (item.freeCashFlow! / (item.marketCap! * 1e7)) * 100;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Profitability
+        _buildMetricSection(theme, 'Profitability', [
+          MetricItem(
+            label: 'Gross Margin',
+            value: _marginPct(item.grossMargins),
+            valueColor: item.grossMargins == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Operating Margin',
+            value: _marginPct(item.operatingMargins),
+            valueColor: item.operatingMargins == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Profit Margin',
+            value: _marginPct(item.profitMargins),
+            valueColor: _marginColor(item.profitMargins),
+          ),
+          MetricItem(
+            label: 'FCF Yield',
+            value: fcfYield != null ? '${fcfYield.toStringAsFixed(1)}%' : '\u2014',
+            valueColor: fcfYield == null
+                ? Colors.white38
+                : (fcfYield > 5 ? AppTheme.accentGreen : null),
+          ),
+        ]),
+        const SizedBox(height: 14),
+
+        // Growth
+        _buildMetricSection(theme, 'Growth', [
+          MetricItem(
+            label: 'Revenue Growth',
+            value: _marginPct(item.revenueGrowth),
+            valueColor: _changeColor(item.revenueGrowth),
+          ),
+          MetricItem(
+            label: 'Earnings Growth',
+            value: _marginPct(item.earningsGrowth),
+            valueColor: _changeColor(item.earningsGrowth),
+          ),
+        ]),
+        const SizedBox(height: 14),
+
+        // Valuation
+        _buildMetricSection(theme, 'Valuation', [
+          MetricItem(
+            label: 'Forward P/E',
+            value: _ratio(item.forwardPe, decimals: 1),
+            valueColor: _peColor(item.forwardPe),
+          ),
+          MetricItem(
+            label: 'Trailing P/E',
+            value: _ratio(item.peRatio, decimals: 1),
+            valueColor: _peColor(item.peRatio),
+          ),
+          MetricItem(
+            label: 'Price to Book',
+            value: _ratio(item.priceToBook),
+            valueColor: item.priceToBook == null ? Colors.white38 : null,
+          ),
+        ]),
+        const SizedBox(height: 14),
+
+        // Balance Sheet
+        _buildMetricSection(theme, 'Balance Sheet', [
+          MetricItem(
+            label: 'Total Debt',
+            value: _formatLargeNumber(item.totalDebt),
+            valueColor: item.totalDebt == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Total Cash',
+            value: _formatLargeNumber(item.totalCash),
+            valueColor: item.totalCash == null ? Colors.white38 : null,
+          ),
+          MetricItem(
+            label: 'Debt to Equity',
+            value: _ratio(item.debtToEquity),
+            valueColor: _deColor(item.debtToEquity),
+          ),
+          MetricItem(
+            label: 'Payout Ratio',
+            value: _marginPct(item.payoutRatio),
+            valueColor: item.payoutRatio == null ? Colors.white38 : null,
+          ),
+        ]),
+      ],
+    );
+  }
+
+  // ── OWNERSHIP TAB ─────────────────────────────────────────────
+
+  Widget _buildOwnershipTab(ThemeData theme, DiscoverStockItem item) {
+    final hasData = item.promoterHolding != null ||
+        item.fiiHolding != null ||
+        item.diiHolding != null ||
+        item.governmentHolding != null ||
+        item.publicHolding != null;
+
+    if (!hasData) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              children: [
+                const Icon(Icons.pie_chart_outline,
+                    size: 40, color: Colors.white24),
+                const SizedBox(height: 12),
+                Text(
+                  'No ownership data available',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white38),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    final holdings = <_HoldingEntry>[
+      if (item.promoterHolding != null)
+        _HoldingEntry('Promoters', item.promoterHolding!, const Color(0xFF448AFF),
+            item.promoterHoldingChange),
+      if (item.fiiHolding != null)
+        _HoldingEntry('FII', item.fiiHolding!, const Color(0xFF64FFDA),
+            item.fiiHoldingChange),
+      if (item.diiHolding != null)
+        _HoldingEntry('DII', item.diiHolding!, const Color(0xFFFFAB40),
+            item.diiHoldingChange),
+      if (item.governmentHolding != null)
+        _HoldingEntry('Government', item.governmentHolding!,
+            const Color(0xFFAB47BC), null),
+      if (item.publicHolding != null)
+        _HoldingEntry(
+            'Public', item.publicHolding!, const Color(0xFF78909C), null),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Shareholding bars
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Shareholding Pattern',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 14),
+                ...holdings.map((h) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(h.label,
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white70)),
+                              Text('${h.value.toStringAsFixed(1)}%',
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: (h.value / 100).clamp(0.0, 1.0),
+                              minHeight: 8,
+                              backgroundColor:
+                                  Colors.white.withValues(alpha: 0.08),
+                              valueColor: AlwaysStoppedAnimation(h.color),
+                            ),
+                          ),
+                        ],
+                      ),
+                    )),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // QoQ Changes
+        if (item.promoterHoldingChange != null ||
+            item.fiiHoldingChange != null ||
+            item.diiHoldingChange != null) ...[
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'QoQ Changes',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  if (item.promoterHoldingChange != null)
+                    _buildChangeRow(
+                        theme, 'Promoters', item.promoterHoldingChange!),
+                  if (item.fiiHoldingChange != null)
+                    _buildChangeRow(theme, 'FII', item.fiiHoldingChange!),
+                  if (item.diiHoldingChange != null)
+                    _buildChangeRow(theme, 'DII', item.diiHoldingChange!),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+        ],
+
+        // Number of shareholders
+        if (item.numShareholders != null)
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Number of Shareholders',
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: Colors.white54)),
+                  Text(
+                    Formatters.compactNumber(
+                        item.numShareholders!.toDouble()),
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildChangeRow(ThemeData theme, String label, double change) {
+    final isPos = change >= 0;
+    final color = isPos ? AppTheme.accentGreen : AppTheme.accentRed;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isPos ? Icons.arrow_upward : Icons.arrow_downward,
+                size: 14,
+                color: color,
+              ),
+              const SizedBox(width: 4),
+              Text(
+                '${isPos ? "+" : ""}${change.toStringAsFixed(2)}%',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── ANALYST TAB ───────────────────────────────────────────────
+
+  Widget _buildAnalystTab(ThemeData theme, DiscoverStockItem item) {
+    final hasData = item.analystTargetMean != null ||
+        item.analystRecommendation != null ||
+        item.analystCount != null;
+
+    if (!hasData) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              children: [
+                const Icon(Icons.analytics_outlined,
+                    size: 40, color: Colors.white24),
+                const SizedBox(height: 12),
+                Text(
+                  'No analyst data available',
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: Colors.white38),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Upside %
+    double? upsidePct;
+    if (item.analystTargetMean != null && item.lastPrice > 0) {
+      upsidePct =
+          ((item.analystTargetMean! - item.lastPrice) / item.lastPrice) * 100;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Target Price Card
+        if (item.analystTargetMean != null)
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Target Price',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Current',
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: Colors.white38)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '\u20B9${Formatters.fullPrice(item.lastPrice)}',
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.arrow_forward,
+                          color: Colors.white38, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('Target Mean',
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: Colors.white38)),
+                            const SizedBox(height: 2),
+                            Text(
+                              '\u20B9${Formatters.fullPrice(item.analystTargetMean!)}',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.accentBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (upsidePct != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _changeColor(upsidePct).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Upside: ${_pctSigned(upsidePct)}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _changeColor(upsidePct),
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+
+        if (item.analystRecommendation != null ||
+            item.analystRecommendationMean != null) ...[
+          const SizedBox(height: 14),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Consensus',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      if (item.analystRecommendation != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: _consensusColor(item.analystRecommendation)
+                                .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: _consensusColor(item.analystRecommendation)
+                                  .withValues(alpha: 0.4),
+                            ),
+                          ),
+                          child: Text(
+                            item.analystRecommendation!.toUpperCase(),
+                            style: theme.textTheme.labelLarge?.copyWith(
+                              color:
+                                  _consensusColor(item.analystRecommendation),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      if (item.analystRecommendationMean != null) ...[
+                        const SizedBox(width: 12),
+                        Text(
+                          'Mean: ${item.analystRecommendationMean!.toStringAsFixed(1)}',
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: Colors.white54),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+
+        if (item.analystCount != null) ...[
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Based on ${item.analystCount} analyst${item.analystCount! > 1 ? 's' : ''}',
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  // ── 52-Week Range Bar ─────────────────────────────────────────
 
   Widget _build52WeekRange(ThemeData theme, DiscoverStockItem item) {
     final low = item.low52w!;
@@ -495,7 +1199,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                         child: Stack(
                           clipBehavior: Clip.none,
                           children: [
-                            // Background bar
                             Positioned(
                               left: 0,
                               right: 0,
@@ -506,7 +1209,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                   borderRadius: BorderRadius.circular(2),
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppTheme.accentRed.withValues(alpha: 0.4),
+                                      AppTheme.accentRed
+                                          .withValues(alpha: 0.4),
                                       AppTheme.accentOrange
                                           .withValues(alpha: 0.4),
                                       AppTheme.accentGreen
@@ -516,7 +1220,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                                 ),
                               ),
                             ),
-                            // Current price marker
                             Positioned(
                               left: markerPos - 6,
                               top: 2,
@@ -558,7 +1261,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── Metric Section Helper ───────────────────────────────────────
+  // ── Metric Section Helper ─────────────────────────────────────
 
   Widget _buildMetricSection(
       ThemeData theme, String title, List<MetricItem> items) {
@@ -582,7 +1285,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── Peer Comparison ────────────────────────────────────────────
+  // ── Peer Comparison ───────────────────────────────────────────
 
   Widget _buildPeerComparison(ThemeData theme, DiscoverStockItem item) {
     final peersAsync = ref.watch(discoverStockPeersProvider(item.symbol));
@@ -599,7 +1302,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
 
         Widget buildPeerTile(DiscoverStockItem peer) {
           final pctChange = peer.percentChange;
-          final changeColor = pctChange != null
+          final peerChangeColor = pctChange != null
               ? (pctChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed)
               : Colors.white38;
 
@@ -609,7 +1312,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               extra: peer,
             ),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 border: Border(
                   bottom: BorderSide(
@@ -620,15 +1324,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row 1: Name + Score badge
                   Row(
                     children: [
                       Expanded(
                         child: Text(
                           peer.displayName,
                           style: bodyStyle?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                              fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -653,30 +1355,24 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // Row 2: Price, ROE, P/E, Change
                   Row(
                     children: [
-                      Text(
-                        Formatters.fullPrice(peer.lastPrice),
-                        style: bodyStyle,
-                      ),
+                      Text(Formatters.fullPrice(peer.lastPrice),
+                          style: bodyStyle),
                       const SizedBox(width: 12),
                       if (peer.roe != null) ...[
                         Text('ROE ', style: labelStyle),
                         Text(
                           '${peer.roe!.toStringAsFixed(1)}%',
                           style: bodyStyle?.copyWith(
-                            color: _roeColor(peer.roe),
-                          ),
+                              color: _roeColor(peer.roe)),
                         ),
                         const SizedBox(width: 12),
                       ],
                       if (peer.peRatio != null) ...[
                         Text('P/E ', style: labelStyle),
-                        Text(
-                          peer.peRatio!.toStringAsFixed(1),
-                          style: bodyStyle,
-                        ),
+                        Text(peer.peRatio!.toStringAsFixed(1),
+                            style: bodyStyle),
                       ],
                       const Spacer(),
                       Text(
@@ -684,7 +1380,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
                             ? '${pctChange >= 0 ? "+" : ""}${pctChange.toStringAsFixed(1)}%'
                             : '\u2014',
                         style: bodyStyle?.copyWith(
-                          color: changeColor,
+                          color: peerChangeColor,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -718,13 +1414,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     );
   }
 
-  // ── Metric Color Helpers ────────────────────────────────────────
+  // ── Color Helpers ─────────────────────────────────────────────
 
   static Color? _peColor(double? pe) {
     if (pe == null) return Colors.white38;
     if (pe < 25) return AppTheme.accentGreen;
     if (pe > 40) return AppTheme.accentRed;
-    return null; // default text color
+    return null;
   }
 
   static Color? _roeColor(double? roe) {
@@ -740,4 +1436,47 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen> {
     if (de > 1.0) return AppTheme.accentRed;
     return null;
   }
+
+  static Color? _marginColor(double? margin) {
+    if (margin == null) return Colors.white38;
+    if (margin > 0.15) return AppTheme.accentGreen;
+    if (margin < 0.05) return AppTheme.accentRed;
+    return null;
+  }
+
+  static Color _consensusColor(String? rec) {
+    final r = (rec ?? '').toLowerCase();
+    if (r.contains('buy') || r.contains('strong_buy')) return AppTheme.accentGreen;
+    if (r.contains('sell')) return AppTheme.accentRed;
+    if (r.contains('hold')) return AppTheme.accentOrange;
+    return AppTheme.accentBlue;
+  }
+
+  /// Margins from Yahoo come as decimals (0.25 = 25%). Format as percentage.
+  static String _marginPct(double? value) {
+    if (value == null) return '\u2014';
+    return '${(value * 100).toStringAsFixed(1)}%';
+  }
+
+  static Color _tagColor(String tag) {
+    final t = tag.toLowerCase();
+    if (t.contains('momentum') || t.contains('trending')) return AppTheme.accentBlue;
+    if (t.contains('value') || t.contains('undervalued')) return AppTheme.accentGreen;
+    if (t.contains('growth') || t.contains('growing')) return AppTheme.accentTeal;
+    if (t.contains('risk') || t.contains('volatile')) return AppTheme.accentRed;
+    if (t.contains('dividend') || t.contains('yield')) return AppTheme.accentOrange;
+    if (t.contains('quality') || t.contains('strong')) return Colors.purple;
+    return Colors.white54;
+  }
+}
+
+// ── Private data holder ─────────────────────────────────────────
+
+class _HoldingEntry {
+  final String label;
+  final double value;
+  final Color color;
+  final double? change;
+
+  const _HoldingEntry(this.label, this.value, this.color, this.change);
 }
