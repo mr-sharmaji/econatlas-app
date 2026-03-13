@@ -84,15 +84,21 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     });
   }
 
+  int _activeFilterCount(DiscoverMutualFundFilters filters) {
+    int count = 0;
+    if (filters.minScore != 40) count++;
+    if (filters.riskLevel != 'All') count++;
+    if (filters.maxExpenseRatio != null) count++;
+    if (filters.minReturn1y != null) count++;
+    if (filters.minReturn3y != null) count++;
+    if (filters.minReturn5y != null) count++;
+    if (filters.minAumCr != null) count++;
+    if (filters.minFundAge != null) count++;
+    return count;
+  }
+
   bool _hasActiveFilters(DiscoverMutualFundFilters filters) {
-    return filters.minScore != 40 ||
-        filters.riskLevel != 'All' ||
-        filters.maxExpenseRatio != null ||
-        filters.minReturn1y != null ||
-        filters.minReturn3y != null ||
-        filters.minReturn5y != null ||
-        filters.minAumCr != null ||
-        filters.minFundAge != null;
+    return _activeFilterCount(filters) > 0;
   }
 
   /// Returns the parent segment for a given preset.
@@ -258,21 +264,25 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                         : 'Ascending',
                   ),
                 ),
-                // Filter icon
+                // Filter icon with badge
                 SizedBox(
-                  width: 32,
+                  width: 36,
                   height: 40,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.tune,
-                      size: 18,
-                      color: _hasActiveFilters(filters)
-                          ? theme.colorScheme.primary
-                          : null,
+                  child: Badge(
+                    isLabelVisible: _hasActiveFilters(filters),
+                    label: Text('${_activeFilterCount(filters)}'),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.tune,
+                        size: 18,
+                        color: _hasActiveFilters(filters)
+                            ? theme.colorScheme.primary
+                            : null,
+                      ),
+                      onPressed: () => _showAdvancedFilters(context),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: () => _showAdvancedFilters(context),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
@@ -338,21 +348,56 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               loading: () =>
                   const ShimmerList(itemCount: 8, itemHeight: 96),
               error: (err, _) => Center(
-                child: Text(
-                  friendlyErrorMessage(err),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white54),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.white24),
+                    const SizedBox(height: 12),
+                    Text(
+                      friendlyErrorMessage(err),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: Colors.white54),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          ref.invalidate(discoverMutualFundsProvider),
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
               data: (paginatedState) {
                 final items = paginatedState.items;
+                final hasMore = paginatedState.isLoadingMore;
+                final allLoaded = !hasMore && items.isNotEmpty;
                 if (items.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No mutual funds match',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: Colors.white54),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.search_off_rounded,
+                            size: 48, color: Colors.white24),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No mutual funds match your filters',
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(color: Colors.white54),
+                        ),
+                        if (_hasActiveFilters(filters)) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => ref
+                                .read(discoverMutualFundFiltersProvider.notifier)
+                                .setFilters(const DiscoverMutualFundFilters()),
+                            icon: const Icon(Icons.filter_alt_off, size: 16),
+                            label: const Text('Clear Filters'),
+                          ),
+                        ],
+                      ],
                     ),
                   );
                 }
@@ -363,15 +408,21 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   child: ListView.builder(
                     controller: _listScrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount:
-                        items.length + (paginatedState.isLoadingMore ? 1 : 0),
+                    itemCount: items.length + (hasMore ? 1 : 0) + (allLoaded ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index >= items.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
+                      if (index >= items.length && hasMore) {
+                        return const ShimmerInlineRow(height: 86);
+                      }
+                      if (index >= items.length && allLoaded) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Center(
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2)),
+                            child: Text(
+                              '${items.length} results',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.white38),
+                            ),
+                          ),
                         );
                       }
                       final item = items[index];

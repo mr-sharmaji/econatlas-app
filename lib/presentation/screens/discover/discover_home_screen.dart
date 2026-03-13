@@ -10,6 +10,7 @@ import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../../data/services/recently_viewed_service.dart';
 import '../../providers/discover_providers.dart';
+import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
 
 class DiscoverHomeScreen extends ConsumerStatefulWidget {
@@ -95,16 +96,26 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
               ref.invalidate(discoverHomeDataProvider);
             },
             child: homeAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
+              loading: () => const ShimmerDiscoverHome(),
               error: (err, _) => ListView(
                 children: [
                   const SizedBox(height: 80),
+                  const Icon(Icons.cloud_off_rounded,
+                      size: 48, color: Colors.white24),
+                  const SizedBox(height: 12),
                   Center(
                     child: Text(
                       friendlyErrorMessage(err),
                       style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Center(
+                    child: OutlinedButton.icon(
+                      onPressed: () =>
+                          ref.invalidate(discoverHomeDataProvider),
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
                     ),
                   ),
                 ],

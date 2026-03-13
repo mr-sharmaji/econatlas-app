@@ -97,21 +97,27 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     });
   }
 
+  int _activeFilterCount(DiscoverStockFilters filters) {
+    int count = 0;
+    if (filters.sector != 'All') count++;
+    if (filters.minScore != 40) count++;
+    if (filters.minPe != null) count++;
+    if (filters.maxPe != null) count++;
+    if (filters.minRoe != null) count++;
+    if (filters.maxDebtToEquity != null) count++;
+    if (filters.minMarketCap != null) count++;
+    if (filters.maxMarketCap != null) count++;
+    if (filters.minDividendYield != null) count++;
+    if (filters.minPb != null) count++;
+    if (filters.maxPb != null) count++;
+    if (filters.minPrice != null) count++;
+    if (filters.maxPrice != null) count++;
+    if (filters.minRoce != null) count++;
+    return count;
+  }
+
   bool _hasActiveFilters(DiscoverStockFilters filters) {
-    return filters.sector != 'All' ||
-        filters.minScore != 40 ||
-        filters.minPe != null ||
-        filters.maxPe != null ||
-        filters.minRoe != null ||
-        filters.maxDebtToEquity != null ||
-        filters.minMarketCap != null ||
-        filters.maxMarketCap != null ||
-        filters.minDividendYield != null ||
-        filters.minPb != null ||
-        filters.maxPb != null ||
-        filters.minPrice != null ||
-        filters.maxPrice != null ||
-        filters.minRoce != null;
+    return _activeFilterCount(filters) > 0;
   }
 
   @override
@@ -241,21 +247,25 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                         filters.sortOrder == 'desc' ? 'Descending' : 'Ascending',
                   ),
                 ),
-                // Filter icon
+                // Filter icon with badge
                 SizedBox(
-                  width: 32,
+                  width: 36,
                   height: 40,
-                  child: IconButton(
-                    icon: Icon(
-                      Icons.tune,
-                      size: 18,
-                      color: _hasActiveFilters(filters)
-                          ? theme.colorScheme.primary
-                          : null,
+                  child: Badge(
+                    isLabelVisible: _hasActiveFilters(filters),
+                    label: Text('${_activeFilterCount(filters)}'),
+                    child: IconButton(
+                      icon: Icon(
+                        Icons.tune,
+                        size: 18,
+                        color: _hasActiveFilters(filters)
+                            ? theme.colorScheme.primary
+                            : null,
+                      ),
+                      onPressed: () => _showAdvancedFilters(context),
+                      padding: EdgeInsets.zero,
+                      visualDensity: VisualDensity.compact,
                     ),
-                    onPressed: () => _showAdvancedFilters(context),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
                   ),
                 ),
               ],
@@ -305,21 +315,56 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
               loading: () =>
                   const ShimmerList(itemCount: 8, itemHeight: 90),
               error: (err, _) => Center(
-                child: Text(
-                  friendlyErrorMessage(err),
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white54),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.error_outline,
+                        size: 48, color: Colors.white24),
+                    const SizedBox(height: 12),
+                    Text(
+                      friendlyErrorMessage(err),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: Colors.white54),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: () =>
+                          ref.invalidate(discoverStocksProvider),
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
               data: (paginatedState) {
                 final items = paginatedState.items;
+                final hasMore = paginatedState.isLoadingMore;
+                final allLoaded = !hasMore && items.isNotEmpty;
                 if (items.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No stocks match',
-                      style: theme.textTheme.bodyMedium
-                          ?.copyWith(color: Colors.white54),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.search_off_rounded,
+                            size: 48, color: Colors.white24),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No stocks match your filters',
+                          style: theme.textTheme.bodyMedium
+                              ?.copyWith(color: Colors.white54),
+                        ),
+                        if (_hasActiveFilters(filters)) ...[
+                          const SizedBox(height: 16),
+                          OutlinedButton.icon(
+                            onPressed: () => ref
+                                .read(discoverStockFiltersProvider.notifier)
+                                .setFilters(const DiscoverStockFilters()),
+                            icon: const Icon(Icons.filter_alt_off, size: 16),
+                            label: const Text('Clear Filters'),
+                          ),
+                        ],
+                      ],
                     ),
                   );
                 }
@@ -331,15 +376,21 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                   child: ListView.builder(
                     controller: _listScrollController,
                     padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount:
-                        items.length + (paginatedState.isLoadingMore ? 1 : 0),
+                    itemCount: items.length + (hasMore ? 1 : 0) + (allLoaded ? 1 : 0),
                     itemBuilder: (context, index) {
-                      if (index >= items.length) {
-                        return const Padding(
-                          padding: EdgeInsets.all(16),
+                      if (index >= items.length && hasMore) {
+                        return const ShimmerInlineRow(height: 80);
+                      }
+                      if (index >= items.length && allLoaded) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Center(
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2)),
+                            child: Text(
+                              '${items.length} results',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.white38),
+                            ),
+                          ),
                         );
                       }
                       final item = items[index];

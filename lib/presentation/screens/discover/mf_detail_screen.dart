@@ -8,6 +8,7 @@ import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/chart_widget.dart';
+import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
 import 'widgets/metric_grid.dart';
 
@@ -50,11 +51,27 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return detailAsync.when(
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('Fund Detail')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const ShimmerMfDetail(),
       ),
       error: (err, _) => Scaffold(
         appBar: AppBar(title: const Text('Fund Detail')),
-        body: const Center(child: Text('Error loading fund details')),
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline, size: 48, color: Colors.white24),
+              const SizedBox(height: 12),
+              const Text('Error loading fund details'),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(
+                    discoverMfDetailProvider(widget.schemeCode)),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
       ),
       data: (loadedItem) {
         item = loadedItem;

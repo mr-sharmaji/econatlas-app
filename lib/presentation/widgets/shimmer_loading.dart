@@ -52,6 +52,230 @@ class ShimmerList extends StatelessWidget {
   }
 }
 
+/// Shimmer skeleton for the Discover home feed (search + chips + horizontal sections).
+class ShimmerDiscoverHome extends StatelessWidget {
+  const ShimmerDiscoverHome({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF21262D) : Colors.grey.shade300;
+    final highlight = isDark ? const Color(0xFF30363D) : Colors.grey.shade100;
+
+    Widget bar(double w, double h) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(h / 2),
+          ),
+        );
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        children: [
+          // Search bar placeholder
+          Container(
+            height: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Chip row placeholder
+          Row(children: [
+            bar(70, 28),
+            const SizedBox(width: 8),
+            bar(90, 28),
+            const SizedBox(width: 8),
+            bar(80, 28),
+          ]),
+          const SizedBox(height: 24),
+          // Section title + horizontal cards (×3)
+          for (int i = 0; i < 3; i++) ...[
+            bar(140, 16),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 100,
+              child: Row(children: [
+                for (int j = 0; j < 3; j++) ...[
+                  Expanded(
+                    child: Container(
+                      margin: EdgeInsets.only(right: j < 2 ? 8 : 0),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ]),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Shimmer skeleton for stock detail screen (title + chart + metrics).
+class ShimmerStockDetail extends StatelessWidget {
+  const ShimmerStockDetail({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF21262D) : Colors.grey.shade300;
+    final highlight = isDark ? const Color(0xFF30363D) : Colors.grey.shade100;
+
+    Widget bar(double w, double h) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(h / 2),
+          ),
+        );
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title + price
+            bar(180, 20),
+            const SizedBox(height: 8),
+            bar(120, 14),
+            const SizedBox(height: 24),
+            // Chart placeholder
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Period chips
+            Row(children: [
+              for (int i = 0; i < 5; i++) ...[
+                bar(48, 28),
+                if (i < 4) const SizedBox(width: 8),
+              ],
+            ]),
+            const SizedBox(height: 24),
+            // Metrics grid (2×3)
+            for (int i = 0; i < 3; i++) ...[
+              Row(children: [
+                Expanded(child: bar(double.infinity, 48)),
+                const SizedBox(width: 12),
+                Expanded(child: bar(double.infinity, 48)),
+              ]),
+              const SizedBox(height: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shimmer skeleton for mutual fund detail screen.
+class ShimmerMfDetail extends StatelessWidget {
+  const ShimmerMfDetail({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF21262D) : Colors.grey.shade300;
+    final highlight = isDark ? const Color(0xFF30363D) : Colors.grey.shade100;
+
+    Widget bar(double w, double h) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(h / 2),
+          ),
+        );
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Fund name
+            bar(240, 18),
+            const SizedBox(height: 8),
+            bar(160, 14),
+            const SizedBox(height: 24),
+            // Chart placeholder
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Returns row
+            Row(children: [
+              for (int i = 0; i < 3; i++) ...[
+                Expanded(child: bar(double.infinity, 56)),
+                if (i < 2) const SizedBox(width: 12),
+              ],
+            ]),
+            const SizedBox(height: 24),
+            // Info rows
+            for (int i = 0; i < 4; i++) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [bar(100, 14), bar(60, 14)],
+              ),
+              const SizedBox(height: 16),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Inline shimmer row for pagination loading.
+class ShimmerInlineRow extends StatelessWidget {
+  final double height;
+  const ShimmerInlineRow({super.key, this.height = 80});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Shimmer.fromColors(
+      baseColor: isDark ? const Color(0xFF21262D) : Colors.grey.shade300,
+      highlightColor: isDark ? const Color(0xFF30363D) : Colors.grey.shade100,
+      child: Container(
+        height: height,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}
+
 class ShimmerHorizontalList extends StatelessWidget {
   final int itemCount;
   final double itemWidth;
