@@ -47,7 +47,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _tabIndex = _tabController.index);
@@ -98,12 +98,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   static String _pct(double? value) {
     if (value == null) return '\u2014';
     return '${value.toStringAsFixed(1)}%';
-  }
-
-  static String _pctSigned(double? value) {
-    if (value == null) return '\u2014';
-    final sign = value >= 0 ? '+' : '';
-    return '$sign${value.toStringAsFixed(1)}%';
   }
 
   static String _ratio(double? value, {int decimals = 2}) {
@@ -309,7 +303,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   Tab(text: 'Overview'),
                   Tab(text: 'Fundamentals'),
                   Tab(text: 'Ownership'),
-                  Tab(text: 'Analyst'),
                 ],
               ),
             ),
@@ -481,10 +474,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       segments.add(ScoreSegment(
           label: 'Ownership', value: item.scoreOwnership!, color: Colors.purple));
     }
-    if (item.scoreAnalyst != null) {
-      segments.add(ScoreSegment(
-          label: 'Analyst', value: item.scoreAnalyst!, color: Colors.lightBlue));
-    }
+
 
     return Card(
       margin: EdgeInsets.zero,
@@ -528,8 +518,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         return _buildFundamentalsTab(theme, item);
       case 2:
         return _buildOwnershipTab(theme, item);
-      case 3:
-        return _buildAnalystTab(theme, item);
       default:
         return const SizedBox.shrink();
     }
@@ -966,196 +954,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   // ── ANALYST TAB ───────────────────────────────────────────────
 
-  Widget _buildAnalystTab(ThemeData theme, DiscoverStockItem item) {
-    final hasData = item.analystTargetMean != null ||
-        item.analystRecommendation != null ||
-        item.analystCount != null;
-
-    if (!hasData) {
-      return Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Icon(Icons.analytics_outlined,
-                    size: 40, color: Colors.white24),
-                const SizedBox(height: 12),
-                Text(
-                  'No analyst data available',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white38),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    // Upside %
-    double? upsidePct;
-    if (item.analystTargetMean != null && item.lastPrice > 0) {
-      upsidePct =
-          ((item.analystTargetMean! - item.lastPrice) / item.lastPrice) * 100;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Target Price Card
-        if (item.analystTargetMean != null)
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Target Price',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Current',
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: Colors.white38)),
-                            const SizedBox(height: 2),
-                            Text(
-                              '\u20B9${Formatters.fullPrice(item.lastPrice)}',
-                              style: theme.textTheme.titleMedium
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(Icons.arrow_forward,
-                          color: Colors.white38, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text('Target Mean',
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: Colors.white38)),
-                            const SizedBox(height: 2),
-                            Text(
-                              '\u20B9${Formatters.fullPrice(item.analystTargetMean!)}',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.accentBlue,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (upsidePct != null) ...[
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: _changeColor(upsidePct).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        'Upside: ${_pctSigned(upsidePct)}',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: _changeColor(upsidePct),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-
-        if (item.analystRecommendation != null ||
-            item.analystRecommendationMean != null) ...[
-          const SizedBox(height: 14),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Consensus',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      if (item.analystRecommendation != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: _consensusColor(item.analystRecommendation)
-                                .withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: _consensusColor(item.analystRecommendation)
-                                  .withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Text(
-                            item.analystRecommendation!.toUpperCase(),
-                            style: theme.textTheme.labelLarge?.copyWith(
-                              color:
-                                  _consensusColor(item.analystRecommendation),
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      if (item.analystRecommendationMean != null) ...[
-                        const SizedBox(width: 12),
-                        Text(
-                          'Mean: ${item.analystRecommendationMean!.toStringAsFixed(1)}',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white54),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-
-        if (item.analystCount != null) ...[
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Text(
-              'Based on ${item.analystCount} analyst${item.analystCount! > 1 ? 's' : ''}',
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-
   // ── 52-Week Range Bar ─────────────────────────────────────────
 
   Widget _build52WeekRange(ThemeData theme, DiscoverStockItem item) {
@@ -1442,14 +1240,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     if (margin > 0.15) return AppTheme.accentGreen;
     if (margin < 0.05) return AppTheme.accentRed;
     return null;
-  }
-
-  static Color _consensusColor(String? rec) {
-    final r = (rec ?? '').toLowerCase();
-    if (r.contains('buy') || r.contains('strong_buy')) return AppTheme.accentGreen;
-    if (r.contains('sell')) return AppTheme.accentRed;
-    if (r.contains('hold')) return AppTheme.accentOrange;
-    return AppTheme.accentBlue;
   }
 
   /// Margins from Yahoo come as decimals (0.25 = 25%). Format as percentage.
