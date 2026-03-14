@@ -108,7 +108,7 @@ class _MarketOverviewGrid extends ConsumerWidget {
         final usdInrPrice =
             allPrices.where((p) => p.asset == 'USD/INR').toList();
         final usdInrRate =
-            usdInrPrice.isNotEmpty ? usdInrPrice.first.price : 84.0;
+            usdInrPrice.isNotEmpty ? usdInrPrice.first.price : null;
 
         final watchlistAssets = watchlistAsync.valueOrNull;
         if (watchlistAssets == null) {
@@ -164,7 +164,7 @@ class _DashboardWatchlistRow {
 
 class _DashboardTile extends StatelessWidget {
   final MarketPrice price;
-  final double usdInrRate;
+  final double? usdInrRate;
   final UnitSystem unitSystem;
   final String phase;
 
@@ -180,20 +180,22 @@ class _DashboardTile extends StatelessWidget {
     final theme = Theme.of(context);
     final isCommodity = price.instrumentType == 'commodity';
     final isCrypto = price.instrumentType == 'crypto';
-    final useIndianCommodity =
-        unitSystem == UnitSystem.indian && (isCommodity || isCrypto);
+    final useIndianCommodity = unitSystem == UnitSystem.indian &&
+        usdInrRate != null &&
+        (isCommodity || isCrypto);
+    final fx = usdInrRate ?? 1.0;
     final displayValue = assetDisplayValue(
       asset: price.asset,
       rawPrice: price.price,
       useIndianUnits: useIndianCommodity,
-      usdInrRate: usdInrRate,
+      usdInrRate: fx,
       instrumentType: price.instrumentType,
     );
     final display = assetDisplayPriceAndUnit(
       asset: price.asset,
       rawPrice: price.price,
       useIndianUnits: useIndianCommodity,
-      usdInrRate: usdInrRate,
+      usdInrRate: fx,
       instrumentType: price.instrumentType,
       sourceUnit: price.unit,
     );
@@ -206,7 +208,7 @@ class _DashboardTile extends StatelessWidget {
             asset: price.asset,
             rawPrice: price.previousClose!,
             useIndianUnits: useIndianCommodity,
-            usdInrRate: usdInrRate,
+            usdInrRate: fx,
             instrumentType: price.instrumentType,
           );
     final changeTag = Formatters.changeWithDiff(

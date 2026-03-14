@@ -25,8 +25,7 @@ class CommodityDetailScreen extends ConsumerStatefulWidget {
       _CommodityDetailScreenState();
 }
 
-class _CommodityDetailScreenState
-    extends ConsumerState<CommodityDetailScreen> {
+class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
   ChartRange _chartRange = ChartRange.oneDay;
 
   // Commodity category labels for the context line
@@ -70,17 +69,18 @@ class _CommodityDetailScreenState
     final phase = normalizeMarketPhase(currentPrice?.marketPhase);
     final chartTzId = ref.watch(chartTimezoneProvider).id;
     final usdInrRate = marketAsync.valueOrNull
-            ?.where((p) => p.asset == 'USD/INR')
-            .map((p) => p.price)
-            .firstOrNull ??
-        84.0;
-    final useIndian = unitSystem == UnitSystem.indian;
+        ?.where((p) => p.asset == 'USD/INR')
+        .map((p) => p.price)
+        .firstOrNull;
+    final effectiveUsdInrRate = usdInrRate ?? 1.0;
+    final useIndian =
+        unitSystem == UnitSystem.indian && usdInrRate != null && usdInrRate > 0;
     final display = currentPrice != null
         ? assetDisplayPriceAndUnit(
             asset: widget.asset,
             rawPrice: currentPrice.price,
             useIndianUnits: useIndian,
-            usdInrRate: usdInrRate,
+            usdInrRate: effectiveUsdInrRate,
             instrumentType: 'commodity',
             sourceUnit: currentPrice.unit,
           )
@@ -177,7 +177,7 @@ class _CommodityDetailScreenState
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
-                                usdInrRate: usdInrRate,
+                                usdInrRate: effectiveUsdInrRate,
                                 instrumentType: 'commodity',
                               ))
                           .toList()
@@ -214,7 +214,7 @@ class _CommodityDetailScreenState
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
-                                usdInrRate: usdInrRate,
+                                usdInrRate: effectiveUsdInrRate,
                                 instrumentType: 'commodity',
                               ))
                           .toList()
@@ -254,7 +254,7 @@ class _CommodityDetailScreenState
                             asset: widget.asset,
                             rawPrice: currentPrice.price,
                             useIndianUnits: true,
-                            usdInrRate: usdInrRate,
+                            usdInrRate: effectiveUsdInrRate,
                             instrumentType: 'commodity',
                           )
                         : currentPrice.price)
@@ -307,15 +307,13 @@ class _CommodityDetailScreenState
           ),
           child: Text(
             category,
-            style: theme.textTheme.bodySmall
-                ?.copyWith(color: Colors.white54),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ),
         const SizedBox(width: 8),
         Text(
           exchange,
-          style:
-              theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
         ),
       ],
     );
@@ -367,8 +365,7 @@ class _CommodityDetailScreenState
         ? Formatters.updatedFreshness(lastTick, allowJustNow: true)
         : Formatters.updatedFreshness(lastTick);
     final isPositive = (rangePct ?? 0) >= 0;
-    final changeColor =
-        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -387,8 +384,7 @@ class _CommodityDetailScreenState
             if (rangePct != null) ...[
               const SizedBox(width: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: changeColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -530,8 +526,7 @@ class _SessionRangeCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(2),
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppTheme.accentRed
-                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentRed.withValues(alpha: 0.4),
                                       AppTheme.accentOrange
                                           .withValues(alpha: 0.4),
                                       AppTheme.accentGreen
@@ -580,8 +575,8 @@ class _SessionRangeCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _miniStat(
-                      theme, 'Open', '$pricePrefix${Formatters.fullPrice(open)}'),
+                  child: _miniStat(theme, 'Open',
+                      '$pricePrefix${Formatters.fullPrice(open)}'),
                 ),
                 const SizedBox(width: 12),
                 Expanded(

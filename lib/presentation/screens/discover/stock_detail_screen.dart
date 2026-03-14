@@ -498,8 +498,58 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     color: ScoreBar.scoreColor(item.score),
                   ),
                 ),
+                const SizedBox(width: 8),
+                // Data quality badge
+                if (item.scoreBreakdown.dataQuality != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: item.scoreBreakdown.dataQuality == 'full'
+                          ? Colors.green.withValues(alpha: 0.15)
+                          : item.scoreBreakdown.dataQuality == 'partial'
+                              ? Colors.orange.withValues(alpha: 0.15)
+                              : Colors.red.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      item.scoreBreakdown.dataQuality == 'full'
+                          ? 'High Confidence'
+                          : item.scoreBreakdown.dataQuality == 'partial'
+                              ? 'Medium'
+                              : 'Low',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: item.scoreBreakdown.dataQuality == 'full'
+                            ? Colors.green
+                            : item.scoreBreakdown.dataQuality == 'partial'
+                                ? Colors.orange
+                                : Colors.red,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 10,
+                      ),
+                    ),
+                  ),
               ],
             ),
+            // Score trend badge
+            if (item.previousScore != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                item.score > item.previousScore!
+                    ? '\u2191 from ${item.previousScore!.toStringAsFixed(0)} last week'
+                    : item.score < item.previousScore!
+                        ? '\u2193 from ${item.previousScore!.toStringAsFixed(0)} last week'
+                        : 'unchanged from last week',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: item.score > item.previousScore!
+                      ? Colors.green
+                      : item.score < item.previousScore!
+                          ? Colors.red
+                          : Colors.white38,
+                  fontSize: 11,
+                ),
+              ),
+            ],
             const SizedBox(height: 14),
             ScoreBreakdownBar(segments: segments),
           ],
@@ -558,7 +608,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         ],
 
         // Why Ranked
-        if (item.whyRanked.isNotEmpty) ...[
+        if (item.scoreBreakdown.whyNarrative != null || item.whyRanked.isNotEmpty) ...[
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -571,6 +621,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700),
                   ),
+                  if (item.scoreBreakdown.whyNarrative != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      item.scoreBreakdown.whyNarrative!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   ...item.whyRanked.map((reason) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
@@ -859,6 +919,41 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ),
+        // Pledged shares warning
+        if (item.pledgedPromoterPct != null && item.pledgedPromoterPct! > 0) ...[
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: item.pledgedPromoterPct! > 20
+                  ? Colors.red.withValues(alpha: 0.1)
+                  : Colors.orange.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: item.pledgedPromoterPct! > 20
+                    ? Colors.red.withValues(alpha: 0.3)
+                    : Colors.orange.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 16,
+                  color: item.pledgedPromoterPct! > 20 ? Colors.red : Colors.orange,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Promoter Pledge: ${item.pledgedPromoterPct!.toStringAsFixed(1)}%',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: item.pledgedPromoterPct! > 20 ? Colors.red : Colors.orange,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 14),
 
         // QoQ Changes

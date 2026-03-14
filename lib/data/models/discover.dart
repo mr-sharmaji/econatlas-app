@@ -127,6 +127,7 @@ class DiscoverStockScoreBreakdown {
   final double? position52w;
   final String? fundamentalsCoverage;
   final String? dataQuality;
+  final String? whyNarrative;
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
@@ -141,6 +142,7 @@ class DiscoverStockScoreBreakdown {
     this.position52w,
     this.fundamentalsCoverage,
     this.dataQuality,
+    this.whyNarrative,
   });
 
   factory DiscoverStockScoreBreakdown.fromJson(Map<String, dynamic> json) {
@@ -157,6 +159,7 @@ class DiscoverStockScoreBreakdown {
       position52w: (json['52w_position'] as num?)?.toDouble(),
       fundamentalsCoverage: json['fundamentals_coverage'] as String?,
       dataQuality: json['data_quality'] as String?,
+      whyNarrative: json['why_narrative'] as String?,
     );
   }
 }
@@ -227,6 +230,10 @@ class DiscoverStockItem {
   final int? analystCount;
   final String? analystRecommendation;
   final double? analystRecommendationMean;
+  // Pledged shares
+  final double? pledgedPromoterPct;
+  // Score trend
+  final double? previousScore;
 
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
@@ -298,6 +305,8 @@ class DiscoverStockItem {
     this.analystCount,
     this.analystRecommendation,
     this.analystRecommendationMean,
+    this.pledgedPromoterPct,
+    this.previousScore,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -373,6 +382,9 @@ class DiscoverStockItem {
       analystRecommendation: json['analyst_recommendation'] as String?,
       analystRecommendationMean:
           (json['analyst_recommendation_mean'] as num?)?.toDouble(),
+      pledgedPromoterPct:
+          (json['pledged_promoter_pct'] as num?)?.toDouble(),
+      previousScore: (json['previous_score'] as num?)?.toDouble(),
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),

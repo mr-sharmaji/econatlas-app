@@ -171,8 +171,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'India',
                   prices: inIndices,
                 ),
-                ...inIndices
-                    .map((p) => _MarketTile(price: p)),
+                ...inIndices.map((p) => _MarketTile(price: p)),
               ],
               if (usIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -180,8 +179,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'United States',
                   prices: usIndices,
                 ),
-                ...usIndices
-                    .map((p) => _MarketTile(price: p)),
+                ...usIndices.map((p) => _MarketTile(price: p)),
               ],
               if (europeIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -189,8 +187,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'Europe',
                   prices: europeIndices,
                 ),
-                ...europeIndices
-                    .map((p) => _MarketTile(price: p)),
+                ...europeIndices.map((p) => _MarketTile(price: p)),
               ],
               if (japanIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -198,8 +195,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'Japan',
                   prices: japanIndices,
                 ),
-                ...japanIndices
-                    .map((p) => _MarketTile(price: p)),
+                ...japanIndices.map((p) => _MarketTile(price: p)),
               ],
               ...indices
                   .where((p) =>
@@ -371,12 +367,14 @@ class _CommoditiesTab extends ConsumerWidget {
     final unitSystem = ref.watch(unitSystemProvider);
     final marketAsync = ref.watch(latestMarketPricesProvider);
     final usdInrRate = marketAsync.whenOrNull(
-          data: (prices) {
-            final usdInr = prices.where((p) => p.asset == 'USD/INR').toList();
-            return usdInr.isNotEmpty ? usdInr.first.price : null;
-          },
-        ) ??
-        84.0;
+      data: (prices) {
+        final usdInr = prices.where((p) => p.asset == 'USD/INR').toList();
+        return usdInr.isNotEmpty ? usdInr.first.price : null;
+      },
+    );
+    final effectiveUsdInrRate = usdInrRate ?? 1.0;
+    final useIndianCommodityUnits =
+        unitSystem == UnitSystem.indian && usdInrRate != null && usdInrRate > 0;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -436,8 +434,8 @@ class _CommoditiesTab extends ConsumerWidget {
                 ),
                 ...precious.map((p) => _CommodityTile(
                       price: p,
-                      usdInrRate: usdInrRate,
-                      unitSystem: unitSystem,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
                     )),
               ],
               if (industrial.isNotEmpty) ...[
@@ -448,8 +446,8 @@ class _CommoditiesTab extends ConsumerWidget {
                 ),
                 ...industrial.map((p) => _CommodityTile(
                       price: p,
-                      usdInrRate: usdInrRate,
-                      unitSystem: unitSystem,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
                     )),
               ],
               if (energy.isNotEmpty) ...[
@@ -460,14 +458,14 @@ class _CommoditiesTab extends ConsumerWidget {
                 ),
                 ...energy.map((p) => _CommodityTile(
                       price: p,
-                      usdInrRate: usdInrRate,
-                      unitSystem: unitSystem,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
                     )),
               ],
               ...others.map((p) => _CommodityTile(
                     price: p,
-                    usdInrRate: usdInrRate,
-                    unitSystem: unitSystem,
+                    usdInrRate: effectiveUsdInrRate,
+                    useIndianCommodityUnits: useIndianCommodityUnits,
                   )),
             ],
           );
@@ -605,18 +603,15 @@ class _RegionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     // Compute trend summary from changePercent
-    final changes = prices
-        .map((p) => p.changePercent)
-        .whereType<double>()
-        .toList();
+    final changes =
+        prices.map((p) => p.changePercent).whereType<double>().toList();
     final upCount = changes.where((c) => c >= 0).length;
     final downCount = changes.where((c) => c < 0).length;
     final avgChange = changes.isNotEmpty
         ? changes.fold<double>(0, (s, c) => s + c) / changes.length
         : null;
     final avgPositive = (avgChange ?? 0) >= 0;
-    final avgColor =
-        avgPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgColor = avgPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
@@ -837,7 +832,14 @@ class _CryptoTab extends ConsumerWidget {
 
   final ScrollController scrollController;
 
-  static const _layer1 = {'bitcoin', 'ethereum', 'bnb', 'solana', 'cardano', 'avalanche'};
+  static const _layer1 = {
+    'bitcoin',
+    'ethereum',
+    'bnb',
+    'solana',
+    'cardano',
+    'avalanche'
+  };
   static const _defi = {'chainlink', 'polkadot'};
   static const _meme = {'dogecoin', 'xrp'};
 
@@ -880,10 +882,8 @@ class _CryptoTab extends ConsumerWidget {
 
           final layer1 =
               ordered.where((p) => _layer1.contains(p.asset)).toList();
-          final defi =
-              ordered.where((p) => _defi.contains(p.asset)).toList();
-          final meme =
-              ordered.where((p) => _meme.contains(p.asset)).toList();
+          final defi = ordered.where((p) => _defi.contains(p.asset)).toList();
+          final meme = ordered.where((p) => _meme.contains(p.asset)).toList();
           final others = ordered
               .where((p) =>
                   !_layer1.contains(p.asset) &&
@@ -1058,12 +1058,12 @@ class _CryptoTile extends StatelessWidget {
 class _CommodityTile extends StatelessWidget {
   final MarketPrice price;
   final double usdInrRate;
-  final UnitSystem unitSystem;
+  final bool useIndianCommodityUnits;
 
   const _CommodityTile({
     required this.price,
     required this.usdInrRate,
-    required this.unitSystem,
+    required this.useIndianCommodityUnits,
   });
 
   @override
@@ -1072,11 +1072,10 @@ class _CommodityTile extends StatelessWidget {
     final phase = normalizeMarketPhase(price.marketPhase);
     final tickTs = price.lastTickTimestamp ?? price.timestamp;
 
-    final useIndianCommodity = unitSystem == UnitSystem.indian;
     final display = assetDisplayPriceAndUnit(
       asset: price.asset,
       rawPrice: price.price,
-      useIndianUnits: useIndianCommodity,
+      useIndianUnits: useIndianCommodityUnits,
       usdInrRate: usdInrRate,
       instrumentType: 'commodity',
       sourceUnit: price.unit,
@@ -1086,7 +1085,7 @@ class _CommodityTile extends StatelessWidget {
     final displayValue = assetDisplayValue(
       asset: price.asset,
       rawPrice: price.price,
-      useIndianUnits: useIndianCommodity,
+      useIndianUnits: useIndianCommodityUnits,
       usdInrRate: usdInrRate,
       instrumentType: 'commodity',
     );
@@ -1096,7 +1095,7 @@ class _CommodityTile extends StatelessWidget {
         : assetDisplayValue(
             asset: price.asset,
             rawPrice: price.previousClose!,
-            useIndianUnits: useIndianCommodity,
+            useIndianUnits: useIndianCommodityUnits,
             usdInrRate: usdInrRate,
             instrumentType: 'commodity',
           );
@@ -1272,18 +1271,20 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             .firstOrNull;
     final currentPrice = latestResolvedPrice ?? widget.initialPrice;
     final usdInrRate = latestMarketAsync.valueOrNull
-            ?.where((p) => p.asset == 'USD/INR')
-            .map((p) => p.price)
-            .firstOrNull ??
-        84.0;
+        ?.where((p) => p.asset == 'USD/INR')
+        .map((p) => p.price)
+        .firstOrNull;
+    final effectiveUsdInrRate = usdInrRate ?? 1.0;
     final useIndian = unitSystem == UnitSystem.indian;
+    final useIndianCommodityUnits =
+        useIndian && isCommodity && usdInrRate != null && usdInrRate > 0;
     final instType = currentPrice?.instrumentType ?? initialInstType;
     final display = currentPrice != null
         ? assetDisplayPriceAndUnit(
             asset: widget.asset,
             rawPrice: currentPrice.price,
-            useIndianUnits: useIndian && isCommodity,
-            usdInrRate: usdInrRate,
+            useIndianUnits: useIndianCommodityUnits,
+            usdInrRate: effectiveUsdInrRate,
             instrumentType: instType,
             sourceUnit: currentPrice.unit,
           )
@@ -1380,8 +1381,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 priceForTop: currentPrice,
                 intradayFor1D: intradayChartList,
                 asset: widget.asset,
-                useIndianCommodityUnits: useIndian && isCommodity,
-                usdInrRate: usdInrRate,
+                useIndianCommodityUnits: useIndianCommodityUnits,
+                usdInrRate: effectiveUsdInrRate,
                 phase: phase,
                 showTickAge: hasAuthoritativeTick,
               ),
@@ -1416,13 +1417,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 List<double> statsPrices;
 
                 if (useIntraday) {
-                  chartPrices = isCommodity && useIndian
+                  chartPrices = useIndianCommodityUnits
                       ? intradayChartList
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
-                                usdInrRate: usdInrRate,
+                                usdInrRate: effectiveUsdInrRate,
                                 instrumentType: 'commodity',
                               ))
                           .toList()
@@ -1432,25 +1433,24 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   final intradayStatsSource = intradayStatsList.isNotEmpty
                       ? intradayStatsList
                       : intradayChartList;
-                  statsPrices = isCommodity && useIndian
+                  statsPrices = useIndianCommodityUnits
                       ? intradayStatsSource
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
-                                usdInrRate: usdInrRate,
+                                usdInrRate: effectiveUsdInrRate,
                                 instrumentType: 'commodity',
                               ))
                           .toList()
                       : intradayStatsSource.map((p) => p.price).toList();
                   isIntradayChart = true;
-                  chartUnit = isCommodity && useIndian
+                  chartUnit = useIndianCommodityUnits
                       ? null
                       : (isCurrency ? 'inr' : displayUnit);
-                  prefix =
-                      (isCommodity && useIndian) || isCurrency ? '₹ ' : null;
+                  prefix = useIndianCommodityUnits || isCurrency ? '₹ ' : null;
                   chartUnitHint =
-                      (isCommodity && useIndian && displayUnit != null)
+                      (useIndianCommodityUnits && displayUnit != null)
                           ? '₹$displayUnit'
                           : null;
                 } else {
@@ -1476,13 +1476,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       ),
                     );
                   }
-                  chartPrices = isCommodity && useIndian
+                  chartPrices = useIndianCommodityUnits
                       ? filtered
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
-                                usdInrRate: usdInrRate,
+                                usdInrRate: effectiveUsdInrRate,
                                 instrumentType: 'commodity',
                               ))
                           .toList()
@@ -1490,13 +1490,12 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   chartTimestamps = filtered.map((p) => p.timestamp).toList();
                   statsPrices = chartPrices;
                   isIntradayChart = false;
-                  chartUnit = isCommodity && useIndian
+                  chartUnit = useIndianCommodityUnits
                       ? null
                       : (isCurrency ? 'inr' : filtered.first.unit);
-                  prefix =
-                      (isCommodity && useIndian) || isCurrency ? '₹ ' : null;
+                  prefix = useIndianCommodityUnits || isCurrency ? '₹ ' : null;
                   chartUnitHint =
-                      (isCommodity && useIndian && displayUnit != null)
+                      (useIndianCommodityUnits && displayUnit != null)
                           ? '₹$displayUnit'
                           : (chartUnit == 'percent' ? 'Yield %' : chartUnit);
                 }
@@ -1523,10 +1522,9 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 final close = statsPrices.last;
                 final high = statsPrices.reduce((a, b) => a > b ? a : b);
                 final low = statsPrices.reduce((a, b) => a < b ? a : b);
-                final currentVal =
-                    currentPrice != null && display != null
-                        ? statsPrices.last
-                        : close;
+                final currentVal = currentPrice != null && display != null
+                    ? statsPrices.last
+                    : close;
 
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1581,16 +1579,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           ),
           child: Text(
             badge,
-            style:
-                theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ),
         if (ctx.isNotEmpty) ...[
           const SizedBox(width: 8),
           Text(
             ctx,
-            style:
-                theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
           ),
         ],
       ],
@@ -1658,12 +1654,10 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
       }
     }
 
-    final isPositive =
-        (rangeCurrentDisplay != null && rangeBaseDisplay != null)
-            ? (rangeCurrentDisplay - rangeBaseDisplay) >= 0
-            : ((rangePct ?? 0) >= 0);
-    final changeColor =
-        isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final isPositive = (rangeCurrentDisplay != null && rangeBaseDisplay != null)
+        ? (rangeCurrentDisplay - rangeBaseDisplay) >= 0
+        : ((rangePct ?? 0) >= 0);
+    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     final lastTick = (intradayFor1D != null && intradayFor1D.isNotEmpty)
         ? intradayFor1D.last.timestamp
@@ -1691,8 +1685,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             if (rangePct != null) ...[
               const SizedBox(width: 10),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: changeColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
@@ -1862,8 +1855,7 @@ class _SessionRangeCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(2),
                                   gradient: LinearGradient(
                                     colors: [
-                                      AppTheme.accentRed
-                                          .withValues(alpha: 0.4),
+                                      AppTheme.accentRed.withValues(alpha: 0.4),
                                       AppTheme.accentOrange
                                           .withValues(alpha: 0.4),
                                       AppTheme.accentGreen
