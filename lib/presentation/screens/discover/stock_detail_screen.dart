@@ -474,7 +474,25 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       segments.add(ScoreSegment(
           label: 'Ownership', value: item.scoreOwnership!, color: Colors.purple));
     }
-
+    // v0.4 scores
+    if (item.scoreValuation != null) {
+      segments.add(ScoreSegment(
+          label: 'Valuation',
+          value: item.scoreValuation!,
+          color: const Color(0xFFFFB74D)));
+    }
+    if (item.scoreEarningsQuality != null) {
+      segments.add(ScoreSegment(
+          label: 'Earnings Quality',
+          value: item.scoreEarningsQuality!,
+          color: const Color(0xFF4DB6AC)));
+    }
+    if (item.scoreSmartMoney != null) {
+      segments.add(ScoreSegment(
+          label: 'Smart Money',
+          value: item.scoreSmartMoney!,
+          color: const Color(0xFF7986CB)));
+    }
 
     return Card(
       margin: EdgeInsets.zero,

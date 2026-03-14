@@ -128,6 +128,10 @@ class DiscoverStockScoreBreakdown {
   final String? fundamentalsCoverage;
   final String? dataQuality;
   final String? whyNarrative;
+  // v0.4 scores
+  final double? valuation;
+  final double? earningsQuality;
+  final double? smartMoney;
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
@@ -143,6 +147,9 @@ class DiscoverStockScoreBreakdown {
     this.fundamentalsCoverage,
     this.dataQuality,
     this.whyNarrative,
+    this.valuation,
+    this.earningsQuality,
+    this.smartMoney,
   });
 
   factory DiscoverStockScoreBreakdown.fromJson(Map<String, dynamic> json) {
@@ -160,6 +167,9 @@ class DiscoverStockScoreBreakdown {
       fundamentalsCoverage: json['fundamentals_coverage'] as String?,
       dataQuality: json['data_quality'] as String?,
       whyNarrative: json['why_narrative'] as String?,
+      valuation: (json['valuation'] as num?)?.toDouble(),
+      earningsQuality: (json['earnings_quality'] as num?)?.toDouble(),
+      smartMoney: (json['smart_money'] as num?)?.toDouble(),
     );
   }
 }
@@ -197,6 +207,10 @@ class DiscoverStockItem {
   final double? scoreFinancialHealth;
   final double? scoreOwnership;
   final double? scoreAnalyst;
+  // v0.4 scores
+  final double? scoreValuation;
+  final double? scoreEarningsQuality;
+  final double? scoreSmartMoney;
   final double? percentChange3m;
   final double? percentChange1w;
   final double? percentChange1y;
@@ -275,6 +289,9 @@ class DiscoverStockItem {
     this.scoreFinancialHealth,
     this.scoreOwnership,
     this.scoreAnalyst,
+    this.scoreValuation,
+    this.scoreEarningsQuality,
+    this.scoreSmartMoney,
     this.percentChange3m,
     this.percentChange1w,
     this.percentChange1y,
@@ -350,6 +367,10 @@ class DiscoverStockItem {
           (json['score_financial_health'] as num?)?.toDouble(),
       scoreOwnership: (json['score_ownership'] as num?)?.toDouble(),
       scoreAnalyst: (json['score_analyst'] as num?)?.toDouble(),
+      scoreValuation: (json['score_valuation'] as num?)?.toDouble(),
+      scoreEarningsQuality:
+          (json['score_earnings_quality'] as num?)?.toDouble(),
+      scoreSmartMoney: (json['score_smart_money'] as num?)?.toDouble(),
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
       percentChange1y: (json['percent_change_1y'] as num?)?.toDouble(),
