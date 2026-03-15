@@ -292,10 +292,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   pricePrefix: '\u20B9 ',
                 );
               },
-              loading: () => const SizedBox(
-                height: 180,
-                child: Center(child: CircularProgressIndicator()),
-              ),
+              loading: () => const ShimmerCard(height: 180),
               error: (_, __) => const SizedBox(
                 height: 180,
                 child: Center(child: Text('Failed to load chart')),
@@ -621,7 +618,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           height: 180,
           child: RadarChartWidget(dimensions: dimensions),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
@@ -857,14 +854,26 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
+  /// Find a TagV2 explanation by matching tag name (case-insensitive).
+  String? _findTagExplanation(List<TagV2>? tags, String tagName) {
+    if (tags == null) return null;
+    final lower = tagName.toLowerCase();
+    for (final t in tags) {
+      if (t.tag.toLowerCase() == lower && t.explanation != null) return t.explanation;
+    }
+    return null;
+  }
+
   Widget _buildVerdictSignals(ThemeData theme, StockStory story, List<TagV2>? tags) {
     final chips = <Widget>[];
     if (story.lynchClassification != null) {
+      final lynchLabel = _formatActionTag(story.lynchClassification!);
       chips.add(_storyChip(theme, Icons.category,
-          _formatActionTag(story.lynchClassification!), AppTheme.accentBlue,
-          explanation: 'Peter Lynch classification based on growth & earnings profile'));
+          lynchLabel, AppTheme.accentBlue,
+          explanation: _findTagExplanation(tags, lynchLabel)));
     }
     if (story.trendAlignment != null) {
+      final tLabel = 'Trend: ${_capitalize(story.trendAlignment!)}';
       final tColor = story.trendAlignment == 'aligned'
           ? AppTheme.accentGreen
           : story.trendAlignment == 'conflicting'
@@ -875,19 +884,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           : story.trendAlignment == 'conflicting'
               ? Icons.cancel_outlined
               : Icons.warning_amber_rounded;
-      final tTooltip = story.trendAlignment == 'aligned'
-          ? 'Fundamental and technical signals agree'
-          : story.trendAlignment == 'conflicting'
-              ? 'Fundamental and technical signals disagree'
-              : 'Mixed signals between fundamentals and technicals';
-      chips.add(_storyChip(
-          theme, icon, 'Trend: ${_capitalize(story.trendAlignment!)}', tColor,
-          explanation: tTooltip));
+      chips.add(_storyChip(theme, icon, tLabel, tColor,
+          explanation: _findTagExplanation(tags, tLabel)));
     }
     if (story.breakoutSignal != null && story.breakoutSignal != 'none') {
-      chips.add(_storyChip(theme, Icons.flash_on,
-          _formatActionTag(story.breakoutSignal!), AppTheme.accentTeal,
-          explanation: 'Price breakout signal based on 52-week range & volume'));
+      final bLabel = _formatActionTag(story.breakoutSignal!);
+      chips.add(_storyChip(theme, Icons.flash_on, bLabel, AppTheme.accentTeal,
+          explanation: _findTagExplanation(tags, bLabel)));
     }
 
     // Bullish/Bearish Trend from DMA data
@@ -902,7 +905,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           isBullish ? Icons.trending_up : Icons.trending_down,
           dmaTag.tag,
           isBullish ? AppTheme.accentGreen : AppTheme.accentRed,
-          explanation: dmaTag.explanation ?? 'Based on 50-DMA and 200-DMA alignment',
+          explanation: dmaTag.explanation,
         ));
       }
     }
@@ -1140,26 +1143,41 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     // Compute QoQ + YoY changes from shareholdingQuarterly JSONB
     final changes = _computeHoldingChanges(item.shareholdingQuarterly);
 
+    // Build holder rows — skip when value is 0 AND no QoQ/YoY data
+    bool _showHolder(double? val, double? qoq, double? yoy) {
+      if (val == null) return false;
+      if (val != 0) return true;
+      // Value is 0 — only show if there's meaningful change data
+      return (qoq != null && qoq != 0) || (yoy != null && yoy != 0);
+    }
+
+    final promQoq = item.promoterHoldingChange ?? changes['promoter']?['qoq'];
+    final promYoy = changes['promoter']?['yoy'];
+    final fiiQoq = item.fiiHoldingChange ?? changes['fii']?['qoq'];
+    final fiiYoy = changes['fii']?['yoy'];
+    final diiQoq = item.diiHoldingChange ?? changes['dii']?['qoq'];
+    final diiYoy = changes['dii']?['yoy'];
+    final govtQoq = changes['government']?['qoq'];
+    final govtYoy = changes['government']?['yoy'];
+    final pubQoq = changes['public']?['qoq'];
+    final pubYoy = changes['public']?['yoy'];
+
     final holders = <_OwnershipRow>[
-      if (item.promoterHolding != null)
+      if (_showHolder(item.promoterHolding, promQoq, promYoy))
         _OwnershipRow('Promoters', item.promoterHolding!, const Color(0xFF448AFF),
-            item.promoterHoldingChange ?? changes['promoter']?['qoq'],
-            changes['promoter']?['yoy']),
-      if (item.fiiHolding != null)
+            promQoq, promYoy),
+      if (_showHolder(item.fiiHolding, fiiQoq, fiiYoy))
         _OwnershipRow('FII', item.fiiHolding!, const Color(0xFF64FFDA),
-            item.fiiHoldingChange ?? changes['fii']?['qoq'],
-            changes['fii']?['yoy']),
-      if (item.diiHolding != null)
+            fiiQoq, fiiYoy),
+      if (_showHolder(item.diiHolding, diiQoq, diiYoy))
         _OwnershipRow('DII', item.diiHolding!, const Color(0xFFFFAB40),
-            item.diiHoldingChange ?? changes['dii']?['qoq'],
-            changes['dii']?['yoy']),
-      if (item.governmentHolding != null)
+            diiQoq, diiYoy),
+      if (_showHolder(item.governmentHolding, govtQoq, govtYoy))
         _OwnershipRow('Government', item.governmentHolding!,
-            const Color(0xFFAB47BC),
-            changes['government']?['qoq'], changes['government']?['yoy']),
-      if (item.publicHolding != null)
+            const Color(0xFFAB47BC), govtQoq, govtYoy),
+      if (_showHolder(item.publicHolding, pubQoq, pubYoy))
         _OwnershipRow('Public', item.publicHolding!, const Color(0xFF78909C),
-            changes['public']?['qoq'], changes['public']?['yoy']),
+            pubQoq, pubYoy),
     ];
 
     return Column(
@@ -1288,11 +1306,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           Text('${h.value.toStringAsFixed(1)}%',
               style: theme.textTheme.bodyMedium
                   ?.copyWith(fontWeight: FontWeight.w600)),
-          if (h.qoqChange != null) ...[
+          if (h.qoqChange != null && h.qoqChange != 0) ...[
             const SizedBox(width: 8),
             _buildChangePill(theme, 'QoQ', h.qoqChange!),
           ],
-          if (h.yoyChange != null) ...[
+          if (h.yoyChange != null && h.yoyChange != 0) ...[
             const SizedBox(width: 4),
             _buildChangePill(theme, 'YoY', h.yoyChange!),
           ],
@@ -1446,16 +1464,28 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       ThemeData theme, String title, String explanation, Color color) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.cardDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               title,
               style: theme.textTheme.titleMedium?.copyWith(
@@ -1466,10 +1496,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             const SizedBox(height: 8),
             Text(
               explanation,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white70),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.5,
+              ),
             ),
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1796,7 +1828,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   List<BarGroup> _buildPlTrendGroups(Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
-    final sales = pl['sales'] as List<dynamic>?;
+    final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
     if (years.isEmpty || (sales == null && profit == null)) return [];
 
@@ -1806,7 +1838,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     for (var i = start; i < len; i++) {
       groups.add(BarGroup(
         label: _shortYear(years[i].toString()),
-        values: [_valAt(sales, i) / 100, _valAt(profit, i) / 100],
+        values: [_valAt(sales, i), _valAt(profit, i)],
       ));
     }
     return groups;

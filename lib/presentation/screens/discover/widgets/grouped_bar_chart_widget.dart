@@ -49,16 +49,24 @@ class GroupedBarChartWidget extends StatelessWidget {
     if (!dataMin.isFinite) dataMin = 0;
     if (!dataMax.isFinite) dataMax = 100;
 
-    // Pick a nice interval first, then align bounds to it
-    final rawRange = dataMax - dataMin;
-    // Choose interval that gives ~4-5 ticks
-    const niceSteps = [1.0, 2.0, 5.0, 10.0, 15.0, 20.0, 25.0, 50.0];
+    // Pick a nice interval that gives ~4-5 ticks
+    final rawRange = (dataMax - dataMin).abs();
     double interval = 10;
-    for (final s in niceSteps) {
-      if (rawRange / s <= 6 && rawRange / s >= 3) {
-        interval = s;
-        break;
+    if (rawRange > 0) {
+      final rough = rawRange / 5;
+      final magExp = (math.log(rough) / math.ln10).floorToDouble();
+      final mag = math.pow(10, magExp).toDouble();
+      final residual = rough / mag;
+      if (residual <= 1.5) {
+        interval = mag;
+      } else if (residual <= 3.5) {
+        interval = mag * 2;
+      } else if (residual <= 7.5) {
+        interval = mag * 5;
+      } else {
+        interval = mag * 10;
       }
+      if (interval < 1) interval = 1;
     }
 
     // Align chartMin/chartMax to interval boundaries
@@ -116,17 +124,29 @@ class GroupedBarChartWidget extends StatelessWidget {
               axisNameSize: yAxisLabel != null ? 16 : 0,
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 32,
+                reservedSize: 40,
                 interval: interval,
                 getTitlesWidget: (value, meta) {
                   // Hide the top edge label only
                   if (value == meta.max) {
                     return const SizedBox.shrink();
                   }
+                  // Format label: use compact notation for large values, % for percentages
+                  String label;
+                  if (yAxisLabel != null && !yAxisLabel!.contains('%')) {
+                    // Absolute values (e.g. ₹ Cr) — use compact format
+                    if (value.abs() >= 10000) {
+                      label = '${(value / 1000).toStringAsFixed(0)}K';
+                    } else {
+                      label = value.toInt().toString();
+                    }
+                  } else {
+                    label = '${value.toInt()}%';
+                  }
                   return Padding(
                     padding: const EdgeInsets.only(right: 4),
                     child: Text(
-                      '${value.toInt()}%',
+                      label,
                       style: const TextStyle(
                         color: Colors.white38,
                         fontSize: 10,
@@ -187,8 +207,17 @@ class GroupedBarChartWidget extends StatelessWidget {
               getTooltipColor: (_) => const Color(0xFF1E1E2C),
               getTooltipItem: (group, groupIdx, rod, rodIdx) {
                 final val = rod.fromY < 0 ? rod.fromY : rod.toY;
+                final isPercent = yAxisLabel == null || yAxisLabel!.contains('%');
+                String text;
+                if (isPercent) {
+                  text = '${val.toStringAsFixed(1)}%';
+                } else if (val.abs() >= 10000) {
+                  text = '${(val / 1000).toStringAsFixed(1)}K Cr';
+                } else {
+                  text = '${val.toStringAsFixed(0)} Cr';
+                }
                 return BarTooltipItem(
-                  '${val.toStringAsFixed(1)}%',
+                  text,
                   const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
