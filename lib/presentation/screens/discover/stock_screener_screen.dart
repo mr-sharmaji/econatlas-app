@@ -88,6 +88,7 @@ class StockScreenerScreen extends ConsumerStatefulWidget {
 class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
   late final TextEditingController _searchController;
   late final ScrollController _listScrollController;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   Timer? _debounce;
 
   @override
@@ -199,7 +200,10 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     final changeField = _changeFieldForSort(filters.sortBy);
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(title: const Text('Stocks')),
+      endDrawer: _buildFilterDrawer(filters),
+      endDrawerEnableOpenDragGesture: false,
       body: Column(
         children: [
           // Row 1: Search + Sort & Filter pill
@@ -595,36 +599,34 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Unified Sort & Filter bottom sheet
+  // Open Sort & Filter endDrawer
   // ---------------------------------------------------------------------------
   void _showSortAndFilterSheet(BuildContext context) {
-    final current = ref.read(discoverStockFiltersProvider);
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
+  Widget _buildFilterDrawer(DiscoverStockFilters current) {
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.82,
       backgroundColor: const Color(0xFF0F1E31),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return _SortFilterSheetBody(
+      child: SafeArea(
+        child: _SortFilterSheetBody(
           initial: current,
           onApply: (newFilters) {
             ref
                 .read(discoverStockFiltersProvider.notifier)
                 .setFilters(newFilters);
-            Navigator.pop(sheetContext);
+            _scaffoldKey.currentState?.closeEndDrawer();
           },
           onReset: () {
             ref
                 .read(discoverStockFiltersProvider.notifier)
                 .setFilters(const DiscoverStockFilters());
             _searchController.clear();
-            Navigator.pop(sheetContext);
+            _scaffoldKey.currentState?.closeEndDrawer();
           },
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -908,7 +910,7 @@ class _SortFilterSheetBodyState extends State<_SortFilterSheetBody> {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: 8,
+        top: 12,
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: SingleChildScrollView(
@@ -916,19 +918,6 @@ class _SortFilterSheetBodyState extends State<_SortFilterSheetBody> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
             // Header: Sort & Filter + Reset
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

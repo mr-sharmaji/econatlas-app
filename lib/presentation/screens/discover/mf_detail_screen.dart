@@ -17,6 +17,7 @@ import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
 import 'widgets/stat_card.dart';
+import 'widgets/tag_utils.dart';
 
 enum _ReturnMode { xirr, cagr }
 
@@ -240,6 +241,18 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const SizedBox(height: 12),
             ],
 
+            // -- Why Ranked --
+            if (item.whyRanked.isNotEmpty) ...[
+              _buildWhyRankedCard(theme),
+              const SizedBox(height: 12),
+            ],
+
+            // Tags grouped by category
+            if (item.tags.isNotEmpty) ...[
+              _buildGroupedTags(theme, item.tags),
+              const SizedBox(height: 12),
+            ],
+
             // -- Category Rank --
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
@@ -264,6 +277,189 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             const SizedBox(height: 12),
 
             const SizedBox(height: 24),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Why Ranked --
+
+  Widget _buildWhyRankedCard(ThemeData theme) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.lightbulb_outline,
+                    size: 18, color: AppTheme.accentOrange),
+                const SizedBox(width: 8),
+                Text(
+                  'Why Ranked',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...item.whyRanked.map((reason) => Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 6),
+                        child: Icon(Icons.circle,
+                            size: 5, color: Colors.white38),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          reason,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: Colors.white70),
+                        ),
+                      ),
+                    ],
+                  ),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Grouped Tags --
+
+  Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
+    final grouped = groupTagsByCategory(tags);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tags',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            ...grouped.entries.map((entry) {
+              final catLabel = categoryLabel(entry.key);
+              final catIcon = categoryIcon(entry.key);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(catIcon, size: 14, color: Colors.white38),
+                        const SizedBox(width: 6),
+                        Text(
+                          catLabel,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white38,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: entry.value.map((tag) {
+                        final td = getTagV2Display(tag);
+                        return GestureDetector(
+                          onTap: tag.explanation != null
+                              ? () => _showTagExplanation(theme, tag)
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: td.color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: td.color.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(td.icon, size: 14, color: td.color),
+                                const SizedBox(width: 4),
+                                Text(
+                                  td.label,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: td.color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (tag.explanation != null) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.info_outline,
+                                      size: 12,
+                                      color: td.color.withValues(alpha: 0.6)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTagExplanation(ThemeData theme, TagV2 tag) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tag.tag,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: severityColor(tag.severity),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tag.explanation!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white70),
+            ),
+            if (tag.confidence != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Confidence: ${(tag.confidence! * 100).toStringAsFixed(0)}%',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.white38),
+              ),
+            ],
+            const SizedBox(height: 16),
           ],
         ),
       ),

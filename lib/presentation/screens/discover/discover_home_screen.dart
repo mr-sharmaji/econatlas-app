@@ -336,34 +336,38 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildQuickCategories(List<QuickCategory> apiCategories) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
+    // Fixed quick-access grid of curated categories
+    final gridItems = <({String label, IconData icon, VoidCallback onTap})>[
+      (
+        label: 'All Stocks',
+        icon: Icons.bar_chart_rounded,
+        onTap: () =>
+            context.push('/discover/stocks', extra: const {'preset': 'all'}),
+      ),
+      (
+        label: 'All MFs',
+        icon: Icons.account_balance_rounded,
+        onTap: () => context.push('/discover/mutual-funds'),
+      ),
+      ...apiCategories.take(6).map((cat) => (
+            label: cat.name,
+            icon: _quickCategoryIcon(cat) ?? Icons.label_outline,
+            onTap: () => _onQuickCategoryTap(cat),
+          )),
+    ];
+
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: Row(
-        children: [
-          _CategoryChip(
-            label: 'All Stocks',
-            icon: Icons.bar_chart_rounded,
-            onTap: () =>
-                context.push('/discover/stocks', extra: const {'preset': 'all'}),
-          ),
-          const SizedBox(width: 8),
-          _CategoryChip(
-            label: 'All MFs',
-            icon: Icons.account_balance_rounded,
-            onTap: () => context.push('/discover/mutual-funds'),
-          ),
-          ...apiCategories.map((cat) {
-            return Padding(
-              padding: const EdgeInsets.only(left: 8),
-              child: _CategoryChip(
-                label: cat.name,
-                icon: _quickCategoryIcon(cat),
-                onTap: () => _onQuickCategoryTap(cat),
-              ),
-            );
-          }),
-        ],
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: gridItems.map((item) {
+          return _CategoryChip(
+            label: item.label,
+            icon: item.icon,
+            onTap: item.onTap,
+          );
+        }).toList(),
       ),
     );
   }

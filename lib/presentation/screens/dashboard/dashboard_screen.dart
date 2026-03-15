@@ -131,10 +131,17 @@ class _MarketOverviewGrid extends ConsumerWidget {
           return const EmptyView(message: 'Your watchlist is empty');
         }
 
+        final pricesWithData = rows
+            .where((r) => r.price != null)
+            .map((r) => r.price!)
+            .toList();
+
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             children: [
+              if (pricesWithData.isNotEmpty)
+                _WatchlistHealthCard(prices: pricesWithData),
               for (final row in rows)
                 row.price != null
                     ? _DashboardTile(
@@ -307,6 +314,140 @@ class _DashboardTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _WatchlistHealthCard extends StatelessWidget {
+  final List<MarketPrice> prices;
+
+  const _WatchlistHealthCard({required this.prices});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = prices.length;
+    final gainers =
+        prices.where((p) => (p.changePercent ?? 0) > 0).length;
+    final losers =
+        prices.where((p) => (p.changePercent ?? 0) < 0).length;
+    final unchanged = total - gainers - losers;
+    final avgChange = prices.fold<double>(
+          0,
+          (sum, p) => sum + (p.changePercent ?? 0),
+        ) /
+        total;
+    final avgColor = avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgSign = avgChange >= 0 ? '+' : '';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.monitor_heart_outlined,
+                    size: 18, color: AppTheme.accentBlue),
+                const SizedBox(width: 8),
+                Text(
+                  'Watchlist Health',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: avgColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Avg $avgSign${avgChange.toStringAsFixed(2)}%',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: avgColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _HealthStat(
+                  label: 'Total',
+                  value: '$total',
+                  color: AppTheme.accentBlue,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Gainers',
+                  value: '$gainers',
+                  color: AppTheme.accentGreen,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Losers',
+                  value: '$losers',
+                  color: AppTheme.accentRed,
+                ),
+                if (unchanged > 0) ...[
+                  const SizedBox(width: 16),
+                  _HealthStat(
+                    label: 'Flat',
+                    value: '$unchanged',
+                    color: Colors.white38,
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HealthStat extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color color;
+
+  const _HealthStat({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: color,
+            fontFeatures: const [FontFeature.tabularFigures()],
+          ),
+        ),
+        Text(
+          label,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white30,
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
 }

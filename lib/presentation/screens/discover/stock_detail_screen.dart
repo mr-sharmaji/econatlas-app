@@ -8,7 +8,9 @@ import '../../../data/models/discover.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
+import '../../providers/settings_providers.dart';
 import 'widgets/score_bar.dart';
+import 'widgets/score_fingerprint.dart';
 import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
 import 'widgets/stat_card.dart';
@@ -157,6 +159,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }
 
   Widget _buildContent(ThemeData theme, DiscoverStockItem item) {
+    // Watch expert mode to trigger rebuild when toggled
+    ref.watch(expertModeProvider);
     final historyAsync = ref.watch(
       discoverStockHistoryProvider((symbol: item.symbol, days: _selectedDays)),
     );
@@ -780,7 +784,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // 6-layer radar or fallback breakdown
             if (item.scoreBreakdown.has6LayerScores) ...[
-              _build6LayerRadar(theme, item),
+              if (ref.read(expertModeProvider))
+                _build6LayerRadar(theme, item)
+              else
+                // Compact: just show score fingerprint + tier text
+                _buildCompactScoreSection(theme, item),
             ] else ...[
               // Fallback: legacy ScoreBreakdownBar
               ScoreBreakdownBar(segments: _buildLegacySegments(item)),
@@ -981,38 +989,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           const SizedBox(height: 12),
         ],
 
-        // Tags (using tag_utils)
+        // Tags grouped by category
         if (item.tags.isNotEmpty) ...[
-          Wrap(
-            spacing: 8,
-            runSpacing: 6,
-            children: item.tags.map((tag) {
-              final td = getTagV2Display(tag);
-              return Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: td.color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: td.color.withValues(alpha: 0.3)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(td.icon, size: 14, color: td.color),
-                    const SizedBox(width: 4),
-                    Text(
-                      td.label,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: td.color,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }).toList(),
-          ),
+          _buildGroupedTags(theme, item.tags),
           const SizedBox(height: 12),
         ],
 
@@ -2435,6 +2414,180 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   static String _marginPct(double? value) {
     if (value == null) return '\u2014';
     return '${(value * 100).toStringAsFixed(1)}%';
+  }
+
+  Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
+    final grouped = groupTagsByCategory(tags);
+    final isExpert = ref.read(expertModeProvider);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Tags',
+              style: theme.textTheme.titleSmall
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 10),
+            ...grouped.entries.map((entry) {
+              final catLabel = categoryLabel(entry.key);
+              final catIcon = categoryIcon(entry.key);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(catIcon, size: 14, color: Colors.white38),
+                        const SizedBox(width: 6),
+                        Text(
+                          catLabel,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white38,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 6,
+                      children: (isExpert ? entry.value : entry.value.take(3)).map((tag) {
+                        final td = getTagV2Display(tag);
+                        return GestureDetector(
+                          onTap: tag.explanation != null
+                              ? () => _showTagExplanation(theme, tag)
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: td.color.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                  color: td.color.withValues(alpha: 0.3)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(td.icon, size: 14, color: td.color),
+                                const SizedBox(width: 4),
+                                Text(
+                                  td.label,
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: td.color,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                if (tag.explanation != null) ...[
+                                  const SizedBox(width: 4),
+                                  Icon(Icons.info_outline,
+                                      size: 12,
+                                      color: td.color.withValues(alpha: 0.6)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showTagExplanation(ThemeData theme, TagV2 tag) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tag.tag,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: severityColor(tag.severity),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tag.explanation!,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white70),
+            ),
+            if (tag.confidence != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                'Confidence: ${(tag.confidence! * 100).toStringAsFixed(0)}%',
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: Colors.white38),
+              ),
+            ],
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCompactScoreSection(ThemeData theme, DiscoverStockItem item) {
+    final sb = item.scoreBreakdown;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            ScoreFingerprint(
+              quality: sb.quality,
+              valuation: sb.valuation,
+              growth: sb.growth,
+              momentum: sb.momentum,
+              institutional: sb.institutional,
+              risk: sb.risk,
+              dotSize: 12,
+            ),
+            const SizedBox(width: 12),
+            Text(
+              item.qualityTier ?? '',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: ScoreBar.scoreColor(item.score),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        if (sb.whyNarrative != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            sb.whyNarrative!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white70,
+              height: 1.4,
+            ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ],
+    );
   }
 }
 
