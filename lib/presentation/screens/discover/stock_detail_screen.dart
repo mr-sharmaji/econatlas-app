@@ -10,7 +10,6 @@ import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
 import '../../providers/settings_providers.dart';
 import 'widgets/score_bar.dart';
-import 'widgets/score_fingerprint.dart';
 import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
 import 'widgets/stat_card.dart';
@@ -55,7 +54,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _tabIndex = _tabController.index);
@@ -343,6 +342,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             _buildScoreCard(theme, item),
             const SizedBox(height: 8),
 
+            // ── Tags (outside tabs) ──
+            if (item.tags.isNotEmpty) ...[
+              _buildGroupedTags(theme, item.tags
+                  .where((t) => t.tag != 'Bullish Trend' && t.tag != 'Bearish Trend')
+                  .toList()),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Peer Comparison ──
+            _buildPeerComparison(theme, item),
+            const SizedBox(height: 8),
+
             // ── TabBar ──
             Container(
               decoration: BoxDecoration(
@@ -358,7 +369,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     ?.copyWith(fontWeight: FontWeight.w700),
                 unselectedLabelStyle: theme.textTheme.labelMedium,
                 tabs: const [
-                  Tab(text: 'Insights'),
                   Tab(text: 'Financials'),
                   Tab(text: 'Ownership'),
                 ],
@@ -368,10 +378,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // ── Tab Content (indexed, no TabBarView) ──
             _buildTabContent(theme, item),
-            const SizedBox(height: 8),
-
-            // ── Peer Comparison (always visible) ──
-            _buildPeerComparison(theme, item),
             const SizedBox(height: 16),
           ],
         ),
@@ -687,137 +693,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   Widget _buildTabContent(ThemeData theme, DiscoverStockItem item) {
     switch (_tabIndex) {
       case 0:
-        return _buildInsightsTab(theme, item);
-      case 1:
         return _buildFinancialsTab(theme, item);
-      case 2:
+      case 1:
         return _buildOwnershipTab(theme, item);
       default:
         return const SizedBox.shrink();
     }
-  }
-
-  // ── INSIGHTS TAB (was Overview) ─────────────────────────────
-
-  Widget _buildInsightsTab(ThemeData theme, DiscoverStockItem item) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Why Ranked
-        if (item.whyRanked.isNotEmpty) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.lightbulb_outline,
-                          size: 18, color: AppTheme.accentOrange),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Key Insights',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...item.whyRanked.map((reason) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Icon(Icons.circle,
-                                  size: 5, color: Colors.white38),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                reason,
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: Colors.white70),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-
-        // Tags grouped by category (filter DMA trend — shown in verdict card)
-        if (item.tags.isNotEmpty) ...[
-          _buildGroupedTags(theme, item.tags
-              .where((t) => t.tag != 'Bullish Trend' && t.tag != 'Bearish Trend')
-              .toList()),
-          const SizedBox(height: 8),
-        ],
-
-        // Key Metrics — 2x2 StatCard grid (P/E, ROE, D/E, Market Cap)
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Key Highlights',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
-                  children: [
-                    StatCard(
-                      label: item.sectorPercentile != null
-                          ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
-                          : 'P/E Ratio',
-                      value: _ratio(item.peRatio, decimals: 1),
-                      valueColor: _peColor(item.peRatio),
-                      tooltip: metricExplanations['pe_ratio'],
-                    ),
-                    StatCard(
-                      label: 'ROE',
-                      value: _pct(item.roe),
-                      valueColor: _roeColor(item.roe),
-                      tooltip: metricExplanations['roe'],
-                    ),
-                    StatCard(
-                      label: 'D/E Ratio',
-                      value: _ratio(item.debtToEquity),
-                      valueColor: _deColor(item.debtToEquity),
-                      tooltip: metricExplanations['debt_to_equity'],
-                    ),
-                    StatCard(
-                      label: 'Market Cap',
-                      value: item.marketCap != null
-                          ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
-                          : '\u2014',
-                      tooltip: metricExplanations['market_cap'],
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
   }
 
   // ── Action Verdict Helpers ──────────────────────────────────
@@ -1020,7 +901,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  // ── FINANCIALS TAB (was Fundamentals) ───────────────────────
+  // ── FINANCIALS TAB ──────────────────────────────────────────
 
   Widget _buildFinancialsTab(ThemeData theme, DiscoverStockItem item) {
     // FCF Yield = freeCashFlow / (marketCap * 1e7) * 100  (marketCap is in Cr)
@@ -1034,6 +915,113 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Key Highlights (P/E, ROE, D/E, Market Cap)
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Overview',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 8),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    StatCard(
+                      label: item.sectorPercentile != null
+                          ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
+                          : 'P/E Ratio',
+                      value: _ratio(item.peRatio, decimals: 1),
+                      valueColor: _peColor(item.peRatio),
+                      metricKey: 'pe_ratio',
+                    ),
+                    StatCard(
+                      label: 'ROE',
+                      value: _pct(item.roe),
+                      valueColor: _roeColor(item.roe),
+                      metricKey: 'roe',
+                    ),
+                    StatCard(
+                      label: 'D/E Ratio',
+                      value: _ratio(item.debtToEquity),
+                      valueColor: _deColor(item.debtToEquity),
+                      metricKey: 'debt_to_equity',
+                    ),
+                    StatCard(
+                      label: 'Market Cap',
+                      value: item.marketCap != null
+                          ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
+                          : '\u2014',
+                      metricKey: 'market_cap',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // Key Insights (whyRanked)
+        if (item.whyRanked.isNotEmpty) ...[
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.lightbulb_outline,
+                          size: 18, color: AppTheme.accentOrange),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Key Insights',
+                        style: theme.textTheme.titleSmall
+                            ?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...item.whyRanked.map((reason) => Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(top: 6),
+                              child: Icon(Icons.circle,
+                                  size: 5, color: Colors.white38),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                reason,
+                                style: theme.textTheme.bodySmall
+                                    ?.copyWith(color: Colors.white70),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ],
+
         // Profitability & Growth (merged)
         Card(
           margin: EdgeInsets.zero,
@@ -1775,6 +1763,20 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           return v >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
         }
 
+        Widget buildActionIcon(String? actionTag) {
+          if (actionTag == null) return const SizedBox(width: 18);
+          final color = _actionTagColor(actionTag);
+          final icon = _actionTagIcon(actionTag);
+          return Icon(icon, size: 14, color: color);
+        }
+
+        String fmtMcap(double? v) {
+          if (v == null) return '\u2014';
+          if (v >= 1e5) return '${(v / 1e5).toStringAsFixed(1)}L';
+          if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(0)}K';
+          return '${v.toStringAsFixed(0)}';
+        }
+
         Widget buildRow(DiscoverStockItem stock, {bool highlight = false}) {
           return InkWell(
             onTap: highlight
@@ -1798,6 +1800,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               ),
               child: Row(
                 children: [
+                  SizedBox(width: 18, child: buildActionIcon(stock.actionTag)),
+                  const SizedBox(width: 4),
                   Expanded(
                     flex: 3,
                     child: Text(
@@ -1823,19 +1827,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     ),
                   ),
                   SizedBox(
-                    width: 42,
+                    width: 48,
                     child: Text(
-                      stock.roe != null
-                          ? '${stock.roe!.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      style: cellStyle.copyWith(color: _roeColor(stock.roe)),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 36,
-                    child: Text(
-                      stock.debtToEquity?.toStringAsFixed(1) ?? '\u2014',
+                      fmtMcap(stock.marketCap),
                       style: cellStyle,
                       textAlign: TextAlign.right,
                     ),
@@ -1865,7 +1859,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Peers in ${item.sector ?? "Sector"}',
+                  'Peers in ${item.industry ?? item.sector ?? "Sector"}',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -1874,6 +1868,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
                     children: const [
+                      SizedBox(width: 22),
                       Expanded(
                           flex: 3,
                           child: Text('Stock', style: headerStyle)),
@@ -1888,13 +1883,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               style: headerStyle,
                               textAlign: TextAlign.right)),
                       SizedBox(
-                          width: 42,
-                          child: Text('ROE',
-                              style: headerStyle,
-                              textAlign: TextAlign.right)),
-                      SizedBox(
-                          width: 36,
-                          child: Text('D/E',
+                          width: 48,
+                          child: Text('Mkt Cap',
                               style: headerStyle,
                               textAlign: TextAlign.right)),
                       SizedBox(
@@ -2267,35 +2257,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  Widget _buildCompactScoreSection(ThemeData theme, DiscoverStockItem item) {
-    final sb = item.scoreBreakdown;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            ScoreFingerprint(
-              quality: sb.quality,
-              valuation: sb.valuation,
-              growth: sb.growth,
-              momentum: sb.momentum,
-              institutional: sb.institutional,
-              risk: sb.risk,
-              dotSize: 12,
-            ),
-            const SizedBox(width: 12),
-            Text(
-              item.qualityTier ?? '',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: ScoreBar.scoreColor(item.score),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
 }
 
 // ── Private data holders ─────────────────────────────────────────
