@@ -497,6 +497,46 @@ class RemoteDataSource {
         .toList();
   }
 
+  Future<Map<String, List<PriceHistoryPoint>>> getStockSparklines({
+    required List<String> symbols,
+    int days = 7,
+  }) async {
+    final response = await _dio.get(
+      '/screener/stocks/sparklines',
+      queryParameters: {
+        'symbols': symbols.join(','),
+        'days': days,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    return data.map((key, value) {
+      final points = (value as List<dynamic>)
+          .map((e) => PriceHistoryPoint.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return MapEntry(key, points);
+    });
+  }
+
+  Future<Map<String, List<PriceHistoryPoint>>> getMfSparklines({
+    required List<String> schemeCodes,
+    int days = 7,
+  }) async {
+    final response = await _dio.get(
+      '/screener/mutual-funds/sparklines',
+      queryParameters: {
+        'scheme_codes': schemeCodes.join(','),
+        'days': days,
+      },
+    );
+    final data = response.data as Map<String, dynamic>;
+    return data.map((key, value) {
+      final points = (value as List<dynamic>)
+          .map((e) => PriceHistoryPoint.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return MapEntry(key, points);
+    });
+  }
+
   Future<IpoListResponse> getIpos({
     required String status,
     int limit = 20,

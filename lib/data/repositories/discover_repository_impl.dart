@@ -161,4 +161,20 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
   }) {
     return _remote.getDiscoverMfPeers(schemeCode: schemeCode, limit: limit);
   }
+
+  @override
+  Future<Map<String, List<PriceHistoryPoint>>> getStockSparklines({
+    required List<String> symbols,
+    int days = 7,
+  }) {
+    return _remote.getStockSparklines(symbols: symbols, days: days);
+  }
+
+  @override
+  Future<Map<String, List<PriceHistoryPoint>>> getMfSparklines({
+    required List<String> schemeCodes,
+    int days = 7,
+  }) {
+    return _remote.getMfSparklines(schemeCodes: schemeCodes, days: days);
+  }
 }

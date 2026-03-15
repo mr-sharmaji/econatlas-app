@@ -6,9 +6,9 @@ import '../../../../data/models/discover.dart';
 /// A compact mutual fund card for the screener list.
 ///
 /// 3-row layout:
-/// Row 1: scheme name + 1Y return badge
-/// Row 2: category · risk · #rank of total
-/// Row 3: quality badges + compact score
+/// Row 1: display name + 1Y return badge
+/// Row 2: category · risk level
+/// Row 3: circular score + "Top X%" category rank
 class MfListTile extends StatelessWidget {
   final DiscoverMutualFundItem item;
   final VoidCallback? onTap;
@@ -23,17 +23,6 @@ class MfListTile extends StatelessWidget {
     return AppTheme.accentGray;
   }
 
-  static Color _badgeColor(String badge) {
-    final b = badge.toLowerCase();
-    if (b.contains('top performer')) return AppTheme.accentGreen;
-    if (b.contains('consistent')) return AppTheme.accentBlue;
-    if (b.contains('cost efficient')) return AppTheme.accentTeal;
-    if (b.contains('proven') || b.contains('track record')) {
-      return AppTheme.accentOrange;
-    }
-    return AppTheme.accentBlue;
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -45,7 +34,7 @@ class MfListTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest
               .withValues(alpha: 0.10),
@@ -78,7 +67,7 @@ class MfListTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}%',
+                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: retColor,
                         fontWeight: FontWeight.w700,
@@ -89,9 +78,9 @@ class MfListTile extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
-            // Row 2: Category · Risk · #Rank of Total
+            // Row 2: Category · Risk level
             Row(
               children: [
                 if (item.category != null)
@@ -108,50 +97,23 @@ class MfListTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   _riskBadge(context, item.riskLevel!),
                 ],
-                if (item.categoryRank != null &&
-                    item.categoryTotal != null) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    '#${item.categoryRank} of ${item.categoryTotal}',
-                    style: theme.textTheme.labelSmall
-                        ?.copyWith(color: Colors.white38),
-                  ),
-                ],
               ],
             ),
 
             const SizedBox(height: 8),
 
-            // Row 3: Quality badges (show all) + compact score number
+            // Row 3: Circular score + "Top X%" category rank
             Row(
               children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: item.qualityBadges.map((badge) {
-                      final color = _badgeColor(badge);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          badge,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(width: 8),
                 _CompactScore(score: item.score),
+                const SizedBox(width: 10),
+                if (item.categoryRank != null &&
+                    item.categoryTotal != null &&
+                    item.categoryTotal! > 0)
+                  _CategoryRankText(
+                    rank: item.categoryRank!,
+                    total: item.categoryTotal!,
+                  ),
               ],
             ),
           ],
@@ -163,7 +125,7 @@ class MfListTile extends StatelessWidget {
   Widget _riskBadge(BuildContext context, String risk) {
     final color = riskColor(risk);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -173,8 +135,31 @@ class MfListTile extends StatelessWidget {
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
               color: color,
               fontWeight: FontWeight.w600,
-              fontSize: 10,
+              fontSize: 11,
             ),
+      ),
+    );
+  }
+}
+
+class _CategoryRankText extends StatelessWidget {
+  final int rank;
+  final int total;
+
+  const _CategoryRankText({required this.rank, required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final percentile = ((rank / total) * 100).clamp(0.0, 100.0);
+    final isTopQuartile = percentile <= 25;
+    final color = isTopQuartile ? AppTheme.accentGreen : Colors.white60;
+
+    return Text(
+      'Top ${percentile.toStringAsFixed(0)}%',
+      style: TextStyle(
+        color: color,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
@@ -182,23 +167,22 @@ class MfListTile extends StatelessWidget {
 
 /// Compact circular score indicator showing just the number.
 class _CompactScore extends StatelessWidget {
-  final double score;
+  final double? score;
 
   const _CompactScore({required this.score});
 
   @override
   Widget build(BuildContext context) {
-    final color = score >= 75
+    final s = score ?? 0;
+    final color = s >= 70
         ? AppTheme.accentGreen
-        : score >= 50
-            ? AppTheme.accentBlue
-            : score >= 25
-                ? AppTheme.accentOrange
-                : AppTheme.accentRed;
+        : s >= 40
+            ? AppTheme.accentOrange
+            : AppTheme.accentRed;
 
     return Container(
-      width: 36,
-      height: 36,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color.withValues(alpha: 0.12),
@@ -206,10 +190,10 @@ class _CompactScore extends StatelessWidget {
       ),
       alignment: Alignment.center,
       child: Text(
-        score.toInt().toString(),
+        s.toInt().toString(),
         style: TextStyle(
           color: color,
-          fontSize: 12,
+          fontSize: 13,
           fontWeight: FontWeight.w700,
         ),
       ),

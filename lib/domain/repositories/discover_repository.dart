@@ -80,4 +80,14 @@ abstract class DiscoverRepository {
     required String schemeCode,
     int limit,
   });
+
+  Future<Map<String, List<PriceHistoryPoint>>> getStockSparklines({
+    required List<String> symbols,
+    int days,
+  });
+
+  Future<Map<String, List<PriceHistoryPoint>>> getMfSparklines({
+    required List<String> schemeCodes,
+    int days,
+  });
 }

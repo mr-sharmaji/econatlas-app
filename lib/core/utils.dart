@@ -5,7 +5,7 @@ import 'constants.dart';
 
 class Formatters {
   Formatters._();
-  static const double _gramsPerOunce = 28.3495;
+  static const double _gramsPerTroyOunce = 31.1034768;
 
   static final _percentFormat = NumberFormat('0.00');
   static final _dateFormat = DateFormat('MMM d, yyyy');
@@ -215,11 +215,11 @@ class Formatters {
   }
 
   static double goldToIndian(double usdPerOz, double usdInrRate) {
-    return (usdPerOz / _gramsPerOunce) * 10 * usdInrRate;
+    return (usdPerOz / _gramsPerTroyOunce) * 10 * usdInrRate;
   }
 
   static double silverToIndian(double usdPerOz, double usdInrRate) {
-    return (usdPerOz / _gramsPerOunce) * 1000 * usdInrRate;
+    return (usdPerOz / _gramsPerTroyOunce) * 1000 * usdInrRate;
   }
 
   static double copperToIndian(double usdPerLb, double usdInrRate) {

@@ -909,6 +909,26 @@ final discoverMfPeersProvider = FutureProvider.autoDispose
 });
 
 // ---------------------------------------------------------------------------
+// Sparklines
+// ---------------------------------------------------------------------------
+
+final discoverStockSparklinesProvider = FutureProvider.autoDispose
+    .family<Map<String, List<PriceHistoryPoint>>, ({List<String> symbols, int days})>(
+        (ref, params) {
+  return ref
+      .watch(discoverRepoProvider)
+      .getStockSparklines(symbols: params.symbols, days: params.days);
+});
+
+final discoverMfSparklinesProvider = FutureProvider.autoDispose
+    .family<Map<String, List<PriceHistoryPoint>>, ({List<String> schemeCodes, int days})>(
+        (ref, params) {
+  return ref
+      .watch(discoverRepoProvider)
+      .getMfSparklines(schemeCodes: params.schemeCodes, days: params.days);
+});
+
+// ---------------------------------------------------------------------------
 // Recently Viewed
 // ---------------------------------------------------------------------------
 

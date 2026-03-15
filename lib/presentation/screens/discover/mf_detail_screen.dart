@@ -12,7 +12,10 @@ import '../../providers/discover_providers.dart';
 import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
-import 'widgets/metric_grid.dart';
+import 'widgets/metric_glossary.dart';
+import 'widgets/position_bar.dart';
+import 'widgets/radar_chart_widget.dart';
+import 'widgets/stat_card.dart';
 
 enum _ReturnMode { xirr, cagr }
 
@@ -58,7 +61,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     final detailAsync = ref.watch(discoverMfDetailProvider(widget.schemeCode));
     return detailAsync.when(
       loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Fund Detail')),
+        appBar: AppBar(title: const Text('Loading...')),
         body: const ShimmerMfDetail(),
       ),
       error: (err, _) => Scaffold(
@@ -141,7 +144,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         .label;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Fund Detail')),
+      appBar: AppBar(title: Text(item.displayName ?? item.schemeName)),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -440,44 +443,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   // -- Score Card --
 
   Widget _buildScoreCard(ThemeData theme) {
-    final segments = <ScoreSegment>[
-      ScoreSegment(
-        label: 'Return',
-        value: item.scoreReturn,
-        color: AppTheme.accentGreen,
-      ),
-      ScoreSegment(
-        label: 'Risk',
-        value: item.scoreRisk,
-        color: AppTheme.accentBlue,
-      ),
-      ScoreSegment(
-        label: 'Cost',
-        value: item.scoreCost,
-        color: AppTheme.accentTeal,
-      ),
-      ScoreSegment(
-        label: 'Consistency',
-        value: item.scoreConsistency,
-        color: AppTheme.accentOrange,
-      ),
-    ];
-
-    // Add alpha/beta score segments if non-null
-    if (item.scoreBreakdown.alphaScore != null) {
-      segments.add(ScoreSegment(
-        label: 'Alpha',
-        value: item.scoreBreakdown.alphaScore!,
-        color: AppTheme.accentGreen,
-      ));
-    }
-    if (item.scoreBreakdown.betaScore != null) {
-      segments.add(ScoreSegment(
-        label: 'Beta',
-        value: item.scoreBreakdown.betaScore!,
-        color: AppTheme.accentBlue,
-      ));
-    }
+    final breakdown = item.scoreBreakdown;
+    final hasRadarData = breakdown.returnScore > 0 ||
+        breakdown.riskScore > 0 ||
+        breakdown.costScore > 0 ||
+        breakdown.consistencyScore > 0;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -503,7 +473,101 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            ScoreBreakdownBar(segments: segments),
+
+            // Radar chart
+            if (hasRadarData) ...[
+              SizedBox(
+                height: 220,
+                child: RadarChartWidget(
+                  dimensions: [
+                    RadarDimension(
+                      label: 'Returns vs Peers',
+                      value: breakdown.returnScore,
+                    ),
+                    RadarDimension(
+                      label: 'Return Predictability',
+                      value: breakdown.consistencyScore,
+                    ),
+                    RadarDimension(
+                      label: 'Downside Protection',
+                      value: breakdown.riskScore,
+                    ),
+                    RadarDimension(
+                      label: 'Expense Efficiency',
+                      value: breakdown.costScore,
+                    ),
+                    if (breakdown.alphaScore != null)
+                      RadarDimension(
+                        label: 'Alpha Edge',
+                        value: breakdown.alphaScore!,
+                      ),
+                  ],
+                  fillColor: AppTheme.accentBlue,
+                ),
+              ),
+              const SizedBox(height: 14),
+
+              // Stat cards for each score dimension
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      label: 'Returns vs Peers',
+                      value: breakdown.returnScore.toStringAsFixed(1),
+                      valueColor: AppTheme.accentGreen,
+                      tooltip: 'How well this fund performs compared to peers in the same category.',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Predictability',
+                      value: breakdown.consistencyScore.toStringAsFixed(1),
+                      valueColor: AppTheme.accentOrange,
+                      tooltip: 'How consistent and predictable the returns are over rolling periods.',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      label: 'Downside Protection',
+                      value: breakdown.riskScore.toStringAsFixed(1),
+                      valueColor: AppTheme.accentBlue,
+                      tooltip: 'How well this fund protects against drawdowns and volatility.',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Expense Efficiency',
+                      value: breakdown.costScore.toStringAsFixed(1),
+                      valueColor: AppTheme.accentTeal,
+                      tooltip: 'How cost-efficient the fund is relative to its category peers.',
+                    ),
+                  ),
+                ],
+              ),
+              if (breakdown.alphaScore != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: StatCard(
+                        label: 'Alpha Edge',
+                        value: breakdown.alphaScore!.toStringAsFixed(1),
+                        valueColor: AppTheme.accentGreen,
+                        tooltip: 'Score based on the fund\'s excess return (alpha) over benchmark.',
+                      ),
+                    ),
+                    const Spacer(),
+                  ],
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -554,7 +618,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     required int total,
     required String label,
   }) {
-    final fraction = total > 0 ? (rank / total).clamp(0.0, 1.0) : 0.0;
     final percentile = total > 0 ? ((rank / total) * 100).round() : 0;
     final isTopQuartile = percentile <= 25;
 
@@ -595,76 +658,24 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           ],
         ),
         const SizedBox(height: 10),
-        // Visual position bar
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Stack(
-              children: [
-                Container(
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-                FractionallySizedBox(
-                  widthFactor: fraction,
-                  child: Container(
-                    height: 8,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppTheme.accentGreen,
-                          isTopQuartile
-                              ? AppTheme.accentGreen
-                              : AppTheme.accentOrange,
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: (constraints.maxWidth * fraction - 6)
-                      .clamp(0.0, constraints.maxWidth - 12),
-                  top: -2,
-                  child: Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 4,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+        PositionBar(
+          min: 1,
+          max: total.toDouble(),
+          current: rank.toDouble(),
+          minLabel: 'Best',
+          maxLabel: 'Worst',
+          color: isTopQuartile ? AppTheme.accentGreen : AppTheme.accentOrange,
         ),
-        const SizedBox(height: 6),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Best',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.white38)),
-            Text(
-              'Top $percentile%',
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: isTopQuartile ? AppTheme.accentGreen : Colors.white54,
-                fontWeight: FontWeight.w600,
-              ),
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.center,
+          child: Text(
+            'Top $percentile%',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: isTopQuartile ? AppTheme.accentGreen : Colors.white54,
+              fontWeight: FontWeight.w600,
             ),
-            Text('Worst',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.white38)),
-          ],
+          ),
         ),
       ],
     );
@@ -899,42 +910,63 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Text('Risk & Performance', style: theme.textTheme.titleSmall),
             const SizedBox(height: 12),
-            MetricGrid(
-              items: [
-                MetricItem(
-                  label: 'Sharpe',
-                  value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: _sharpeColor(item.sharpe),
+            // Row 1: Sharpe, Sortino, Max Drawdown
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Sharpe',
+                    value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _sharpeColor(item.sharpe),
+                    tooltip: metricExplanations['sharpe'],
+                  ),
                 ),
-                MetricItem(
-                  label: 'Sortino',
-                  value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: _sharpeColor(item.sortino),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Sortino',
+                    value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _sharpeColor(item.sortino),
+                    tooltip: metricExplanations['sortino'],
+                  ),
                 ),
-                MetricItem(
-                  label: 'Std Dev',
-                  value: item.stdDev?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: item.stdDev == null ? Colors.white38 : null,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Max DD',
+                    value: item.maxDrawdown != null
+                        ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
+                        : '\u2014',
+                    valueColor: _maxDrawdownColor(item.maxDrawdown),
+                    tooltip: metricExplanations['max_drawdown'],
+                  ),
                 ),
-                MetricItem(
-                  label: 'Max DD',
-                  value: item.maxDrawdown != null
-                      ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
-                      : '\u2014',
-                  valueColor: _maxDrawdownColor(item.maxDrawdown),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Row 2: Alpha, Beta
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Alpha',
+                    value: item.alpha != null
+                        ? '${item.alpha!.toStringAsFixed(1)}%'
+                        : '\u2014',
+                    valueColor: _alphaColor(item.alpha),
+                    tooltip: metricExplanations['alpha'],
+                  ),
                 ),
-                MetricItem(
-                  label: 'Alpha',
-                  value: item.alpha != null
-                      ? '${item.alpha!.toStringAsFixed(1)}%'
-                      : '\u2014',
-                  valueColor: _alphaColor(item.alpha),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Beta',
+                    value: item.beta?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _betaColor(item.beta),
+                    tooltip: metricExplanations['beta'],
+                  ),
                 ),
-                MetricItem(
-                  label: 'Beta',
-                  value: item.beta?.toStringAsFixed(2) ?? '\u2014',
-                  valueColor: _betaColor(item.beta),
-                ),
+                const Spacer(),
               ],
             ),
           ],
@@ -943,7 +975,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Key Metrics Card (without Sharpe/Sortino/StdDev - moved to Risk card) --
+  // -- Key Metrics Card --
 
   Widget _buildMetricsCard(ThemeData theme) {
     return Card(
@@ -955,32 +987,52 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Text('Key Metrics', style: theme.textTheme.titleSmall),
             const SizedBox(height: 12),
-            MetricGrid(
-              items: [
-                MetricItem(
-                  label: 'AUM',
-                  value: item.aumCr != null
-                      ? '${NumberFormat('#,##,###', 'en_IN').format(item.aumCr!.round())} Cr'
-                      : '\u2014',
-                  valueColor: item.aumCr == null ? Colors.white38 : null,
-                ),
-                MetricItem(
-                  label: 'Expense Ratio',
-                  value: item.expenseRatio != null
-                      ? '${item.expenseRatio!.toStringAsFixed(2)}%'
-                      : '\u2014',
-                  valueColor: _expenseColor(item.expenseRatio),
-                ),
-                if (item.fundAgeYears != null)
-                  MetricItem(
-                    label: 'Fund Age',
-                    value: '${item.fundAgeYears!.toStringAsFixed(1)} years',
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'AUM',
+                    value: item.aumCr != null
+                        ? '${NumberFormat('#,##,###', 'en_IN').format(item.aumCr!.round())} Cr'
+                        : '\u2014',
+                    valueColor: item.aumCr == null ? Colors.white38 : null,
+                    tooltip: metricExplanations['aum'],
                   ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Expense Ratio',
+                    value: item.expenseRatio != null
+                        ? '${item.expenseRatio!.toStringAsFixed(2)}%'
+                        : '\u2014',
+                    valueColor: _expenseColor(item.expenseRatio),
+                    tooltip: metricExplanations['expense_ratio'],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (item.fundAgeYears != null)
+                  Expanded(
+                    child: StatCard(
+                      label: 'Fund Age',
+                      value: '${item.fundAgeYears!.toStringAsFixed(1)} years',
+                    ),
+                  ),
+                if (item.fundAgeYears != null &&
+                    item.rollingReturnConsistency != null)
+                  const SizedBox(width: 8),
                 if (item.rollingReturnConsistency != null)
-                  MetricItem(
-                    label: 'Rolling Return Consistency',
-                    value:
-                        '${item.rollingReturnConsistency!.toStringAsFixed(1)}%',
+                  Expanded(
+                    child: StatCard(
+                      label: 'Rolling Consistency',
+                      value:
+                          '${item.rollingReturnConsistency!.toStringAsFixed(1)}%',
+                      tooltip: metricExplanations['rolling_return_consistency'],
+                    ),
                   ),
               ],
             ),
@@ -990,7 +1042,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- What Makes This Fund Good --
+  // -- What Makes This Fund Stand Out --
 
   List<(IconData, Color, String)> _buildQualityReasons() {
     final reasons = <(IconData, Color, String)>[];
@@ -1049,51 +1101,62 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   Widget _buildQualityReasonsInline(ThemeData theme) {
     final reasons = _buildQualityReasons();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Why This Fund Stands Out',
-          style: theme.textTheme.titleSmall?.copyWith(
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        ...reasons.map((r) {
-          final (icon, color, text) = r;
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 12),
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded,
+                    size: 18, color: AppTheme.accentOrange),
+                const SizedBox(width: 8),
+                Text(
+                  'Why This Fund Stands Out',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ...reasons.map((r) {
+              final (icon, color, text) = r;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
                 child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(6),
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(icon, size: 18, color: color),
+                      child: Icon(icon, size: 20, color: color),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        text,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          text,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
                         ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ),
-          );
-        }),
-      ],
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 

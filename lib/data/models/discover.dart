@@ -114,6 +114,7 @@ class DiscoverOverview {
 
 @immutable
 class DiscoverStockScoreBreakdown {
+  // Legacy scores (kept for backward compatibility)
   final double momentum;
   final double liquidity;
   final double fundamentals;
@@ -132,6 +133,19 @@ class DiscoverStockScoreBreakdown {
   final double? valuation;
   final double? earningsQuality;
   final double? smartMoney;
+  // 6-layer scores (from score_breakdown JSONB)
+  final double? quality;
+  final double? institutional;
+  final double? risk;
+  // Supplementary
+  final double? sectorPercentile;
+  final String? lynchClassification;
+  final String? marketRegime;
+  final double? pegRatio;
+  final double? technicalScore;
+  final double? rsi14;
+  final String? actionTag;
+  final String? actionTagReasoning;
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
@@ -150,7 +164,23 @@ class DiscoverStockScoreBreakdown {
     this.valuation,
     this.earningsQuality,
     this.smartMoney,
+    this.quality,
+    this.institutional,
+    this.risk,
+    this.sectorPercentile,
+    this.lynchClassification,
+    this.marketRegime,
+    this.pegRatio,
+    this.technicalScore,
+    this.rsi14,
+    this.actionTag,
+    this.actionTagReasoning,
   });
+
+  /// Whether the 6-layer scoring model is available.
+  bool get has6LayerScores =>
+      quality != null && quality! > 0 &&
+      valuation != null && valuation! > 0;
 
   factory DiscoverStockScoreBreakdown.fromJson(Map<String, dynamic> json) {
     return DiscoverStockScoreBreakdown(
@@ -170,6 +200,17 @@ class DiscoverStockScoreBreakdown {
       valuation: (json['valuation'] as num?)?.toDouble(),
       earningsQuality: (json['earnings_quality'] as num?)?.toDouble(),
       smartMoney: (json['smart_money'] as num?)?.toDouble(),
+      quality: (json['quality'] as num?)?.toDouble(),
+      institutional: (json['institutional'] as num?)?.toDouble(),
+      risk: (json['risk'] as num?)?.toDouble(),
+      sectorPercentile: (json['sector_percentile'] as num?)?.toDouble(),
+      lynchClassification: json['lynch_classification'] as String?,
+      marketRegime: json['market_regime'] as String?,
+      pegRatio: (json['peg_ratio'] as num?)?.toDouble(),
+      technicalScore: (json['technical_score'] as num?)?.toDouble(),
+      rsi14: (json['rsi_14'] as num?)?.toDouble(),
+      actionTag: json['action_tag'] as String?,
+      actionTagReasoning: json['action_tag_reasoning'] as String?,
     );
   }
 }
@@ -248,6 +289,32 @@ class DiscoverStockItem {
   final double? pledgedPromoterPct;
   // Score trend
   final double? previousScore;
+  // 6-layer individual scores (top-level)
+  final double? scoreQuality;
+  final double? scoreInstitutional;
+  final double? scoreRisk;
+  // Percentile & classification
+  final double? sectorPercentile;
+  final String? lynchClassification;
+  final double? pegRatio;
+  // Technical
+  final double? technicalScore;
+  final double? rsi14;
+  final String? actionTag;
+  final String? actionTagReasoning;
+  // Screener-derived signals
+  final double? salesGrowthYoy;
+  final double? profitGrowthYoy;
+  final double? compoundedSalesGrowth3y;
+  final double? compoundedProfitGrowth3y;
+  final double? cashFromOperations;
+  final double? cashFromInvesting;
+  final double? cashFromFinancing;
+  // Full annual financial tables (JSONB)
+  final Map<String, dynamic>? plAnnual;
+  final Map<String, dynamic>? bsAnnual;
+  final Map<String, dynamic>? cfAnnual;
+  final Map<String, dynamic>? shareholdingQuarterly;
 
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
@@ -324,6 +391,27 @@ class DiscoverStockItem {
     this.analystRecommendationMean,
     this.pledgedPromoterPct,
     this.previousScore,
+    this.scoreQuality,
+    this.scoreInstitutional,
+    this.scoreRisk,
+    this.sectorPercentile,
+    this.lynchClassification,
+    this.pegRatio,
+    this.technicalScore,
+    this.rsi14,
+    this.actionTag,
+    this.actionTagReasoning,
+    this.salesGrowthYoy,
+    this.profitGrowthYoy,
+    this.compoundedSalesGrowth3y,
+    this.compoundedProfitGrowth3y,
+    this.cashFromOperations,
+    this.cashFromInvesting,
+    this.cashFromFinancing,
+    this.plAnnual,
+    this.bsAnnual,
+    this.cfAnnual,
+    this.shareholdingQuarterly,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -406,6 +494,27 @@ class DiscoverStockItem {
       pledgedPromoterPct:
           (json['pledged_promoter_pct'] as num?)?.toDouble(),
       previousScore: (json['previous_score'] as num?)?.toDouble(),
+      scoreQuality: (json['score_quality'] as num?)?.toDouble(),
+      scoreInstitutional: (json['score_institutional'] as num?)?.toDouble(),
+      scoreRisk: (json['score_risk'] as num?)?.toDouble(),
+      sectorPercentile: (json['sector_percentile'] as num?)?.toDouble(),
+      lynchClassification: json['lynch_classification'] as String?,
+      pegRatio: (json['peg_ratio'] as num?)?.toDouble(),
+      technicalScore: (json['technical_score'] as num?)?.toDouble(),
+      rsi14: (json['rsi_14'] as num?)?.toDouble(),
+      actionTag: json['action_tag'] as String?,
+      actionTagReasoning: json['action_tag_reasoning'] as String?,
+      salesGrowthYoy: (json['sales_growth_yoy'] as num?)?.toDouble(),
+      profitGrowthYoy: (json['profit_growth_yoy'] as num?)?.toDouble(),
+      compoundedSalesGrowth3y: (json['compounded_sales_growth_3y'] as num?)?.toDouble(),
+      compoundedProfitGrowth3y: (json['compounded_profit_growth_3y'] as num?)?.toDouble(),
+      cashFromOperations: (json['cash_from_operations'] as num?)?.toDouble(),
+      cashFromInvesting: (json['cash_from_investing'] as num?)?.toDouble(),
+      cashFromFinancing: (json['cash_from_financing'] as num?)?.toDouble(),
+      plAnnual: json['pl_annual'] as Map<String, dynamic>?,
+      bsAnnual: json['bs_annual'] as Map<String, dynamic>?,
+      cfAnnual: json['cf_annual'] as Map<String, dynamic>?,
+      shareholdingQuarterly: json['shareholding_quarterly'] as Map<String, dynamic>?,
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
@@ -533,6 +642,10 @@ class DiscoverMutualFundItem {
   final double scoreRisk;
   final double scoreCost;
   final double scoreConsistency;
+  final double? scorePerformance;
+  final double? scoreCategoryFit;
+  final double? subCategoryPercentile;
+  final String? fundClassification;
   final DiscoverMutualFundScoreBreakdown scoreBreakdown;
   final List<String> tags;
   final List<String> whyRanked;
@@ -582,6 +695,10 @@ class DiscoverMutualFundItem {
     required this.scoreRisk,
     required this.scoreCost,
     required this.scoreConsistency,
+    this.scorePerformance,
+    this.scoreCategoryFit,
+    this.subCategoryPercentile,
+    this.fundClassification,
     required this.scoreBreakdown,
     required this.tags,
     required this.whyRanked,
@@ -641,6 +758,10 @@ class DiscoverMutualFundItem {
       scoreRisk: (json['score_risk'] as num?)?.toDouble() ?? 0,
       scoreCost: (json['score_cost'] as num?)?.toDouble() ?? 0,
       scoreConsistency: (json['score_consistency'] as num?)?.toDouble() ?? 0,
+      scorePerformance: (json['score_performance'] as num?)?.toDouble(),
+      scoreCategoryFit: (json['score_category_fit'] as num?)?.toDouble(),
+      subCategoryPercentile: (json['sub_category_percentile'] as num?)?.toDouble(),
+      fundClassification: json['fund_classification'] as String?,
       scoreBreakdown: DiscoverMutualFundScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),

@@ -3,13 +3,13 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/utils.dart';
 import '../../../../data/models/discover.dart';
-import 'score_bar.dart';
+import 'tag_utils.dart';
 
 /// Which percent-change field to display in the tile.
 enum StockChangeField {
-  daily, // percent_change (default)
+  daily, // percent_change
   weekly, // percent_change_1w
-  threeMonth, // percent_change_3m
+  threeMonth, // percent_change_3m (default)
   oneYear, // percent_change_1y
 }
 
@@ -17,8 +17,8 @@ enum StockChangeField {
 ///
 /// 3-row layout:
 /// Row 1: name + price
-/// Row 2: symbol · sector  [tag] [tag]  +2.5%
-/// Row 3: score bar + tier badge
+/// Row 2: symbol · sector  [readable tags]  3M change%
+/// Row 3: circular score + quality tier text
 class StockListTile extends StatelessWidget {
   final DiscoverStockItem item;
   final VoidCallback? onTap;
@@ -30,7 +30,7 @@ class StockListTile extends StatelessWidget {
     super.key,
     required this.item,
     this.onTap,
-    this.changeField = StockChangeField.daily,
+    this.changeField = StockChangeField.threeMonth,
   });
 
   double? get _displayChange {
@@ -40,7 +40,7 @@ class StockListTile extends StatelessWidget {
       case StockChangeField.weekly:
         return item.percentChange1w;
       case StockChangeField.threeMonth:
-        return item.percentChange3m;
+        return item.percentChange3m ?? item.percentChange;
       case StockChangeField.oneYear:
         return item.percentChange1y;
     }
@@ -53,7 +53,7 @@ class StockListTile extends StatelessWidget {
       case StockChangeField.weekly:
         return '1W ';
       case StockChangeField.threeMonth:
-        return '3M ';
+        return item.percentChange3m != null ? '3M ' : '';
       case StockChangeField.oneYear:
         return '1Y ';
     }
@@ -70,7 +70,7 @@ class StockListTile extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerHighest
               .withValues(alpha: 0.10),
@@ -101,9 +101,9 @@ class StockListTile extends StatelessWidget {
               ],
             ),
 
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
 
-            // Row 2: symbol · sector  [tags]  change%
+            // Row 2: symbol · sector  [readable tags]  3M change%
             Row(
               children: [
                 Expanded(
@@ -118,13 +118,37 @@ class StockListTile extends StatelessWidget {
                               ?.copyWith(color: Colors.white54),
                         ),
                       ),
-                      // Show first 2 tags as small colored pills
                       if (item.tags.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        ...item.tags.take(2).map((tag) => Padding(
-                              padding: const EdgeInsets.only(right: 4),
-                              child: _TagChip(tag: tag),
-                            )),
+                        ...item.tags.take(2).map((tag) {
+                          final td = getTagDisplay(tag);
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 4),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 5, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: td.color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(td.icon, size: 9, color: td.color),
+                                  const SizedBox(width: 3),
+                                  Text(
+                                    td.label,
+                                    style: TextStyle(
+                                      color: td.color,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }),
                       ],
                     ],
                   ),
@@ -149,14 +173,13 @@ class StockListTile extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Row 3: Score bar + quality tier badge
+            // Row 3: Circular score + quality tier text
             Row(
               children: [
-                Expanded(child: ScoreBar(score: item.score)),
-                if (item.qualityTier != null) ...[
-                  const SizedBox(width: 8),
+                _CircularScore(score: item.score),
+                const SizedBox(width: 10),
+                if (item.qualityTier != null)
                   _QualityTierBadge(tier: item.qualityTier!),
-                ],
               ],
             ),
           ],
@@ -166,40 +189,38 @@ class StockListTile extends StatelessWidget {
   }
 }
 
-/// Small tag chip for stock tags (Growth, FII, Value, etc.)
-class _TagChip extends StatelessWidget {
-  final String tag;
+/// Circular score indicator.
+class _CircularScore extends StatelessWidget {
+  final double score;
 
-  const _TagChip({required this.tag});
+  const _CircularScore({required this.score});
 
   @override
   Widget build(BuildContext context) {
-    final color = _tagColor(tag);
+    final color = score >= 70
+        ? AppTheme.accentGreen
+        : score >= 40
+            ? AppTheme.accentOrange
+            : AppTheme.accentRed;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
+        shape: BoxShape.circle,
         color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(3),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
       ),
+      alignment: Alignment.center,
       child: Text(
-        tag,
+        score.toInt().toString(),
         style: TextStyle(
-          color: color.withValues(alpha: 0.8),
-          fontSize: 9,
-          fontWeight: FontWeight.w500,
+          color: color,
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
         ),
       ),
     );
-  }
-
-  static Color _tagColor(String tag) {
-    final t = tag.toLowerCase();
-    if (t.contains('growth') || t.contains('momentum')) return AppTheme.accentGreen;
-    if (t.contains('value') || t.contains('dividend')) return AppTheme.accentOrange;
-    if (t.contains('fii') || t.contains('dii')) return AppTheme.accentBlue;
-    if (t.contains('quality') || t.contains('strong')) return AppTheme.accentTeal;
-    if (t.contains('volatile') || t.contains('risk')) return AppTheme.accentRed;
-    return Colors.white54;
   }
 }
 
@@ -213,16 +234,16 @@ class _QualityTierBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _tierColor(tier);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         tier,
         style: TextStyle(
           color: color,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -232,12 +253,14 @@ class _QualityTierBadge extends StatelessWidget {
   static Color _tierColor(String tier) {
     switch (tier.toLowerCase()) {
       case 'strong':
+      case 'excellent':
         return AppTheme.accentGreen;
       case 'good':
         return AppTheme.accentBlue;
       case 'average':
         return AppTheme.accentOrange;
       case 'weak':
+      case 'poor':
         return AppTheme.accentRed;
       default:
         return Colors.white54;
