@@ -69,4 +69,16 @@ const Map<String, String> metricExplanations = {
   'returns_5y': 'Annualized return over the last 5 years (CAGR).',
   'risk_level':
       'Fund risk classification assigned by SEBI. Ranges from Low to Very High.',
+  'score_financial_health':
+      'Measures the company\'s financial strength using Return on Equity (ROE), Return on Capital Employed (ROCE), debt levels, and cash flow quality. A high score means the company efficiently generates profits, manages debt well, and produces real cash from operations.',
+  'score_valuation':
+      'Evaluates whether the stock is fairly priced using P/E ratio, PEG ratio, price-to-book, and comparison with sector peers. A high score suggests the stock may be undervalued relative to its earnings and growth, offering better value for money.',
+  'score_growth':
+      'Assesses the company\'s growth trajectory using revenue growth, earnings growth, 5-year CAGR, and margin trends. A high score indicates the business is expanding rapidly with improving profitability over time.',
+  'score_momentum':
+      'Tracks recent price performance using RSI, MACD, moving average trends, and breakout signals. A high score means the stock has strong upward price momentum \u2014 though momentum alone doesn\'t guarantee future returns.',
+  'score_smart_money':
+      'Analyzes institutional ownership patterns \u2014 FII, DII, and promoter holdings plus quarter-over-quarter changes. A high score means smart money (professional fund managers and insiders) is actively buying, signaling confidence in the company.',
+  'score_risk_shield':
+      'Measures downside protection using beta, pledged shares, debt levels, and earnings stability. A high score means the stock has lower volatility, minimal pledge risk, and stable earnings \u2014 offering better protection during market downturns.',
 };

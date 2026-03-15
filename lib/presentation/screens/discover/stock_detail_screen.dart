@@ -564,11 +564,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // 6-layer radar or fallback breakdown
             if (item.scoreBreakdown.has6LayerScores) ...[
-              if (ref.read(expertModeProvider))
-                _build6LayerRadar(theme, item)
-              else
-                // Compact: just show score fingerprint + tier text
-                _buildCompactScoreSection(theme, item),
+              _build6LayerRadar(theme, item),
             ] else ...[
               // Fallback: legacy ScoreBreakdownBar
               ScoreBreakdownBar(segments: _buildLegacySegments(item)),
@@ -592,12 +588,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     ];
 
     final statEntries = [
-      _RadarStat('Financial Health', sb.quality ?? 0, AppTheme.accentGreen),
-      _RadarStat('Valuation', sb.valuation ?? 0, AppTheme.accentOrange),
-      _RadarStat('Growth', sb.growth, AppTheme.accentTeal),
-      _RadarStat('Momentum', sb.momentum, AppTheme.accentBlue),
-      _RadarStat('Smart Money', sb.institutional ?? 0, const Color(0xFF7986CB)),
-      _RadarStat('Risk Shield', sb.risk ?? 0, const Color(0xFFAB47BC)),
+      _RadarStat('Financial Health', sb.quality ?? 0, AppTheme.accentGreen, 'score_financial_health'),
+      _RadarStat('Valuation', sb.valuation ?? 0, AppTheme.accentOrange, 'score_valuation'),
+      _RadarStat('Growth', sb.growth, AppTheme.accentTeal, 'score_growth'),
+      _RadarStat('Momentum', sb.momentum, AppTheme.accentBlue, 'score_momentum'),
+      _RadarStat('Smart Money', sb.institutional ?? 0, const Color(0xFF7986CB), 'score_smart_money'),
+      _RadarStat('Risk Shield', sb.risk ?? 0, const Color(0xFFAB47BC), 'score_risk_shield'),
     ];
 
     return Column(
@@ -619,6 +615,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     label: e.label,
                     value: e.value.toStringAsFixed(0),
                     valueColor: ScoreBar.scoreColor(e.value),
+                    metricKey: e.metricKey,
                   ))
               .toList(),
         ),
@@ -721,7 +718,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           size: 18, color: AppTheme.accentOrange),
                       const SizedBox(width: 8),
                       Text(
-                        'Why Ranked',
+                        'Key Insights',
                         style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
@@ -2226,16 +2223,28 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   void _showTagExplanation(ThemeData theme, TagV2 tag) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppTheme.cardDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
             Text(
               tag.tag,
               style: theme.textTheme.titleMedium?.copyWith(
@@ -2246,18 +2255,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             const SizedBox(height: 8),
             Text(
               tag.explanation!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white70),
-            ),
-            if (tag.confidence != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Confidence: ${(tag.confidence! * 100).toStringAsFixed(0)}%',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.white38),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 14,
+                height: 1.5,
               ),
-            ],
-            const SizedBox(height: 16),
+            ),
           ],
         ),
       ),
@@ -2311,6 +2314,7 @@ class _RadarStat {
   final String label;
   final double value;
   final Color color;
+  final String? metricKey;
 
-  const _RadarStat(this.label, this.value, this.color);
+  const _RadarStat(this.label, this.value, this.color, [this.metricKey]);
 }
