@@ -10,6 +10,7 @@ import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../../data/services/recently_viewed_service.dart';
 import '../../providers/discover_providers.dart';
+import '../../providers/tab_navigation_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
 import 'widgets/sparkline_widget.dart';
@@ -27,6 +28,7 @@ class DiscoverHomeScreen extends ConsumerStatefulWidget {
 
 class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   final _searchController = TextEditingController();
+  final _scrollController = ScrollController();
   Timer? _debounce;
   String _searchQuery = '';
 
@@ -34,9 +36,19 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   final LayerLink _searchLayerLink = LayerLink();
   final GlobalKey _searchBarKey = GlobalKey();
 
+  void _scrollToTop() {
+    if (!_scrollController.hasClients) return;
+    _scrollController.animateTo(
+      0,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -106,6 +118,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Discover tab is index 3 in bottom nav
+    ref.listen<int>(bottomTabReselectTickProvider(3), (prev, next) {
+      if (prev == null || prev == next) return;
+      _scrollToTop();
+    });
+
     final isSearchActive = _searchQuery.length >= 2;
     final homeAsync = ref.watch(discoverHomeDataProvider);
     final recentlyViewed = ref.watch(recentlyViewedProvider);
@@ -140,6 +158,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
                     ref.invalidate(discoverHomeDataProvider);
                     ref.invalidate(
                         discoverOverviewProvider(DiscoverSegment.stocks));
+                    // Wait for the new data so the spinner stays visible
+                    await ref.read(discoverHomeDataProvider.future);
                   },
                   child: homeAsync.when(
                     loading: () => const ShimmerDiscoverHome(),
@@ -190,6 +210,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
 
   Widget _buildFeed(DiscoverHomeData data, List<RecentlyViewedItem> recent) {
     return CustomScrollView(
+      controller: _scrollController,
       slivers: [
         // Market Mood Card (replaces Market Pulse — same data, richer display)
         if (data.marketMood != null)

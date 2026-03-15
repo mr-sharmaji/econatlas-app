@@ -756,9 +756,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           const SizedBox(height: 8),
         ],
 
-        // Tags grouped by category
+        // Tags grouped by category (filter DMA trend — shown in verdict card)
         if (item.tags.isNotEmpty) ...[
-          _buildGroupedTags(theme, item.tags),
+          _buildGroupedTags(theme, item.tags
+              .where((t) => t.tag != 'Bullish Trend' && t.tag != 'Bearish Trend')
+              .toList()),
           const SizedBox(height: 8),
         ],
 
@@ -997,7 +999,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           explanation: 'Price breakout signal based on 52-week range & volume'));
     }
 
-    // DMA chip from tags_v2 Bullish/Bearish Trend
+    // Bullish/Bearish Trend from DMA data
     if (tags != null) {
       final dmaTag = tags.cast<TagV2?>().firstWhere(
           (t) => t!.tag == 'Bullish Trend' || t.tag == 'Bearish Trend',
@@ -1007,11 +1009,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         chips.add(_storyChip(
           theme,
           isBullish ? Icons.trending_up : Icons.trending_down,
-          isBullish ? 'Above 50/200 DMA' : 'Below 50/200 DMA',
+          dmaTag.tag,
           isBullish ? AppTheme.accentGreen : AppTheme.accentRed,
-          explanation: dmaTag.explanation ?? (isBullish
-              ? 'Price is above 50-day and 200-day moving averages — bullish trend'
-              : 'Price is below 50-day and 200-day moving averages — bearish trend'),
+          explanation: dmaTag.explanation ?? 'Based on 50-DMA and 200-DMA alignment',
         ));
       }
     }
