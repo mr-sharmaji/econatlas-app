@@ -55,7 +55,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _tabIndex = _tabController.index);
@@ -193,8 +193,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Quality Verdict Banner ──
-            _buildQualityBanner(theme, item),
+            // ── Action Verdict Banner ──
+            _buildTopVerdictCard(theme, item),
             const SizedBox(height: 8),
 
             // ── Header ──
@@ -361,7 +361,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   Tab(text: 'Insights'),
                   Tab(text: 'Financials'),
                   Tab(text: 'Ownership'),
-                  Tab(text: 'Story'),
                 ],
               ),
             ),
@@ -398,141 +397,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  // ── Quality Verdict Banner ────────────────────────────────────
+  // ── Top-level Action Verdict Card ─────────────────────────────
 
-  Widget _buildQualityBanner(ThemeData theme, DiscoverStockItem item) {
-    final tier = item.qualityTier?.toLowerCase() ?? '';
-    final score = item.score;
-
-    final Color bgColor;
-    final String tierLabel;
-    final String explanation;
-    final IconData icon;
-
-    if (score >= 80 || tier == 'strong') {
-      bgColor = AppTheme.accentGreen;
-      tierLabel = 'Strong';
-      explanation = 'This stock has strong fundamentals across all metrics';
-      icon = Icons.verified_rounded;
-    } else if (score >= 60 || tier == 'good') {
-      bgColor = AppTheme.accentBlue;
-      tierLabel = 'Good';
-      explanation = 'This stock shows good fundamentals with minor gaps';
-      icon = Icons.thumb_up_alt_rounded;
-    } else if (score >= 40 || tier == 'average') {
-      bgColor = AppTheme.accentOrange;
-      tierLabel = 'Average';
-      explanation = 'This stock has mixed fundamentals worth monitoring';
-      icon = Icons.info_outline_rounded;
-    } else {
-      bgColor = AppTheme.accentRed;
-      tierLabel = 'Weak';
-      explanation = 'This stock has weak fundamentals and higher risk';
-      icon = Icons.warning_amber_rounded;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: bgColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: bgColor.withValues(alpha: 0.3)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, color: bgColor, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tierLabel,
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: bgColor,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      explanation,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white70),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          // Action tag + Breakout signal + Lynch classification + Confidence
-          if (item.actionTag != null || item.lynchClassification != null ||
-              (item.breakoutSignal != null && item.breakoutSignal != 'none')) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 6,
-              children: [
-                if (item.actionTag != null)
-                  Tooltip(
-                    message: item.actionTagReasoning ?? '',
-                    triggerMode: TooltipTriggerMode.tap,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: _actionTagColor(item.actionTag!).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                            color: _actionTagColor(item.actionTag!).withValues(alpha: 0.3)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(_actionTagIcon(item.actionTag!),
-                              size: 14, color: _actionTagColor(item.actionTag!)),
-                          const SizedBox(width: 4),
-                          Text(
-                            item.actionTag!,
-                            style: theme.textTheme.labelSmall?.copyWith(
-                              color: _actionTagColor(item.actionTag!),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                if (item.breakoutSignal != null && item.breakoutSignal != 'none')
-                  _buildBreakoutChip(theme, item.breakoutSignal!),
-                if (item.lynchClassification != null)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.purple.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                          color: Colors.purple.withValues(alpha: 0.3)),
-                    ),
-                    child: Text(
-                      item.lynchClassification!,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.purple,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (item.scoreConfidence != null)
-                  _buildConfidenceChip(theme, item.scoreConfidence!),
-              ],
-            ),
-          ],
-        ],
-      ),
+  Widget _buildTopVerdictCard(ThemeData theme, DiscoverStockItem item) {
+    final storyAsync = ref.watch(discoverStockStoryProvider(item.symbol));
+    return storyAsync.when(
+      loading: () => _buildVerdictShimmer(),
+      error: (_, __) => _buildVerdictFromItem(theme, item),
+      data: (story) => _buildVerdictFromStory(theme, item, story),
     );
   }
 
@@ -593,98 +465,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         .split(' ')
         .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
         .join(' ');
-  }
-
-  Widget _buildBreakoutChip(ThemeData theme, String signal) {
-    final Color color;
-    final IconData icon;
-    final String label;
-
-    switch (signal) {
-      case 'breakout':
-        color = AppTheme.accentGreen;
-        icon = Icons.north_east_rounded;
-        label = '52W Breakout';
-      case 'approaching_breakout':
-        color = AppTheme.accentTeal;
-        icon = Icons.arrow_upward_rounded;
-        label = 'Near Breakout';
-      case 'breakdown':
-        color = AppTheme.accentRed;
-        icon = Icons.south_east_rounded;
-        label = '52W Breakdown';
-      case 'approaching_breakdown':
-        color = AppTheme.accentOrange;
-        icon = Icons.arrow_downward_rounded;
-        label = 'Near Breakdown';
-      case 'resistance':
-        color = AppTheme.accentOrange;
-        icon = Icons.horizontal_rule_rounded;
-        label = 'At Resistance';
-      case 'support':
-        color = AppTheme.accentBlue;
-        icon = Icons.horizontal_rule_rounded;
-        label = 'At Support';
-      default:
-        return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 4),
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildConfidenceChip(ThemeData theme, String confidence) {
-    final Color color;
-    final String label;
-
-    switch (confidence) {
-      case 'high':
-        color = AppTheme.accentGreen;
-        label = 'High Confidence';
-      case 'medium':
-        color = AppTheme.accentOrange;
-        label = 'Medium Confidence';
-      case 'low':
-        color = AppTheme.accentGray;
-        label = 'Low Confidence';
-      default:
-        return const SizedBox.shrink();
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: color.withValues(alpha: 0.8),
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
   }
 
   // ── Period Selector Pills ─────────────────────────────────────
@@ -915,8 +695,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         return _buildFinancialsTab(theme, item);
       case 2:
         return _buildOwnershipTab(theme, item);
-      case 3:
-        return _buildStoryTab(theme, item);
       default:
         return const SizedBox.shrink();
     }
@@ -928,9 +706,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Why Ranked (promoted to top with lightbulb icon)
-        if (item.scoreBreakdown.whyNarrative != null ||
-            item.whyRanked.isNotEmpty) ...[
+        // Why Ranked
+        if (item.whyRanked.isNotEmpty) ...[
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -950,16 +727,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                       ),
                     ],
                   ),
-                  if (item.scoreBreakdown.whyNarrative != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      item.scoreBreakdown.whyNarrative!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 8),
                   ...item.whyRanked.map((reason) => Padding(
                         padding: const EdgeInsets.only(bottom: 6),
@@ -1051,6 +818,188 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           ),
         ),
       ],
+    );
+  }
+
+  // ── Action Verdict Helpers ──────────────────────────────────
+
+  Widget _buildVerdictShimmer() {
+    return const ShimmerCard(height: 120);
+  }
+
+  /// Fallback when Story endpoint fails — uses data already on the item model.
+  Widget _buildVerdictFromItem(ThemeData theme, DiscoverStockItem item) {
+    final actionTag = item.actionTag;
+    final narrative = item.scoreBreakdown.whyNarrative;
+    if (actionTag == null && narrative == null) return const SizedBox.shrink();
+
+    final color = actionTag != null
+        ? _actionTagColor(actionTag)
+        : Colors.white54;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (actionTag != null)
+            Row(
+              children: [
+                Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  _formatActionTag(actionTag),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+          if (narrative != null) ...[
+            if (actionTag != null) const SizedBox(height: 8),
+            Text(
+              narrative,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Full verdict card with Story endpoint data.
+  Widget _buildVerdictFromStory(
+      ThemeData theme, DiscoverStockItem item, StockStory story) {
+    final actionTag = story.actionTag ?? item.actionTag;
+    final verdict = story.verdict;
+    final narrative = story.whyNarrative ?? item.scoreBreakdown.whyNarrative;
+    final reasoning = story.actionTagReasoning;
+
+    if (actionTag == null && verdict == null && narrative == null) {
+      return const SizedBox.shrink();
+    }
+
+    final color = actionTag != null
+        ? _actionTagColor(actionTag)
+        : Colors.white54;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Action tag header
+          if (actionTag != null)
+            Row(
+              children: [
+                Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                const SizedBox(width: 8),
+                Text(
+                  _formatActionTag(actionTag),
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                ),
+              ],
+            ),
+
+          // Verdict
+          if (verdict != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              verdict,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+
+          // Narrative
+          if (narrative != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              narrative,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // Action tag reasoning
+          if (reasoning != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              reasoning,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white54,
+                fontStyle: FontStyle.italic,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // Signal chips
+          _buildVerdictSignals(theme, story),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerdictSignals(ThemeData theme, StockStory story) {
+    final chips = <Widget>[];
+    if (story.lynchClassification != null) {
+      chips.add(_storyChip(theme, Icons.category,
+          _formatActionTag(story.lynchClassification!), AppTheme.accentBlue,
+          explanation: 'Peter Lynch classification based on growth & earnings profile'));
+    }
+    if (story.trendAlignment != null) {
+      final tColor = story.trendAlignment == 'aligned'
+          ? AppTheme.accentGreen
+          : story.trendAlignment == 'conflicting'
+              ? AppTheme.accentRed
+              : Colors.amber;
+      final icon = story.trendAlignment == 'aligned'
+          ? Icons.check_circle_outline
+          : story.trendAlignment == 'conflicting'
+              ? Icons.cancel_outlined
+              : Icons.warning_amber_rounded;
+      final tTooltip = story.trendAlignment == 'aligned'
+          ? 'Fundamental and technical signals agree'
+          : story.trendAlignment == 'conflicting'
+              ? 'Fundamental and technical signals disagree'
+              : 'Mixed signals between fundamentals and technicals';
+      chips.add(_storyChip(
+          theme, icon, 'Trend: ${_capitalize(story.trendAlignment!)}', tColor,
+          explanation: tTooltip));
+    }
+    if (story.breakoutSignal != null && story.breakoutSignal != 'none') {
+      chips.add(_storyChip(theme, Icons.flash_on,
+          _formatActionTag(story.breakoutSignal!), AppTheme.accentTeal,
+          explanation: 'Price breakout signal based on 52-week range & volume'));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
     );
   }
 
@@ -1417,103 +1366,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       );
     }
 
-    final holdings = <_HoldingEntry>[
-      if (item.promoterHolding != null)
-        _HoldingEntry('Promoters', item.promoterHolding!, const Color(0xFF448AFF),
-            item.promoterHoldingChange),
-      if (item.fiiHolding != null)
-        _HoldingEntry('FII', item.fiiHolding!, const Color(0xFF64FFDA),
-            item.fiiHoldingChange),
-      if (item.diiHolding != null)
-        _HoldingEntry('DII', item.diiHolding!, const Color(0xFFFFAB40),
-            item.diiHoldingChange),
-      if (item.governmentHolding != null)
-        _HoldingEntry('Government', item.governmentHolding!,
-            const Color(0xFFAB47BC), null),
-      if (item.publicHolding != null)
-        _HoldingEntry(
-            'Public', item.publicHolding!, const Color(0xFF78909C), null),
-    ];
+    // Compute QoQ + YoY changes from shareholdingQuarterly JSONB
+    final changes = _computeHoldingChanges(item.shareholdingQuarterly);
 
-    // Build donut segments
-    final donutSegments = <DonutSegment>[
+    final holders = <_OwnershipRow>[
       if (item.promoterHolding != null)
-        DonutSegment(
-            label: 'Promoter',
-            value: item.promoterHolding!,
-            color: const Color(0xFF448AFF)),
+        _OwnershipRow('Promoters', item.promoterHolding!, const Color(0xFF448AFF),
+            item.promoterHoldingChange ?? changes['promoter']?['qoq'],
+            changes['promoter']?['yoy']),
       if (item.fiiHolding != null)
-        DonutSegment(
-            label: 'FII',
-            value: item.fiiHolding!,
-            color: const Color(0xFF64FFDA)),
+        _OwnershipRow('FII', item.fiiHolding!, const Color(0xFF64FFDA),
+            item.fiiHoldingChange ?? changes['fii']?['qoq'],
+            changes['fii']?['yoy']),
       if (item.diiHolding != null)
-        DonutSegment(
-            label: 'DII',
-            value: item.diiHolding!,
-            color: const Color(0xFFFFAB40)),
+        _OwnershipRow('DII', item.diiHolding!, const Color(0xFFFFAB40),
+            item.diiHoldingChange ?? changes['dii']?['qoq'],
+            changes['dii']?['yoy']),
       if (item.governmentHolding != null)
-        DonutSegment(
-            label: 'Govt',
-            value: item.governmentHolding!,
-            color: const Color(0xFFAB47BC)),
+        _OwnershipRow('Government', item.governmentHolding!,
+            const Color(0xFFAB47BC),
+            changes['government']?['qoq'], changes['government']?['yoy']),
       if (item.publicHolding != null)
-        DonutSegment(
-            label: 'Public',
-            value: item.publicHolding!,
-            color: const Color(0xFF78909C)),
+        _OwnershipRow('Public', item.publicHolding!, const Color(0xFF78909C),
+            changes['public']?['qoq'], changes['public']?['yoy']),
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Donut chart
-        if (donutSegments.isNotEmpty) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Shareholding Pattern',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  DonutChartWidget(segments: donutSegments),
-                ],
-              ),
-            ),
-          ),
-          Builder(builder: (_) {
-            if (item.shareholdingQuarterly == null || item.shareholdingQuarterly!.isEmpty) {
-              return const SizedBox.shrink();
-            }
-            final groups = _buildShareholdingTrend(item.shareholdingQuarterly!);
-            if (groups.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 16),
-                _sectionTitle('Shareholding Trend'),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 160,
-                  child: GroupedBarChartWidget(
-                    groups: groups,
-                    barColors: [AppTheme.accentGreen, AppTheme.accentBlue, AppTheme.accentTeal, AppTheme.accentOrange, Colors.white54],
-                    legendLabels: const ['Promoter', 'FII', 'DII', 'Govt', 'Public'],
-                  ),
-                ),
-              ],
-            );
-          }),
-          const SizedBox(height: 12),
-        ],
-
-        // Shareholding bars
+        // --- Shareholding card: holder rows with QoQ + YoY ---
         Card(
           margin: EdgeInsets.zero,
           child: Padding(
@@ -1521,46 +1402,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Holding Details',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
+                Text('Shareholding Pattern',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
-                ...holdings.map((h) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(h.label,
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: Colors.white70)),
-                              Text('${h.value.toStringAsFixed(1)}%',
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                      fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: (h.value / 100).clamp(0.0, 1.0),
-                              minHeight: 8,
-                              backgroundColor:
-                                  Colors.white.withValues(alpha: 0.08),
-                              valueColor: AlwaysStoppedAnimation(h.color),
-                            ),
-                          ),
-                        ],
-                      ),
-                    )),
+                // Holder rows with inline QoQ + YoY changes
+                ...holders.map((h) => _buildOwnershipRow(theme, h)),
               ],
             ),
           ),
         ),
+
         // Pledged shares warning
         if (item.pledgedPromoterPct != null &&
             item.pledgedPromoterPct! > 0) ...[
@@ -1580,20 +1432,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.warning_amber_rounded,
-                  size: 16,
-                  color: item.pledgedPromoterPct! > 20
-                      ? Colors.red
-                      : Colors.orange,
-                ),
+                Icon(Icons.warning_amber_rounded, size: 16,
+                    color: item.pledgedPromoterPct! > 20
+                        ? Colors.red : Colors.orange),
                 const SizedBox(width: 8),
                 Text(
                   'Promoter Pledge: ${item.pledgedPromoterPct!.toStringAsFixed(1)}%',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: item.pledgedPromoterPct! > 20
-                        ? Colors.red
-                        : Colors.orange,
+                        ? Colors.red : Colors.orange,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1601,407 +1448,198 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ],
-        const SizedBox(height: 12),
 
-        // QoQ Changes
-        if (item.promoterHoldingChange != null ||
-            item.fiiHoldingChange != null ||
-            item.diiHoldingChange != null) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'QoQ Changes',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 8),
-                  if (item.promoterHoldingChange != null)
-                    _buildChangeRow(
-                        theme, 'Promoters', item.promoterHoldingChange!),
-                  if (item.fiiHoldingChange != null)
-                    _buildChangeRow(theme, 'FII', item.fiiHoldingChange!),
-                  if (item.diiHoldingChange != null)
-                    _buildChangeRow(theme, 'DII', item.diiHoldingChange!),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
+        // --- Shareholding Trend (yearly absolute bar chart) ---
+        Builder(builder: (_) {
+          if (item.shareholdingQuarterly == null ||
+              item.shareholdingQuarterly!.isEmpty) {
+            return const SizedBox.shrink();
+          }
+          final sh = item.shareholdingQuarterly!;
+          final trendResult = _buildYearlyShareholdingTrend(sh);
+          final yearlyGroups = trendResult.$1;
+          final activeColors = trendResult.$2;
+          final activeLabels = trendResult.$3;
+          if (yearlyGroups.isEmpty) return const SizedBox.shrink();
 
-        // Number of shareholders
-        if (item.numShareholders != null)
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 12),
+              Card(
+                margin: EdgeInsets.zero,
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Number of Shareholders',
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white54)),
-                      Text(
-                        Formatters.compactNumber(
-                            item.numShareholders!.toDouble()),
-                        style: theme.textTheme.bodyMedium
-                            ?.copyWith(fontWeight: FontWeight.w600),
+                      Text('Shareholding Trend',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 160,
+                        child: GroupedBarChartWidget(
+                          groups: yearlyGroups,
+                          barColors: activeColors,
+                          legendLabels: activeLabels,
+                          smartMinY: true,
+                        ),
                       ),
                     ],
                   ),
-                  if (item.numShareholdersChangeQoq != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('QoQ Change',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: Colors.white38, fontSize: 11)),
-                        Text(
-                          '${item.numShareholdersChangeQoq! >= 0 ? '+' : ''}${item.numShareholdersChangeQoq!.toStringAsFixed(1)}%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: _changeColor(item.numShareholdersChangeQoq),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (item.numShareholdersChangeYoy != null) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text('YoY Change',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: Colors.white38, fontSize: 11)),
-                        Text(
-                          '${item.numShareholdersChangeYoy! >= 0 ? '+' : ''}${item.numShareholdersChangeYoy!.toStringAsFixed(1)}%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: _changeColor(item.numShareholdersChangeYoy),
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
-          ),
+            ],
+          );
+        }),
+
       ],
     );
   }
 
-  Widget _buildChangeRow(ThemeData theme, String label, double change) {
+  // Single ownership holder row: colored dot + name + holding% + QoQ/YoY pills
+  Widget _buildOwnershipRow(ThemeData theme, _OwnershipRow h) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 10, height: 10,
+            decoration: BoxDecoration(color: h.color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(h.label,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.white70)),
+          ),
+          Text('${h.value.toStringAsFixed(1)}%',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          if (h.qoqChange != null) ...[
+            const SizedBox(width: 8),
+            _buildChangePill(theme, 'QoQ', h.qoqChange!),
+          ],
+          if (h.yoyChange != null) ...[
+            const SizedBox(width: 4),
+            _buildChangePill(theme, 'YoY', h.yoyChange!),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // Compact change pill: "QoQ +0.44%" in green/red
+  Widget _buildChangePill(ThemeData theme, String period, double change) {
     final isPos = change >= 0;
     final color = isPos ? AppTheme.accentGreen : AppTheme.accentRed;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+    final sign = isPos ? '+' : '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label,
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                isPos ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 14,
-                color: color,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${isPos ? "+" : ""}${change.toStringAsFixed(2)}%',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+          Icon(
+            isPos ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            size: 10, color: color,
+          ),
+          const SizedBox(width: 2),
+          Text(
+            '$period $sign${change.toStringAsFixed(2)}%',
+            style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
           ),
         ],
       ),
     );
   }
 
-  // ── STORY TAB ──────────────────────────────────────────────────
+  // ── Yearly absolute shareholding trend ────────────────────────
 
-  Widget _buildStoryTab(ThemeData theme, DiscoverStockItem item) {
-    final storyAsync = ref.watch(discoverStockStoryProvider(item.symbol));
+  /// Build BarGroups showing absolute holding % per year.
+  /// Returns (groups, activeColors, activeLabels) — holders with 0% across
+  /// all years are excluded to avoid clutter.
+  (List<BarGroup>, List<Color>, List<String>) _buildYearlyShareholdingTrend(
+      Map<String, dynamic> sh) {
+    final years = sh['years'] as List<dynamic>? ?? [];
+    if (years.isEmpty) return ([], [], []);
 
-    return storyAsync.when(
-      loading: () => const Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ),
-      error: (_, __) => Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Center(
-            child: Column(
-              children: [
-                const Icon(Icons.auto_stories_outlined,
-                    size: 40, color: Colors.white24),
-                const SizedBox(height: 12),
-                Text('Unable to load story',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: Colors.white38)),
-              ],
-            ),
-          ),
-        ),
-      ),
-      data: (story) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Verdict
-          if (story.verdict != null)
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.gavel_rounded,
-                            size: 18, color: AppTheme.accentTeal),
-                        const SizedBox(width: 8),
-                        Text('Verdict',
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      story.verdict!,
-                      style: theme.textTheme.bodyLarge
-                          ?.copyWith(color: Colors.white.withValues(alpha: 0.9)),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          if (story.verdict != null) const SizedBox(height: 12),
+    // All holder series — same colors as Shareholding Pattern card
+    final allHolders = <(String, List<dynamic>?, Color)>[
+      ('Promoter', (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?,
+          const Color(0xFF448AFF)),   // blue
+      ('FII', (sh['fii_dii'] ?? sh['fiis'] ?? sh['fii']) as List<dynamic>?,
+          const Color(0xFF64FFDA)),   // cyan
+      ('DII', (sh['diis'] ?? sh['dii']) as List<dynamic>?,
+          const Color(0xFFFFAB40)),   // orange
+      ('Govt', sh['government'] as List<dynamic>?,
+          const Color(0xFFAB47BC)),   // purple
+      ('Public', sh['public'] as List<dynamic>?,
+          const Color(0xFF78909C)),   // grey
+    ];
 
-          // Why Narrative
-          if (story.whyNarrative != null) ...[
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.auto_stories,
-                            size: 18, color: AppTheme.accentBlue),
-                        const SizedBox(width: 8),
-                        Text('Analysis',
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      story.whyNarrative!,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // Action Tag
-          if (story.actionTag != null) ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: _actionTagColor(story.actionTag!).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _actionTagColor(story.actionTag!).withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(_actionTagIcon(story.actionTag!),
-                          size: 18,
-                          color: _actionTagColor(story.actionTag!)),
-                      const SizedBox(width: 8),
-                      Text(
-                        _formatActionTag(story.actionTag!),
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: _actionTagColor(story.actionTag!),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (story.actionTagReasoning != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      story.actionTagReasoning!,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          // Classification & Signals
-          _buildStorySignals(theme, story),
-
-          // Score Changes
-          if (story.scoreChanges.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Card(
-              margin: EdgeInsets.zero,
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.trending_up,
-                            size: 18, color: AppTheme.accentGreen),
-                        const SizedBox(width: 8),
-                        Text('Score Changes (7d)',
-                            style: theme.textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w700)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ...story.scoreChanges.map((sc) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: Row(
-                            children: [
-                              SizedBox(
-                                width: 90,
-                                child: Text(
-                                  _capitalize(sc.layer),
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: Colors.white54),
-                                ),
-                              ),
-                              if (sc.oldValue != null)
-                                Text(
-                                  sc.oldValue!.toStringAsFixed(1),
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: Colors.white38),
-                                ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                sc.direction == 'up'
-                                    ? Icons.arrow_upward
-                                    : sc.direction == 'down'
-                                        ? Icons.arrow_downward
-                                        : Icons.remove,
-                                size: 14,
-                                color: sc.direction == 'up'
-                                    ? AppTheme.accentGreen
-                                    : sc.direction == 'down'
-                                        ? AppTheme.accentRed
-                                        : Colors.white38,
-                              ),
-                              const SizedBox(width: 6),
-                              if (sc.newValue != null)
-                                Text(
-                                  sc.newValue!.toStringAsFixed(1),
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: sc.direction == 'up'
-                                        ? AppTheme.accentGreen
-                                        : sc.direction == 'down'
-                                            ? AppTheme.accentRed
-                                            : Colors.white70,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        )),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStorySignals(ThemeData theme, StockStory story) {
-    final chips = <Widget>[];
-    if (story.lynchClassification != null) {
-      chips.add(_storyChip(theme, Icons.category,
-          story.lynchClassification!, AppTheme.accentBlue));
+    // Group indices by year: prefer March for past years, latest quarter
+    // for the most recent year.
+    final marchMap = <String, int>{};
+    final latestMap = <String, int>{};
+    for (var i = 0; i < years.length; i++) {
+      final label = years[i].toString();
+      final match = RegExp(r'(\d{4})').firstMatch(label);
+      if (match == null) continue;
+      final yr = match.group(1)!;
+      latestMap[yr] = i;
+      if (label.startsWith('Mar')) marchMap[yr] = i;
     }
-    if (story.trendAlignment != null) {
-      final color = story.trendAlignment == 'aligned'
-          ? AppTheme.accentGreen
-          : story.trendAlignment == 'conflicting'
-              ? AppTheme.accentRed
-              : Colors.amber;
-      final icon = story.trendAlignment == 'aligned'
-          ? Icons.check_circle_outline
-          : story.trendAlignment == 'conflicting'
-              ? Icons.cancel_outlined
-              : Icons.warning_amber_rounded;
-      chips.add(_storyChip(
-          theme, icon, 'Trend: ${_capitalize(story.trendAlignment!)}', color));
+
+    final sortedYears = latestMap.keys.toList()..sort();
+    final lastYear = sortedYears.isNotEmpty ? sortedYears.last : '';
+    final yearIndices = <String, int>{};
+    for (final yr in sortedYears) {
+      yearIndices[yr] = yr == lastYear
+          ? latestMap[yr]!
+          : (marchMap[yr] ?? latestMap[yr]!);
     }
-    if (story.breakoutSignal != null && story.breakoutSignal != 'none') {
-      chips.add(_storyChip(theme, Icons.flash_on,
-          _formatActionTag(story.breakoutSignal!), AppTheme.accentTeal));
+
+    final display = sortedYears.length > 4
+        ? sortedYears.sublist(sortedYears.length - 4)
+        : sortedYears;
+
+    // Determine which holders have meaningful data (> 0 in at least one year)
+    final activeIndices = <int>[];
+    for (var h = 0; h < allHolders.length; h++) {
+      final arr = allHolders[h].$2;
+      final hasData = display.any((yr) {
+        final val = _valAt(arr, yearIndices[yr]!);
+        return val > 0.1; // ignore negligible holdings
+      });
+      if (hasData) activeIndices.add(h);
     }
-    if (story.scoreConfidence != null) {
-      final color = story.scoreConfidence == 'high'
-          ? AppTheme.accentGreen
-          : story.scoreConfidence == 'low'
-              ? Colors.amber
-              : Colors.white54;
-      chips.add(_storyChip(
-          theme, Icons.verified_outlined,
-          '${_capitalize(story.scoreConfidence!)} confidence', color));
+    if (activeIndices.isEmpty) return ([], [], []);
+
+    // Build groups with only active holders
+    final groups = <BarGroup>[];
+    for (final yr in display) {
+      final i = yearIndices[yr]!;
+      groups.add(BarGroup(
+        label: yr,
+        values: activeIndices.map((h) => _valAt(allHolders[h].$2, i)).toList(),
+      ));
     }
-    if (chips.isEmpty) return const SizedBox.shrink();
-    return Wrap(spacing: 8, runSpacing: 8, children: chips);
+
+    final activeColors = activeIndices.map((h) => allHolders[h].$3).toList();
+    final activeLabels = activeIndices.map((h) => allHolders[h].$1).toList();
+
+    return (groups, activeColors, activeLabels);
   }
 
   Widget _storyChip(
-      ThemeData theme, IconData icon, String label, Color color) {
-    return Container(
+      ThemeData theme, IconData icon, String label, Color color,
+      {String? explanation}) {
+    final chip = Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
@@ -2016,7 +1654,53 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           Text(label,
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: color, fontWeight: FontWeight.w600)),
+          if (explanation != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.info_outline, size: 12,
+                color: color.withValues(alpha: 0.6)),
+          ],
         ],
+      ),
+    );
+    if (explanation != null) {
+      return GestureDetector(
+        onTap: () => _showChipExplanation(theme, label, explanation, color),
+        child: chip,
+      );
+    }
+    return chip;
+  }
+
+  void _showChipExplanation(
+      ThemeData theme, String title, String explanation, Color color) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              explanation,
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
@@ -2353,31 +2037,43 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return groups;
   }
 
-  List<BarGroup> _buildShareholdingTrend(Map<String, dynamic> sh) {
-    final years = sh['years'] as List<dynamic>? ?? [];
+  /// Compute YoY holding changes from shareholdingQuarterly JSONB.
+  /// Compares the latest quarter with the quarter 4 entries ago.
+  /// Compute QoQ and YoY holding changes from shareholdingQuarterly JSONB.
+  /// Returns {'promoter': {qoq, yoy}, 'fii': {qoq, yoy}, ...}
+  Map<String, Map<String, double?>> _computeHoldingChanges(Map<String, dynamic>? sh) {
+    if (sh == null || sh.isEmpty) return {};
+
+    Map<String, double?> _changes(List<dynamic>? arr) {
+      if (arr == null || arr.length < 2) return {'qoq': null, 'yoy': null};
+      final latest = (arr.last as num?)?.toDouble();
+      final prev = (arr[arr.length - 2] as num?)?.toDouble();
+      double? qoq;
+      if (latest != null && prev != null) {
+        qoq = double.parse((latest - prev).toStringAsFixed(2));
+      }
+      double? yoy;
+      if (arr.length >= 5) {
+        final yearAgo = (arr[arr.length - 5] as num?)?.toDouble();
+        if (latest != null && yearAgo != null) {
+          yoy = double.parse((latest - yearAgo).toStringAsFixed(2));
+        }
+      }
+      return {'qoq': qoq, 'yoy': yoy};
+    }
+
     final promoter = (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?;
     final fii = (sh['fii_dii'] ?? sh['fiis'] ?? sh['fii']) as List<dynamic>?;
     final dii = (sh['diis'] ?? sh['dii']) as List<dynamic>?;
     final govt = sh['government'] as List<dynamic>?;
     final pub = sh['public'] as List<dynamic>?;
-    if (years.isEmpty) return [];
-
-    final len = years.length;
-    final start = len > 4 ? len - 4 : 0;
-    final groups = <BarGroup>[];
-    for (var i = start; i < len; i++) {
-      groups.add(BarGroup(
-        label: _shortYear(years[i].toString()),
-        values: [
-          _valAt(promoter as List?, i),
-          _valAt(fii as List?, i),
-          _valAt(dii as List?, i),
-          _valAt(govt, i),
-          _valAt(pub, i),
-        ],
-      ));
-    }
-    return groups;
+    return {
+      'promoter': _changes(promoter),
+      'fii': _changes(fii),
+      'dii': _changes(dii),
+      'government': _changes(govt),
+      'public': _changes(pub),
+    };
   }
 
   // ── Color Helpers ─────────────────────────────────────────────
@@ -2581,13 +2277,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
 // ── Private data holders ─────────────────────────────────────────
 
-class _HoldingEntry {
+class _OwnershipRow {
   final String label;
   final double value;
   final Color color;
-  final double? change;
+  final double? qoqChange;
+  final double? yoyChange;
 
-  const _HoldingEntry(this.label, this.value, this.color, this.change);
+  const _OwnershipRow(this.label, this.value, this.color, this.qoqChange, [this.yoyChange]);
 }
 
 class _RadarStat {

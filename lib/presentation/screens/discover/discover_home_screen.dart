@@ -120,43 +120,65 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
           ),
         ],
       ),
-      body: Stack(
+      body: Column(
         children: [
-          RefreshIndicator(
-            onRefresh: () async {
-              ref.invalidate(discoverHomeDataProvider);
-              ref.invalidate(
-                  discoverOverviewProvider(DiscoverSegment.stocks));
-            },
-            child: homeAsync.when(
-              loading: () => const ShimmerDiscoverHome(),
-              error: (err, _) => ListView(
-                children: [
-                  const SizedBox(height: 80),
-                  const Icon(Icons.cloud_off_rounded,
-                      size: 48, color: Colors.white24),
-                  const SizedBox(height: 12),
-                  Center(
-                    child: Text(
-                      friendlyErrorMessage(err),
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Center(
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          ref.invalidate(discoverHomeDataProvider),
-                      icon: const Icon(Icons.refresh, size: 16),
-                      label: const Text('Retry'),
-                    ),
-                  ),
-                ],
-              ),
-              data: (data) => _buildFeed(data, recentlyViewed),
+          // Search bar — always above dim overlay
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            child: CompositedTransformTarget(
+              link: _searchLayerLink,
+              child: _buildSearchBar(),
             ),
           ),
-          if (isSearchActive) _buildSearchOverlay(),
+          const SizedBox(height: 10),
+          // Feed + overlays
+          Expanded(
+            child: Stack(
+              children: [
+                RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(discoverHomeDataProvider);
+                    ref.invalidate(
+                        discoverOverviewProvider(DiscoverSegment.stocks));
+                  },
+                  child: homeAsync.when(
+                    loading: () => const ShimmerDiscoverHome(),
+                    error: (err, _) => ListView(
+                      children: [
+                        const SizedBox(height: 80),
+                        const Icon(Icons.cloud_off_rounded,
+                            size: 48, color: Colors.white24),
+                        const SizedBox(height: 12),
+                        Center(
+                          child: Text(
+                            friendlyErrorMessage(err),
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Center(
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                ref.invalidate(discoverHomeDataProvider),
+                            icon: const Icon(Icons.refresh, size: 16),
+                            label: const Text('Retry'),
+                          ),
+                        ),
+                      ],
+                    ),
+                    data: (data) => _buildFeed(data, recentlyViewed),
+                  ),
+                ),
+                // Dim overlay when search results are visible
+                if (isSearchActive)
+                  GestureDetector(
+                    onTap: _clearSearch,
+                    child: Container(color: Colors.black.withValues(alpha: 0.60)),
+                  ),
+                if (isSearchActive) _buildSearchOverlay(),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -169,18 +191,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   Widget _buildFeed(DiscoverHomeData data, List<RecentlyViewedItem> recent) {
     return CustomScrollView(
       slivers: [
-        // Search bar
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
-            child: CompositedTransformTarget(
-              link: _searchLayerLink,
-              child: _buildSearchBar(),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 10)),
-
         // Market Mood Card (replaces Market Pulse — same data, richer display)
         if (data.marketMood != null)
           SliverToBoxAdapter(
@@ -401,46 +411,45 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   Widget _buildSearchBar() {
     final theme = Theme.of(context);
     final isActive = _searchQuery.length >= 2;
-    return TextField(
-      key: _searchBarKey,
-      controller: _searchController,
-      onChanged: _onSearchChanged,
-      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-      cursorColor: AppTheme.accentBlue,
-      decoration: InputDecoration(
-        hintText: 'Search stocks & mutual funds...',
-        prefixIcon: const Icon(Icons.search_rounded),
-        suffixIcon: _searchQuery.isNotEmpty
-            ? IconButton(
-                icon: const Icon(Icons.close_rounded),
-                onPressed: _clearSearch,
-              )
-            : null,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF162A3E),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: isActive
+              ? AppTheme.accentBlue
+              : Colors.white.withValues(alpha: 0.12),
+          width: isActive ? 1.5 : 1.0,
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: isActive
-                ? AppTheme.accentBlue.withValues(alpha: 0.50)
-                : Colors.white.withValues(alpha: 0.08),
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(
-            color: AppTheme.accentBlue,
-            width: 1.5,
-          ),
-        ),
-        filled: true,
-        fillColor:
-            theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.10),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16),
       ),
-      textInputAction: TextInputAction.search,
+      child: TextField(
+        key: _searchBarKey,
+        controller: _searchController,
+        onChanged: _onSearchChanged,
+        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+        cursorColor: AppTheme.accentBlue,
+        decoration: InputDecoration(
+          hintText: 'Search stocks & mutual funds...',
+          hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.45)),
+          prefixIcon: Icon(
+            Icons.search_rounded,
+            color: isActive
+                ? AppTheme.accentBlue
+                : Colors.white.withValues(alpha: 0.50),
+          ),
+          suffixIcon: _searchQuery.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.close_rounded),
+                  onPressed: _clearSearch,
+                )
+              : null,
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+        textInputAction: TextInputAction.search,
+      ),
     );
   }
 

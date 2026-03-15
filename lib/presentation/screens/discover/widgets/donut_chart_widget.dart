@@ -15,8 +15,15 @@ class DonutSegment {
 
 class DonutChartWidget extends StatelessWidget {
   final List<DonutSegment> segments;
+  final bool showLabelsOnChart;
+  final bool showLegend;
 
-  const DonutChartWidget({super.key, required this.segments});
+  const DonutChartWidget({
+    super.key,
+    required this.segments,
+    this.showLabelsOnChart = true,
+    this.showLegend = true,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +45,7 @@ class DonutChartWidget extends StatelessWidget {
                   value: s.value,
                   color: s.color,
                   radius: 40,
-                  title: '$pct%',
+                  title: showLabelsOnChart ? '$pct%' : '',
                   titleStyle: const TextStyle(
                     color: Colors.white,
                     fontSize: 11,
@@ -53,36 +60,38 @@ class DonutChartWidget extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 16,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
-          children: segments.map((s) {
-            final pct = (s.value / total * 100).round();
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: s.color,
-                    shape: BoxShape.circle,
+        if (showLegend) ...[
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            alignment: WrapAlignment.center,
+            children: segments.map((s) {
+              final pct = (s.value / total * 100).round();
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: s.color,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${s.label} $pct%',
-                  style: const TextStyle(
-                    color: Colors.white60,
-                    fontSize: 12,
+                  const SizedBox(width: 6),
+                  Text(
+                    '${s.label} $pct%',
+                    style: const TextStyle(
+                      color: Colors.white60,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
-            );
-          }).toList(),
-        ),
+                ],
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }
