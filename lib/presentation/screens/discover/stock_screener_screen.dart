@@ -1023,18 +1023,25 @@ class _SortFilterSheetBodyState extends State<_SortFilterSheetBody> {
             // ── Sector ──
             Text('Sector', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: _allSectors.map((sec) {
-                final isSelected = _sector == sec;
-                return FilterChip(
-                  label: Text(sec),
-                  selected: isSelected,
-                  onSelected: (_) => setState(() => _sector = sec),
-                  visualDensity: VisualDensity.compact,
-                );
-              }).toList(),
+            SizedBox(
+              height: 76,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Wrap(
+                  direction: Axis.vertical,
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: _allSectors.map((sec) {
+                    final isSelected = _sector == sec;
+                    return FilterChip(
+                      label: Text(sec),
+                      selected: isSelected,
+                      onSelected: (_) => setState(() => _sector = sec),
+                      visualDensity: VisualDensity.compact,
+                    );
+                  }).toList(),
+                ),
+              ),
             ),
 
             const SizedBox(height: 20),

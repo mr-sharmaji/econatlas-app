@@ -190,11 +190,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // -- Period Selector + Chart --
             _buildPeriodSelector(theme),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             historyAsync.when(
               data: (history) {
                 if (history.points.isEmpty) {
@@ -228,7 +228,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
             // -- Score --
             _buildScoreCard(theme),
@@ -473,12 +473,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
 
             // Radar chart
             if (hasRadarData) ...[
               SizedBox(
-                height: 220,
+                height: 180,
                 child: RadarChartWidget(
                   dimensions: [
                     RadarDimension(
@@ -511,7 +511,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   fillColor: AppTheme.accentBlue,
                 ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
               // Stat cards for each score dimension
               Row(
@@ -605,7 +605,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Category Rank', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
 
             // Sub-category rank (more granular: e.g. Large Cap, Mid Cap)
             if (item.subCategoryRank != null && item.subCategoryTotal != null)
@@ -618,7 +618,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
             // Category rank (broader: e.g. Equity, Debt)
             if (item.categoryRank != null && item.categoryTotal != null) ...[
-              if (item.subCategoryRank != null) const SizedBox(height: 14),
+              if (item.subCategoryRank != null) const SizedBox(height: 12),
               _buildRankRow(
                 theme,
                 rank: item.categoryRank!,
@@ -677,7 +677,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         PositionBar(
           min: 1,
           max: total.toDouble(),
@@ -764,9 +764,9 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             // Returns vs category average (always XIRR-based from API)
             if (_hasAnyCategoryAvg()) ...[
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Divider(color: Colors.white.withValues(alpha: 0.08)),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
               Text(
                 'vs Category Average',
                 style: theme.textTheme.labelMedium
@@ -1128,7 +1128,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     child: StatCard(
                       value: '${item.stdDev!.toStringAsFixed(2)}%',
                       label: 'Std Deviation',
-                      tooltip: metricExplanations['Standard Deviation'] ?? 'Measures the volatility of fund returns. Higher means more unpredictable.',
+                      tooltip: metricExplanations['std_dev'],
                     ),
                   ),
               ],
@@ -1269,101 +1269,113 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         if (peers.isEmpty) return const SizedBox.shrink();
 
         final peerLabel = item.subCategory ?? item.category ?? 'Category';
-        final bodyStyle = theme.textTheme.bodySmall;
-        final labelStyle =
-            theme.textTheme.labelSmall?.copyWith(color: Colors.white38);
+        const headerStyle = TextStyle(
+          color: Colors.white38,
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+        );
+        const cellStyle = TextStyle(fontSize: 12);
 
-        Widget buildPeerTile(DiscoverMutualFundItem peer) {
-          final ret1y = peer.returns1y;
+        Widget buildRow(DiscoverMutualFundItem fund,
+            {bool isCurrent = false}) {
+          final ret1y = fund.returns1y;
           final retColor = ret1y != null
               ? (ret1y >= 0 ? AppTheme.accentGreen : AppTheme.accentRed)
               : Colors.white38;
+          final scoreColor = ScoreBar.scoreColor(fund.score);
 
           return InkWell(
-            onTap: () => context.push(
-              '/discover/mf/${Uri.encodeComponent(peer.schemeCode)}',
-              extra: peer,
-            ),
+            onTap: isCurrent
+                ? null
+                : () => context.push(
+                      '/discover/mf/${Uri.encodeComponent(fund.schemeCode)}',
+                      extra: fund,
+                    ),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
+                color: isCurrent
+                    ? Colors.white.withValues(alpha: 0.05)
+                    : null,
                 border: Border(
                   bottom: BorderSide(
                     color: Colors.white.withValues(alpha: 0.06),
                   ),
                 ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  // Row 1: Name + Score badge
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          peer.displayName ?? peer.schemeName,
-                          style: bodyStyle?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                  // Fund name
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      fund.displayName ?? fund.schemeName,
+                      style: cellStyle.copyWith(
+                        fontWeight:
+                            isCurrent ? FontWeight.w600 : FontWeight.w400,
                       ),
-                      const SizedBox(width: 8),
-                      Container(
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Score badge
+                  SizedBox(
+                    width: 42,
+                    child: Center(
+                      child: Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                            horizontal: 5, vertical: 2),
                         decoration: BoxDecoration(
-                          color: ScoreBar.scoreColor(peer.score)
-                              .withValues(alpha: 0.15),
+                          color: scoreColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
-                          ScoreBar.formatMinified(peer.score),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: ScoreBar.scoreColor(peer.score),
+                          ScoreBar.formatMinified(fund.score),
+                          style: TextStyle(
+                            color: scoreColor,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 6),
-                  // Row 2: NAV, AUM, Expense, 1Y Return
-                  Row(
-                    children: [
-                      Text(
-                        'NAV ${Formatters.fullPrice(peer.nav)}',
-                        style: bodyStyle,
+                  // 1Y Return
+                  SizedBox(
+                    width: 54,
+                    child: Text(
+                      ret1y != null
+                          ? '${ret1y >= 0 ? "+" : ""}${ret1y.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      style: cellStyle.copyWith(
+                        color: retColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                      const SizedBox(width: 12),
-                      if (peer.aumCr != null) ...[
-                        Text('AUM ', style: labelStyle),
-                        Text(
-                          '${Formatters.compactNumber(peer.aumCr!)} Cr',
-                          style: bodyStyle,
-                        ),
-                        const SizedBox(width: 12),
-                      ],
-                      if (peer.expenseRatio != null) ...[
-                        Text('Exp ', style: labelStyle),
-                        Text(
-                          '${peer.expenseRatio!.toStringAsFixed(2)}%',
-                          style: bodyStyle,
-                        ),
-                      ],
-                      const Spacer(),
-                      Text(
-                        ret1y != null
-                            ? '${ret1y >= 0 ? "+" : ""}${ret1y.toStringAsFixed(1)}%'
-                            : '\u2014',
-                        style: bodyStyle?.copyWith(
-                          color: retColor,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(' 1Y', style: labelStyle),
-                    ],
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  // Expense
+                  SizedBox(
+                    width: 48,
+                    child: Text(
+                      fund.expenseRatio != null
+                          ? '${fund.expenseRatio!.toStringAsFixed(2)}%'
+                          : '\u2014',
+                      style: cellStyle,
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
+                  // Rank
+                  SizedBox(
+                    width: 32,
+                    child: Text(
+                      fund.categoryRank != null
+                          ? '#${fund.categoryRank}'
+                          : '\u2014',
+                      style: cellStyle,
+                      textAlign: TextAlign.right,
+                    ),
                   ),
                 ],
               ),
@@ -1383,53 +1395,39 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 8),
-                if (peers.isNotEmpty) ...[
-                  SizedBox(
-                    height: 180,
-                    child: GroupedBarChartWidget(
-                      groups: [
-                        BarGroup(
-                          label: item.schemeName.length > 8 ? item.schemeName.substring(0, 8) : item.schemeName,
-                          values: [
-                            item.score.toDouble(),
-                            item.returns1y?.toDouble() ?? 0,
-                            item.expenseRatio?.toDouble() ?? 0,
-                          ],
-                          colors: [AppTheme.accentBlue, AppTheme.accentGreen, AppTheme.accentOrange],
-                        ),
-                        ...peers.take(4).map((p) => BarGroup(
-                          label: (p.displayName ?? p.schemeName).length > 8 ? (p.displayName ?? p.schemeName).substring(0, 8) : (p.displayName ?? p.schemeName),
-                          values: [
-                            p.score.toDouble(),
-                            p.returns1y?.toDouble() ?? 0,
-                            p.expenseRatio?.toDouble() ?? 0,
-                          ],
-                          colors: [AppTheme.accentBlue, AppTheme.accentGreen, AppTheme.accentOrange],
-                        )),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentBlue, borderRadius: BorderRadius.circular(2))),
-                      const SizedBox(width: 4),
-                      Text('Score', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                      const SizedBox(width: 12),
-                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentGreen, borderRadius: BorderRadius.circular(2))),
-                      const SizedBox(width: 4),
-                      Text('1Y Return', style: TextStyle(fontSize: 10, color: Colors.white54)),
-                      const SizedBox(width: 12),
-                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentOrange, borderRadius: BorderRadius.circular(2))),
-                      const SizedBox(width: 4),
-                      Text('Expense', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                const SizedBox(height: 10),
+                // Table header
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: const [
+                      Expanded(
+                          flex: 3,
+                          child: Text('Fund', style: headerStyle)),
+                      SizedBox(
+                          width: 42,
+                          child: Text('Score', style: headerStyle,
+                              textAlign: TextAlign.center)),
+                      SizedBox(
+                          width: 54,
+                          child: Text('1Y Return', style: headerStyle,
+                              textAlign: TextAlign.right)),
+                      SizedBox(
+                          width: 48,
+                          child: Text('Expense', style: headerStyle,
+                              textAlign: TextAlign.right)),
+                      SizedBox(
+                          width: 32,
+                          child: Text('Rank', style: headerStyle,
+                              textAlign: TextAlign.right)),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                ],
-                ...peers.map(buildPeerTile),
+                ),
+                const SizedBox(height: 4),
+                // Current fund row (highlighted)
+                buildRow(item, isCurrent: true),
+                // Peer rows (up to 5)
+                ...peers.take(5).map((p) => buildRow(p)),
               ],
             ),
           ),

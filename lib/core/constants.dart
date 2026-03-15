@@ -73,6 +73,7 @@ class AppConstants {
   static const String prefNotificationsEnabled = 'notifications_enabled';
   static const String prefDeveloperOptionsUnlocked =
       'developer_options_unlocked';
+  static const String prefExpertMode = 'expert_mode';
   static const String prefUnitSystem = 'unit_system';
   static const String prefHasSeenWelcome = 'has_seen_welcome';
   static const String prefChartTimezone = 'chart_timezone';

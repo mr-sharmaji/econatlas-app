@@ -64,6 +64,16 @@ class StockListTile extends StatelessWidget {
     }
   }
 
+  /// Returns the single best tag for display. Prefers TagV2, falls back to flat tags.
+  static TagDisplay? _bestTag(DiscoverStockItem item) {
+    if (item.tagsV2.isNotEmpty) {
+      final best = bestTagForListTile(item.tagsV2);
+      if (best != null) return getTagV2Display(best);
+    }
+    if (item.tags.isNotEmpty) return getTagDisplay(item.tags.first);
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -123,34 +133,31 @@ class StockListTile extends StatelessWidget {
                               ?.copyWith(color: Colors.white54),
                         ),
                       ),
-                      if (item.tags.isNotEmpty) ...[
+                      if (_bestTag(item) != null) ...[
                         const SizedBox(width: 6),
-                        ...item.tags.take(2).map((tag) {
-                          final td = getTagDisplay(tag);
-                          return Padding(
-                            padding: const EdgeInsets.only(right: 4),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 5, vertical: 1),
-                              decoration: BoxDecoration(
-                                color: td.color.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(td.icon, size: 9, color: td.color),
-                                  const SizedBox(width: 3),
-                                  Text(
-                                    td.label,
-                                    style: TextStyle(
-                                      color: td.color,
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w600,
-                                    ),
+                        Builder(builder: (_) {
+                          final td = _bestTag(item)!;
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 5, vertical: 1),
+                            decoration: BoxDecoration(
+                              color: td.color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(td.icon, size: 9, color: td.color),
+                                const SizedBox(width: 3),
+                                Text(
+                                  td.label,
+                                  style: TextStyle(
+                                    color: td.color,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           );
                         }),
@@ -199,6 +206,24 @@ class StockListTile extends StatelessWidget {
                   ),
               ],
             ),
+
+            // Row 4 (optional): action tag reasoning
+            if (item.actionTag != null &&
+                item.actionTagReasoning != null &&
+                item.actionTagReasoning!.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  item.actionTagReasoning!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white38,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
           ],
         ),
       ),

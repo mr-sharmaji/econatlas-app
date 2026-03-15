@@ -17,12 +17,14 @@ class GroupedBarChartWidget extends StatelessWidget {
   final List<BarGroup> groups;
   final List<Color> barColors;
   final List<String> legendLabels;
+  final String? yAxisLabel;
 
   const GroupedBarChartWidget({
     super.key,
     required this.groups,
     this.barColors = const [],
     this.legendLabels = const [],
+    this.yAxisLabel,
   });
 
   @override
@@ -67,6 +69,11 @@ class GroupedBarChartWidget extends StatelessWidget {
           barGroups: _buildBarGroups(),
           titlesData: FlTitlesData(
             leftTitles: AxisTitles(
+              axisNameWidget: yAxisLabel != null
+                  ? Text(yAxisLabel!,
+                      style: const TextStyle(color: Colors.white38, fontSize: 9))
+                  : null,
+              axisNameSize: yAxisLabel != null ? 16 : 0,
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 40,

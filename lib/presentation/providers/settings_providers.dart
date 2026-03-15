@@ -77,6 +77,33 @@ class DeveloperOptionsUnlockedNotifier extends StateNotifier<bool> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Expert Mode toggle (beginner vs advanced)
+// ---------------------------------------------------------------------------
+
+final expertModeProvider =
+    StateNotifierProvider<ExpertModeNotifier, bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return ExpertModeNotifier(prefs);
+});
+
+class ExpertModeNotifier extends StateNotifier<bool> {
+  final SharedPreferences _prefs;
+
+  ExpertModeNotifier(this._prefs)
+      : super(_prefs.getBool(AppConstants.prefExpertMode) ?? false);
+
+  void toggle() {
+    state = !state;
+    _prefs.setBool(AppConstants.prefExpertMode, state);
+  }
+
+  void set(bool value) {
+    state = value;
+    _prefs.setBool(AppConstants.prefExpertMode, value);
+  }
+}
+
 enum UnitSystem { international, indian }
 
 final unitSystemProvider =

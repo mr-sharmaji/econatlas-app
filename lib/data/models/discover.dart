@@ -109,6 +109,51 @@ class DiscoverOverview {
 }
 
 // ---------------------------------------------------------------------------
+// Tag V2 (structured tags with category, severity, explanation)
+// ---------------------------------------------------------------------------
+
+@immutable
+class TagV2 {
+  final String tag;
+  final String category; // classification, style, strength, valuation, risk, trend, ownership
+  final String severity; // positive, negative, neutral
+  final int priority;
+  final double? confidence;
+  final String? explanation;
+  final DateTime? expiresAt;
+
+  const TagV2({
+    required this.tag,
+    required this.category,
+    required this.severity,
+    required this.priority,
+    this.confidence,
+    this.explanation,
+    this.expiresAt,
+  });
+
+  factory TagV2.fromJson(Map<String, dynamic> json) {
+    return TagV2(
+      tag: json['tag'] as String,
+      category: json['category'] as String? ?? 'classification',
+      severity: json['severity'] as String? ?? 'neutral',
+      priority: (json['priority'] as num?)?.toInt() ?? 99,
+      confidence: (json['confidence'] as num?)?.toDouble(),
+      explanation: json['explanation'] as String?,
+      expiresAt: json['expires_at'] != null
+          ? DateTime.tryParse(json['expires_at'] as String)
+          : null,
+    );
+  }
+
+  bool get isPositive => severity == 'positive';
+  bool get isNegative => severity == 'negative';
+  bool get isNeutral => severity == 'neutral';
+  bool get isExpired =>
+      expiresAt != null && expiresAt!.isBefore(DateTime.now());
+}
+
+// ---------------------------------------------------------------------------
 // Stock
 // ---------------------------------------------------------------------------
 
@@ -146,6 +191,9 @@ class DiscoverStockScoreBreakdown {
   final double? rsi14;
   final String? actionTag;
   final String? actionTagReasoning;
+  final String? scoreConfidence; // "high" | "medium" | "low"
+  final String? trendAlignment; // "aligned" | "divergent" | "conflicting"
+  final String? breakoutSignal; // "breakout" | "approaching_breakout" | "breakdown" | "approaching_breakdown" | "resistance" | "support" | "none"
 
   const DiscoverStockScoreBreakdown({
     required this.momentum,
@@ -175,6 +223,9 @@ class DiscoverStockScoreBreakdown {
     this.rsi14,
     this.actionTag,
     this.actionTagReasoning,
+    this.scoreConfidence,
+    this.trendAlignment,
+    this.breakoutSignal,
   });
 
   /// Whether the 6-layer scoring model is available.
@@ -211,6 +262,9 @@ class DiscoverStockScoreBreakdown {
       rsi14: (json['rsi_14'] as num?)?.toDouble(),
       actionTag: json['action_tag'] as String?,
       actionTagReasoning: json['action_tag_reasoning'] as String?,
+      scoreConfidence: json['score_confidence'] as String?,
+      trendAlignment: json['trend_alignment'] as String?,
+      breakoutSignal: json['breakout_signal'] as String?,
     );
   }
 }
@@ -287,8 +341,6 @@ class DiscoverStockItem {
   final double? analystRecommendationMean;
   // Pledged shares
   final double? pledgedPromoterPct;
-  // Score trend
-  final double? previousScore;
   // 6-layer individual scores (top-level)
   final double? scoreQuality;
   final double? scoreInstitutional;
@@ -302,11 +354,18 @@ class DiscoverStockItem {
   final double? rsi14;
   final String? actionTag;
   final String? actionTagReasoning;
+  final String? scoreConfidence;
+  final String? trendAlignment;
+  final String? breakoutSignal;
   // Screener-derived signals
   final double? salesGrowthYoy;
   final double? profitGrowthYoy;
   final double? compoundedSalesGrowth3y;
   final double? compoundedProfitGrowth3y;
+  final double? opmChange;
+  final double? interestCoverage;
+  final double? numShareholdersChangeQoq;
+  final double? numShareholdersChangeYoy;
   final double? cashFromOperations;
   final double? cashFromInvesting;
   final double? cashFromFinancing;
@@ -318,6 +377,7 @@ class DiscoverStockItem {
 
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<String> tags;
+  final List<TagV2> tagsV2;
   final List<String> whyRanked;
   final String sourceStatus;
   final DateTime sourceTimestamp;
@@ -390,7 +450,6 @@ class DiscoverStockItem {
     this.analystRecommendation,
     this.analystRecommendationMean,
     this.pledgedPromoterPct,
-    this.previousScore,
     this.scoreQuality,
     this.scoreInstitutional,
     this.scoreRisk,
@@ -401,10 +460,17 @@ class DiscoverStockItem {
     this.rsi14,
     this.actionTag,
     this.actionTagReasoning,
+    this.scoreConfidence,
+    this.trendAlignment,
+    this.breakoutSignal,
     this.salesGrowthYoy,
     this.profitGrowthYoy,
     this.compoundedSalesGrowth3y,
     this.compoundedProfitGrowth3y,
+    this.opmChange,
+    this.interestCoverage,
+    this.numShareholdersChangeQoq,
+    this.numShareholdersChangeYoy,
     this.cashFromOperations,
     this.cashFromInvesting,
     this.cashFromFinancing,
@@ -414,6 +480,7 @@ class DiscoverStockItem {
     this.shareholdingQuarterly,
     required this.scoreBreakdown,
     required this.tags,
+    this.tagsV2 = const [],
     required this.whyRanked,
     required this.sourceStatus,
     required this.sourceTimestamp,
@@ -493,7 +560,6 @@ class DiscoverStockItem {
           (json['analyst_recommendation_mean'] as num?)?.toDouble(),
       pledgedPromoterPct:
           (json['pledged_promoter_pct'] as num?)?.toDouble(),
-      previousScore: (json['previous_score'] as num?)?.toDouble(),
       scoreQuality: (json['score_quality'] as num?)?.toDouble(),
       scoreInstitutional: (json['score_institutional'] as num?)?.toDouble(),
       scoreRisk: (json['score_risk'] as num?)?.toDouble(),
@@ -504,10 +570,17 @@ class DiscoverStockItem {
       rsi14: (json['rsi_14'] as num?)?.toDouble(),
       actionTag: json['action_tag'] as String?,
       actionTagReasoning: json['action_tag_reasoning'] as String?,
+      scoreConfidence: json['score_confidence'] as String?,
+      trendAlignment: json['trend_alignment'] as String?,
+      breakoutSignal: json['breakout_signal'] as String?,
       salesGrowthYoy: (json['sales_growth_yoy'] as num?)?.toDouble(),
       profitGrowthYoy: (json['profit_growth_yoy'] as num?)?.toDouble(),
       compoundedSalesGrowth3y: (json['compounded_sales_growth_3y'] as num?)?.toDouble(),
       compoundedProfitGrowth3y: (json['compounded_profit_growth_3y'] as num?)?.toDouble(),
+      opmChange: (json['opm_change'] as num?)?.toDouble(),
+      interestCoverage: (json['interest_coverage'] as num?)?.toDouble(),
+      numShareholdersChangeQoq: (json['num_shareholders_change_qoq'] as num?)?.toDouble(),
+      numShareholdersChangeYoy: (json['num_shareholders_change_yoy'] as num?)?.toDouble(),
       cashFromOperations: (json['cash_from_operations'] as num?)?.toDouble(),
       cashFromInvesting: (json['cash_from_investing'] as num?)?.toDouble(),
       cashFromFinancing: (json['cash_from_financing'] as num?)?.toDouble(),
@@ -519,6 +592,9 @@ class DiscoverStockItem {
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
       tags: (json['tags'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
+      tagsV2: (json['tags_v2'] as List<dynamic>? ?? const [])
+          .map((e) => TagV2.fromJson(e as Map<String, dynamic>))
+          .toList(),
       whyRanked:
           (json['why_ranked'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
       sourceStatus: json['source_status'] as String? ?? 'limited',
@@ -648,6 +724,7 @@ class DiscoverMutualFundItem {
   final String? fundClassification;
   final DiscoverMutualFundScoreBreakdown scoreBreakdown;
   final List<String> tags;
+  final List<TagV2> tagsV2;
   final List<String> whyRanked;
   final String sourceStatus;
   final DateTime sourceTimestamp;
@@ -701,6 +778,7 @@ class DiscoverMutualFundItem {
     this.fundClassification,
     required this.scoreBreakdown,
     required this.tags,
+    this.tagsV2 = const [],
     required this.whyRanked,
     required this.sourceStatus,
     required this.sourceTimestamp,
@@ -766,6 +844,9 @@ class DiscoverMutualFundItem {
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
       tags: (json['tags'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
+      tagsV2: (json['tags_v2'] as List<dynamic>? ?? const [])
+          .map((e) => TagV2.fromJson(e as Map<String, dynamic>))
+          .toList(),
       whyRanked:
           (json['why_ranked'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
       sourceStatus: json['source_status'] as String? ?? 'limited',
