@@ -12,10 +12,9 @@ import '../../providers/settings_providers.dart';
 import 'widgets/score_bar.dart';
 import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
+import 'widgets/metric_glossary.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/tag_utils.dart';
-import 'widgets/metric_glossary.dart';
-import 'widgets/donut_chart_widget.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
@@ -100,6 +99,20 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       return '$sign\u20B9${(abs / 1e5).toStringAsFixed(2)} L';
     }
     return '$sign\u20B9${Formatters.fullPrice(value)}';
+  }
+
+  /// Normalize market_cap to crores (some sources store raw rupees, others crores).
+  /// Indian max market cap is ~20 lakh crore = 2e7 Cr.  Anything > 1e7 is likely raw rupees.
+  static double _mcapInCr(double raw) => raw > 1e7 ? raw / 1e7 : raw;
+
+  /// Format market cap for display, handling mixed units.
+  static String _formatMarketCap(double? raw) {
+    if (raw == null) return '\u2014';
+    final cr = _mcapInCr(raw);
+    if (cr >= 1e5) {
+      return '\u20B9${(cr / 1e5).toStringAsFixed(2)} L Cr';
+    }
+    return '\u20B9${Formatters.price(cr)} Cr';
   }
 
   static String _pct(double? value) {
@@ -222,7 +235,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
             const SizedBox(height: 4),
             Text(
-              'NSE \u00B7 Mkt Cap: ${_formatLargeNumber(item.marketCap != null ? item.marketCap! * 1e7 : null)}',
+              'NSE \u00B7 Mkt Cap: ${_formatMarketCap(item.marketCap)}',
               style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
             ),
             const SizedBox(height: 12),
@@ -904,418 +917,113 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   // ── FINANCIALS TAB ──────────────────────────────────────────
 
   Widget _buildFinancialsTab(ThemeData theme, DiscoverStockItem item) {
-    // FCF Yield = freeCashFlow / (marketCap * 1e7) * 100  (marketCap is in Cr)
-    double? fcfYield;
-    if (item.freeCashFlow != null &&
-        item.marketCap != null &&
-        item.marketCap! > 0) {
-      fcfYield = (item.freeCashFlow! / (item.marketCap! * 1e7)) * 100;
-    }
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Key Highlights (P/E, ROE, D/E, Market Cap)
+        // ── Overview ──
         Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Overview',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
-                  children: [
-                    StatCard(
-                      label: item.sectorPercentile != null
-                          ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
-                          : 'P/E Ratio',
-                      value: _ratio(item.peRatio, decimals: 1),
-                      valueColor: _peColor(item.peRatio),
-                      metricKey: 'pe_ratio',
-                    ),
-                    StatCard(
-                      label: 'ROE',
-                      value: _pct(item.roe),
-                      valueColor: _roeColor(item.roe),
-                      metricKey: 'roe',
-                    ),
-                    StatCard(
-                      label: 'D/E Ratio',
-                      value: _ratio(item.debtToEquity),
-                      valueColor: _deColor(item.debtToEquity),
-                      metricKey: 'debt_to_equity',
-                    ),
-                    StatCard(
-                      label: 'Market Cap',
-                      value: item.marketCap != null
-                          ? '\u20B9${Formatters.price(item.marketCap!)} Cr'
-                          : '\u2014',
-                      metricKey: 'market_cap',
-                    ),
-                  ],
-                ),
+                Text('Overview',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                _metricRow(context,
+                    label: 'Market Cap',
+                    value: _formatMarketCap(item.marketCap),
+                    metricKey: 'market_cap'),
+                _metricRow(context,
+                    label: item.sectorPercentile != null
+                        ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
+                        : 'P/E Ratio',
+                    value: _ratio(item.peRatio, decimals: 1),
+                    valueColor: _peColor(item.peRatio),
+                    metricKey: 'pe_ratio'),
+                _metricRow(context,
+                    label: 'P/B Ratio',
+                    value: _ratio(item.priceToBook),
+                    metricKey: 'price_to_book'),
+                _metricRow(context,
+                    label: 'EPS',
+                    value: item.eps != null
+                        ? '\u20B9${item.eps!.toStringAsFixed(1)}'
+                        : '\u2014',
+                    metricKey: 'eps'),
+                _metricRow(context,
+                    label: 'Dividend Yield',
+                    value: item.dividendYield != null
+                        ? '${item.dividendYield!.toStringAsFixed(2)}%'
+                        : '\u2014',
+                    metricKey: 'dividend_yield'),
+                _metricRow(context,
+                    label: 'Beta',
+                    value: item.beta != null
+                        ? item.beta!.toStringAsFixed(2)
+                        : '\u2014',
+                    metricKey: 'beta',
+                    isLast: true),
               ],
             ),
           ),
         ),
         const SizedBox(height: 8),
 
-        // Key Insights (whyRanked)
-        if (item.whyRanked.isNotEmpty) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.lightbulb_outline,
-                          size: 18, color: AppTheme.accentOrange),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Key Insights',
-                        style: theme.textTheme.titleSmall
-                            ?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ...item.whyRanked.map((reason) => Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Padding(
-                              padding: EdgeInsets.only(top: 6),
-                              child: Icon(Icons.circle,
-                                  size: 5, color: Colors.white38),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                reason,
-                                style: theme.textTheme.bodySmall
-                                    ?.copyWith(color: Colors.white70),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-        ],
-
-        // Profitability & Growth (merged)
+        // ── Profitability ──
         Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Profitability & Growth',
+                Text('Profitability',
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
-                  children: [
-                    StatCard(
-                      label: 'Gross Margin',
-                      value: _marginPct(item.grossMargins),
-                      valueColor: item.grossMargins == null ? Colors.white38 : null,
-                      tooltip: metricExplanations['gross_margin'],
-                    ),
-                    StatCard(
-                      label: 'Operating Margin',
-                      value: _marginPct(item.operatingMargins),
-                      valueColor: item.operatingMargins == null
-                          ? Colors.white38
-                          : null,
-                      tooltip: metricExplanations['operating_margin'],
-                    ),
-                    StatCard(
-                      label: 'Net Margin',
-                      value: _marginPct(item.profitMargins),
-                      valueColor: _marginColor(item.profitMargins),
-                      tooltip: metricExplanations['profit_margin'],
-                    ),
-                    StatCard(
-                      label: 'FCF Yield',
-                      value: fcfYield != null
-                          ? '${fcfYield.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      valueColor: fcfYield == null
-                          ? Colors.white38
-                          : (fcfYield > 5 ? AppTheme.accentGreen : null),
-                      tooltip: metricExplanations['fcf_yield'],
-                    ),
-                    StatCard(
-                      label: 'Revenue Growth',
-                      value: _marginPct(item.revenueGrowth),
-                      valueColor: _changeColor(item.revenueGrowth),
-                    ),
-                    StatCard(
-                      label: 'Earnings Growth',
-                      value: _marginPct(item.earningsGrowth),
-                      valueColor: _changeColor(item.earningsGrowth),
-                    ),
-                    if (item.opmChange != null)
-                      StatCard(
-                        label: 'OPM Change',
-                        value: '${item.opmChange! >= 0 ? '+' : ''}${item.opmChange!.toStringAsFixed(1)}%',
-                        valueColor: _changeColor(item.opmChange),
-                        tooltip: 'Change in operating profit margin vs previous year.',
-                      ),
-                  ],
-                ),
-                // Margin trend from plAnnual if available
+                const SizedBox(height: 4),
+                _metricRow(context,
+                    label: 'ROE',
+                    value: _pct(item.roe),
+                    valueColor: _roeColor(item.roe),
+                    metricKey: 'roe'),
+                _metricRow(context,
+                    label: 'ROCE',
+                    value: _pct(item.roce),
+                    valueColor: _roeColor(item.roce),
+                    metricKey: 'roce'),
+                _metricRow(context,
+                    label: 'Operating Margin',
+                    value: _marginPct(item.operatingMargins),
+                    metricKey: 'operating_margin'),
+                _metricRow(context,
+                    label: 'Net Margin',
+                    value: _marginPct(item.profitMargins),
+                    valueColor: _marginColor(item.profitMargins),
+                    metricKey: 'profit_margin'),
+                _metricRow(context,
+                    label: 'Revenue Growth',
+                    value: _marginPct(item.revenueGrowth),
+                    valueColor: _changeColor(item.revenueGrowth),
+                    metricKey: 'revenue_growth'),
+                _metricRow(context,
+                    label: 'Earnings Growth',
+                    value: _marginPct(item.earningsGrowth),
+                    valueColor: _changeColor(item.earningsGrowth),
+                    metricKey: 'earnings_growth',
+                    isLast: item.plAnnual == null || item.plAnnual!.isEmpty),
+                // Revenue & Profit Trend chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
-                  ..._buildMarginTrendSection(item.plAnnual!),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Revenue & Profit Trend (from P&L JSONB)
-        Builder(builder: (_) {
-          if (item.plAnnual == null || item.plAnnual!.isEmpty) return const SizedBox.shrink();
-          final groups = _buildPlTrendGroups(item.plAnnual!);
-          if (groups.isEmpty) return const SizedBox.shrink();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionTitle('Revenue & Profit Trend'),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 160,
-                child: GroupedBarChartWidget(
-                  groups: groups,
-                  barColors: [AppTheme.accentBlue, AppTheme.accentGreen],
-                  legendLabels: const ['Revenue', 'Profit'],
-                  yAxisLabel: '₹ Cr',
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          );
-        }),
-
-        // Growth metrics (StatCards)
-        if (item.salesGrowthYoy != null ||
-            item.profitGrowthYoy != null ||
-            item.compoundedSalesGrowth3y != null ||
-            item.compoundedProfitGrowth3y != null) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Growth Metrics',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.8,
-                    children: [
-                      if (item.salesGrowthYoy != null)
-                        StatCard(
-                          label: 'Sales Growth (YoY)',
-                          value: _pct(item.salesGrowthYoy),
-                          valueColor: _changeColor(item.salesGrowthYoy),
-                        ),
-                      if (item.profitGrowthYoy != null)
-                        StatCard(
-                          label: 'Profit Growth (YoY)',
-                          value: _pct(item.profitGrowthYoy),
-                          valueColor: _changeColor(item.profitGrowthYoy),
-                        ),
-                      if (item.compoundedSalesGrowth3y != null)
-                        StatCard(
-                          label: 'Sales CAGR (3Y)',
-                          value: _pct(item.compoundedSalesGrowth3y),
-                          valueColor:
-                              _changeColor(item.compoundedSalesGrowth3y),
-                        ),
-                      if (item.compoundedProfitGrowth3y != null)
-                        StatCard(
-                          label: 'Profit CAGR (3Y)',
-                          value: _pct(item.compoundedProfitGrowth3y),
-                          valueColor:
-                              _changeColor(item.compoundedProfitGrowth3y),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
-
-        // Cash Flow Breakdown (GroupedBarChart)
-        Builder(builder: (_) {
-          if (item.cfAnnual == null || item.cfAnnual!.isEmpty) return const SizedBox.shrink();
-          final groups = _buildCfGroups(item.cfAnnual!);
-          if (groups.isEmpty) return const SizedBox.shrink();
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionTitle('Cash Flow Breakdown'),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 180,
-                child: GroupedBarChartWidget(
-                  groups: groups,
-                  barColors: [AppTheme.accentGreen, AppTheme.accentOrange, AppTheme.accentBlue],
-                  legendLabels: const ['Operating', 'Investing', 'Financing'],
-                  yAxisLabel: '₹ Cr',
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-          );
-        }),
-
-        // Valuation & Balance Sheet (merged)
-        Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Valuation & Balance Sheet',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 12),
-                // Valuation metrics
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
-                  children: [
-                    StatCard(
-                      label: 'Trailing P/E',
-                      value: _ratio(item.peRatio, decimals: 1),
-                      valueColor: _peColor(item.peRatio),
-                      tooltip: metricExplanations['pe_ratio'],
-                    ),
-                    StatCard(
-                      label: 'Forward P/E',
-                      value: _ratio(item.forwardPe, decimals: 1),
-                      valueColor: _peColor(item.forwardPe),
-                      tooltip: metricExplanations['forward_pe'],
-                    ),
-                    StatCard(
-                      label: 'Price to Book',
-                      value: _ratio(item.priceToBook),
-                      valueColor: item.priceToBook == null ? Colors.white38 : null,
-                      tooltip: metricExplanations['price_to_book'],
-                    ),
-                    if (item.pegRatio != null)
-                      StatCard(
-                        label: 'PEG Ratio',
-                        value: item.pegRatio!.toStringAsFixed(2),
-                        tooltip: metricExplanations['peg_ratio'],
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Divider(color: Colors.white10, height: 1),
-                const SizedBox(height: 12),
-                // Balance sheet metrics
-                GridView.count(
-                  crossAxisCount: 2,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 8,
-                  crossAxisSpacing: 8,
-                  childAspectRatio: 1.8,
-                  children: [
-                    StatCard(
-                      label: 'Total Debt',
-                      value: _formatLargeNumber(item.totalDebt),
-                      valueColor: item.totalDebt == null ? Colors.white38 : null,
-                      tooltip: metricExplanations['total_debt'],
-                    ),
-                    StatCard(
-                      label: 'Total Cash',
-                      value: _formatLargeNumber(item.totalCash),
-                      valueColor: item.totalCash == null ? Colors.white38 : null,
-                    ),
-                    StatCard(
-                      label: 'D/E Ratio',
-                      value: _ratio(item.debtToEquity),
-                      valueColor: _deColor(item.debtToEquity),
-                      tooltip: metricExplanations['debt_to_equity'],
-                    ),
-                    StatCard(
-                      label: 'Payout Ratio',
-                      value: _marginPct(item.payoutRatio),
-                      valueColor: item.payoutRatio == null ? Colors.white38 : null,
-                      tooltip: metricExplanations['payout_ratio'],
-                    ),
-                    if (item.interestCoverage != null)
-                      StatCard(
-                        label: 'Interest Coverage',
-                        value: '${item.interestCoverage!.toStringAsFixed(1)}x',
-                        valueColor: item.interestCoverage! < 1.5
-                            ? AppTheme.accentRed
-                            : (item.interestCoverage! > 3
-                                ? AppTheme.accentGreen
-                                : null),
-                        tooltip: metricExplanations['interest_coverage'],
-                      ),
-                  ],
-                ),
-                // Equity vs Debt trend embedded
-                if (item.bsAnnual != null && item.bsAnnual!.isNotEmpty)
                   Builder(builder: (_) {
-                    final groups = _buildBsGroups(item.bsAnnual!);
+                    final groups = _buildPlTrendGroups(item.plAnnual!);
                     if (groups.isEmpty) return const SizedBox.shrink();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 12),
-                        const Divider(color: Colors.white10, height: 1),
-                        const SizedBox(height: 8),
-                        Text('Equity vs Debt Trend',
+                        Text('Revenue & Profit Trend',
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: Colors.white54)),
                         const SizedBox(height: 8),
@@ -1323,14 +1031,72 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           height: 160,
                           child: GroupedBarChartWidget(
                             groups: groups,
-                            barColors: [AppTheme.accentGreen, AppTheme.accentRed],
-                            legendLabels: const ['Equity', 'Debt'],
-                            yAxisLabel: '₹ Cr',
+                            barColors: [
+                              AppTheme.accentBlue,
+                              AppTheme.accentGreen
+                            ],
+                            legendLabels: const ['Revenue', 'Profit'],
+                            yAxisLabel: '\u20B9 Cr',
                           ),
                         ),
                       ],
                     );
                   }),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+
+        // ── Balance Sheet ──
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Balance Sheet',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                _metricRow(context,
+                    label: 'D/E Ratio',
+                    value: _ratio(item.debtToEquity),
+                    valueColor: _deColor(item.debtToEquity),
+                    metricKey: 'debt_to_equity'),
+                if (item.interestCoverage != null)
+                  _metricRow(context,
+                      label: 'Interest Coverage',
+                      value:
+                          '${item.interestCoverage!.toStringAsFixed(1)}x',
+                      valueColor: item.interestCoverage! < 1.5
+                          ? AppTheme.accentRed
+                          : (item.interestCoverage! > 3
+                              ? AppTheme.accentGreen
+                              : null),
+                      metricKey: 'interest_coverage'),
+                _metricRow(context,
+                    label: 'Total Debt',
+                    value: _formatLargeNumber(item.totalDebt),
+                    metricKey: 'total_debt'),
+                _metricRow(context,
+                    label: 'Total Cash',
+                    value: _formatLargeNumber(item.totalCash)),
+                if (item.freeCashFlow != null)
+                  _metricRow(context,
+                      label: 'Free Cash Flow',
+                      value: _formatLargeNumber(item.freeCashFlow),
+                      valueColor: item.freeCashFlow != null &&
+                              item.freeCashFlow! < 0
+                          ? AppTheme.accentRed
+                          : AppTheme.accentGreen,
+                      metricKey: 'free_cash_flow'),
+                _metricRow(context,
+                    label: 'Payout Ratio',
+                    value: _marginPct(item.payoutRatio),
+                    metricKey: 'payout_ratio',
+                    isLast: true),
               ],
             ),
           ),
@@ -1772,9 +1538,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
         String fmtMcap(double? v) {
           if (v == null) return '\u2014';
-          if (v >= 1e5) return '${(v / 1e5).toStringAsFixed(1)}L';
-          if (v >= 1e3) return '${(v / 1e3).toStringAsFixed(0)}K';
-          return '${v.toStringAsFixed(0)}';
+          final cr = _mcapInCr(v);
+          if (cr >= 1e5) return '${(cr / 1e5).toStringAsFixed(1)}L Cr';
+          if (cr >= 1e3) return '${(cr / 1e3).toStringAsFixed(0)}K Cr';
+          return '${cr.toStringAsFixed(0)} Cr';
         }
 
         Widget buildRow(DiscoverStockItem stock, {bool highlight = false}) {
@@ -1837,9 +1604,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   SizedBox(
                     width: 52,
                     child: Text(
-                      fmtChange(stock.percentChange),
+                      fmtChange(stock.percentChange3m ?? stock.percentChange),
                       style: cellStyle.copyWith(
-                        color: changeColor(stock.percentChange),
+                        color: changeColor(stock.percentChange3m ?? stock.percentChange),
                         fontWeight: FontWeight.w600,
                       ),
                       textAlign: TextAlign.right,
@@ -1889,7 +1656,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               textAlign: TextAlign.right)),
                       SizedBox(
                           width: 52,
-                          child: Text('Change',
+                          child: Text('3M %',
                               style: headerStyle,
                               textAlign: TextAlign.right)),
                     ],
@@ -1906,15 +1673,94 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  // ── Section Title Helper ─────────────────────────────────────
+  // ── Metric Row Helper ──────────────────────────────────────
 
-  Widget _sectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w700,
-        color: Colors.white,
+  void _showMetricExplanation(BuildContext context, String label, String explanation) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(label,
+                style: const TextStyle(
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Text(explanation,
+                style: const TextStyle(
+                    color: Colors.white70, fontSize: 14, height: 1.5)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metricRow(
+    BuildContext context, {
+    required String label,
+    required String value,
+    Color? valueColor,
+    String? metricKey,
+    bool isLast = false,
+  }) {
+    final explanation =
+        metricKey != null ? metricExplanations[metricKey] : null;
+    return InkWell(
+      onTap: explanation != null
+          ? () => _showMetricExplanation(context, label, explanation)
+          : null,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: isLast
+            ? null
+            : BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                ),
+              ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(label,
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 13)),
+                  if (explanation != null) ...[
+                    const SizedBox(width: 4),
+                    const Icon(Icons.info_outline,
+                        size: 13, color: Colors.white30),
+                  ],
+                ],
+              ),
+            ),
+            Text(value,
+                style: TextStyle(
+                    color: valueColor ?? Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
@@ -1946,40 +1792,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return _toNum(list[i]);
   }
 
-  // ── Margin Trend from plAnnual ─────────────────────────────
-  List<Widget> _buildMarginTrendSection(Map<String, dynamic> pl) {
-    final opmList = (pl['operating_profit_margin_pct'] ?? pl['opm']) as List<dynamic>?;
-    final npmList = (pl['net_profit_margin_pct'] ?? pl['npm']) as List<dynamic>?;
-    if (opmList == null && npmList == null) return [];
-
-    final years = pl['years'] as List<dynamic>? ?? [];
-    final len = years.length;
-    final start = len > 5 ? len - 5 : 0;
-    final groups = <BarGroup>[];
-    for (var i = start; i < len; i++) {
-      groups.add(BarGroup(
-        label: _shortYear(years[i].toString()),
-        values: [_valAt(opmList as List?, i), _valAt(npmList as List?, i)],
-      ));
-    }
-    if (groups.isEmpty) return [];
-
-    return [
-      const SizedBox(height: 12),
-      const Text('Margin Trend',
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
-      const SizedBox(height: 8),
-      SizedBox(
-        height: 160,
-        child: GroupedBarChartWidget(
-          groups: groups,
-          barColors: [AppTheme.accentOrange, AppTheme.accentGreen],
-          legendLabels: const ['OPM %', 'NPM %'],
-        ),
-      ),
-    ];
-  }
-
   // ── Chart Data Helpers ──────────────────────────────────────
 
   List<BarGroup> _buildPlTrendGroups(Map<String, dynamic> pl) {
@@ -2000,49 +1812,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return groups;
   }
 
-  List<BarGroup> _buildCfGroups(Map<String, dynamic> cf) {
-    final years = cf['years'] as List<dynamic>? ?? [];
-    final ops = (cf['cash_from_operating_activity'] ?? cf['cash_from_operations']) as List<dynamic>?;
-    final inv = (cf['cash_from_investing_activity'] ?? cf['cash_from_investing']) as List<dynamic>?;
-    final fin = (cf['cash_from_financing_activity'] ?? cf['cash_from_financing']) as List<dynamic>?;
-    if (years.isEmpty) return [];
-
-    final len = years.length;
-    final start = len > 5 ? len - 5 : 0;
-    final groups = <BarGroup>[];
-    for (var i = start; i < len; i++) {
-      groups.add(BarGroup(
-        label: _shortYear(years[i].toString()),
-        values: [
-          _valAt(ops as List?, i) / 100,
-          _valAt(inv as List?, i) / 100,
-          _valAt(fin as List?, i) / 100,
-        ],
-      ));
-    }
-    return groups;
-  }
-
-  List<BarGroup> _buildBsGroups(Map<String, dynamic> bs) {
-    final years = bs['years'] as List<dynamic>? ?? [];
-    final equity = (bs['shareholders_equity'] ?? bs['shareholder_equity'] ?? bs['total_equity']) as List<dynamic>?;
-    final debt = (bs['borrowings'] ?? bs['total_debt']) as List<dynamic>?;
-    if (years.isEmpty || (equity == null && debt == null)) return [];
-
-    final len = years.length;
-    final start = len > 5 ? len - 5 : 0;
-    final groups = <BarGroup>[];
-    for (var i = start; i < len; i++) {
-      groups.add(BarGroup(
-        label: _shortYear(years[i].toString()),
-        values: [
-          _valAt(equity as List?, i) / 100,
-          _valAt(debt as List?, i) / 100,
-        ],
-      ));
-    }
-    return groups;
-  }
 
   /// Compute YoY holding changes from shareholdingQuarterly JSONB.
   /// Compares the latest quarter with the quarter 4 entries ago.

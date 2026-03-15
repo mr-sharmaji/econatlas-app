@@ -47,8 +47,6 @@ const Map<String, String> metricExplanations = {
       'Profit from core business operations as a percentage of revenue, after deducting operating expenses but before interest and taxes. Higher operating margins (above 15%) indicate efficient operations and good cost control.',
   'profit_margin':
       'Net profit as a percentage of total revenue after ALL expenses (operations, interest, taxes). A profit margin of 10% means the company keeps \u20B910 as profit from every \u20B9100 of revenue. Higher margins mean more profitable and efficient operations.',
-  'fcf_yield':
-      'Free cash flow divided by market cap, expressed as a percentage. FCF yield above 5% is strong \u2014 it means the company generates significant real cash relative to its price. Think of it like a "cash dividend" the business earns for shareholders.',
   'total_debt':
       'The total amount of money the company has borrowed (short-term + long-term). Compare with equity (debt-to-equity ratio) and cash reserves to assess if the debt level is manageable. Companies with high debt face more risk during economic downturns.',
   'payout_ratio':
