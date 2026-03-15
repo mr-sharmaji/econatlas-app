@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error_utils.dart';
-import '../../../core/theme.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/stock_list_tile.dart';
@@ -363,6 +362,15 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                   );
                 }
 
+                // Fetch sparklines for visible items
+                final symbols = items.map((e) => e.symbol).toList();
+                final sparkAsync = ref.watch(
+                  discoverStockSparklinesProvider(
+                    (symbols: symbols, days: 7),
+                  ),
+                );
+                final sparkMap = sparkAsync.valueOrNull ?? {};
+
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(discoverStocksProvider);
@@ -389,9 +397,13 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                         );
                       }
                       final item = items[index];
+                      final sparkVals = sparkMap[item.symbol]
+                          ?.map((p) => p.value)
+                          .toList();
                       return StockListTile(
                         item: item,
                         changeField: changeField,
+                        sparklineValues: sparkVals,
                         onTap: () => context.push(
                           '/discover/stock/${Uri.encodeComponent(item.symbol)}',
                           extra: item,
@@ -860,6 +872,21 @@ class _SortFilterSheetBodyState extends State<_SortFilterSheetBody> {
     );
   }
 
+  bool _hasAdvancedFilters() {
+    return [
+      _minPeCtrl,
+      _maxPeCtrl,
+      _minPbCtrl,
+      _maxPbCtrl,
+      _minRoeCtrl,
+      _minRoceCtrl,
+      _maxDeCtrl,
+      _minDivCtrl,
+      _minPriceCtrl,
+      _maxPriceCtrl,
+    ].any((c) => c.text.isNotEmpty);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1065,6 +1092,7 @@ class _SortFilterSheetBodyState extends State<_SortFilterSheetBody> {
               title: Text('Advanced', style: theme.textTheme.titleSmall),
               tilePadding: EdgeInsets.zero,
               childrenPadding: const EdgeInsets.only(bottom: 8),
+              initiallyExpanded: _hasAdvancedFilters(),
               children: [
                 const SizedBox(height: 8),
                 // P/E

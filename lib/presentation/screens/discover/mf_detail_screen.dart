@@ -15,6 +15,7 @@ import 'widgets/score_bar.dart';
 import 'widgets/metric_glossary.dart';
 import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
+import 'widgets/grouped_bar_chart_widget.dart';
 import 'widgets/stat_card.dart';
 
 enum _ReturnMode { xirr, cagr }
@@ -65,7 +66,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         body: const ShimmerMfDetail(),
       ),
       error: (err, _) => Scaffold(
-        appBar: AppBar(title: const Text('Fund Detail')),
+        appBar: AppBar(title: Text(widget.schemeCode)),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -501,6 +502,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         label: 'Alpha Edge',
                         value: breakdown.alphaScore!,
                       ),
+                    if (item.scoreCategoryFit != null)
+                      RadarDimension(
+                        label: 'Category Fit',
+                        value: item.scoreCategoryFit!.toDouble(),
+                      ),
                   ],
                   fillColor: AppTheme.accentBlue,
                 ),
@@ -551,19 +557,33 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   ),
                 ],
               ),
-              if (breakdown.alphaScore != null) ...[
+              if (breakdown.alphaScore != null || item.scoreCategoryFit != null) ...[
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    Expanded(
-                      child: StatCard(
-                        label: 'Alpha Edge',
-                        value: breakdown.alphaScore!.toStringAsFixed(1),
-                        valueColor: AppTheme.accentGreen,
-                        tooltip: 'Score based on the fund\'s excess return (alpha) over benchmark.',
+                    if (breakdown.alphaScore != null)
+                      Expanded(
+                        child: StatCard(
+                          label: 'Alpha Edge',
+                          value: breakdown.alphaScore!.toStringAsFixed(1),
+                          valueColor: AppTheme.accentGreen,
+                          tooltip: 'Score based on the fund\'s excess return (alpha) over benchmark.',
+                        ),
                       ),
-                    ),
-                    const Spacer(),
+                    if (breakdown.alphaScore != null && item.scoreCategoryFit != null)
+                      const SizedBox(width: 8),
+                    if (item.scoreCategoryFit != null)
+                      Expanded(
+                        child: StatCard(
+                          value: item.scoreCategoryFit?.toStringAsFixed(0) ?? '-',
+                          label: 'Category Mandate Fit',
+                          tooltip: 'How well the fund sticks to its stated investment mandate and category objectives',
+                        ),
+                      ),
+                    if (breakdown.alphaScore == null && item.scoreCategoryFit != null)
+                      const Spacer(),
+                    if (breakdown.alphaScore != null && item.scoreCategoryFit == null)
+                      const Spacer(),
                   ],
                 ),
               ],
@@ -753,6 +773,42 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     ?.copyWith(color: Colors.white54),
               ),
               const SizedBox(height: 8),
+              SizedBox(
+                height: 180,
+                child: GroupedBarChartWidget(
+                  groups: [
+                    if (item.returns1y != null || item.categoryAvgReturns1y != null)
+                      BarGroup(label: '1Y', values: [
+                        item.returns1y?.toDouble() ?? 0,
+                        item.categoryAvgReturns1y?.toDouble() ?? 0,
+                      ], colors: [AppTheme.accentBlue, Colors.white38]),
+                    if (item.returns3y != null || item.categoryAvgReturns3y != null)
+                      BarGroup(label: '3Y', values: [
+                        item.returns3y?.toDouble() ?? 0,
+                        item.categoryAvgReturns3y?.toDouble() ?? 0,
+                      ], colors: [AppTheme.accentBlue, Colors.white38]),
+                    if (item.returns5y != null || item.categoryAvgReturns5y != null)
+                      BarGroup(label: '5Y', values: [
+                        item.returns5y?.toDouble() ?? 0,
+                        item.categoryAvgReturns5y?.toDouble() ?? 0,
+                      ], colors: [AppTheme.accentBlue, Colors.white38]),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentBlue, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(width: 4),
+                  Text('Fund Return', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                  const SizedBox(width: 12),
+                  Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(2))),
+                  const SizedBox(width: 4),
+                  Text('Category Avg', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                ],
+              ),
+              const SizedBox(height: 12),
               if (item.returns1y != null && item.categoryAvgReturns1y != null)
                 _buildReturnComparison(
                   theme,
@@ -969,6 +1025,48 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 const Spacer(),
               ],
             ),
+            if (item.rollingReturnConsistency != null) ...[
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: (item.rollingReturnConsistency! / 100).clamp(0.0, 1.0),
+                          strokeWidth: 5,
+                          backgroundColor: Colors.white.withValues(alpha: 0.1),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            ScoreBar.scoreColor(item.rollingReturnConsistency!.toDouble()),
+                          ),
+                        ),
+                        Text(
+                          '${item.rollingReturnConsistency!.toStringAsFixed(0)}%',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('Rolling Return Consistency',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text(
+                          'How predictable the fund\'s returns have been over time',
+                          style: TextStyle(fontSize: 11, color: Colors.white54),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -1023,15 +1121,14 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     ),
                   ),
                 if (item.fundAgeYears != null &&
-                    item.rollingReturnConsistency != null)
+                    item.stdDev != null)
                   const SizedBox(width: 8),
-                if (item.rollingReturnConsistency != null)
+                if (item.stdDev != null)
                   Expanded(
                     child: StatCard(
-                      label: 'Rolling Consistency',
-                      value:
-                          '${item.rollingReturnConsistency!.toStringAsFixed(1)}%',
-                      tooltip: metricExplanations['rolling_return_consistency'],
+                      value: '${item.stdDev!.toStringAsFixed(2)}%',
+                      label: 'Std Deviation',
+                      tooltip: metricExplanations['Standard Deviation'] ?? 'Measures the volatility of fund returns. Higher means more unpredictable.',
                     ),
                   ),
               ],
@@ -1287,6 +1384,51 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
+                if (peers.isNotEmpty) ...[
+                  SizedBox(
+                    height: 180,
+                    child: GroupedBarChartWidget(
+                      groups: [
+                        BarGroup(
+                          label: item.schemeName.length > 8 ? item.schemeName.substring(0, 8) : item.schemeName,
+                          values: [
+                            item.score.toDouble(),
+                            item.returns1y?.toDouble() ?? 0,
+                            item.expenseRatio?.toDouble() ?? 0,
+                          ],
+                          colors: [AppTheme.accentBlue, AppTheme.accentGreen, AppTheme.accentOrange],
+                        ),
+                        ...peers.take(4).map((p) => BarGroup(
+                          label: (p.displayName ?? p.schemeName).length > 8 ? (p.displayName ?? p.schemeName).substring(0, 8) : (p.displayName ?? p.schemeName),
+                          values: [
+                            p.score.toDouble(),
+                            p.returns1y?.toDouble() ?? 0,
+                            p.expenseRatio?.toDouble() ?? 0,
+                          ],
+                          colors: [AppTheme.accentBlue, AppTheme.accentGreen, AppTheme.accentOrange],
+                        )),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentBlue, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 4),
+                      Text('Score', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                      const SizedBox(width: 12),
+                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentGreen, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 4),
+                      Text('1Y Return', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                      const SizedBox(width: 12),
+                      Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentOrange, borderRadius: BorderRadius.circular(2))),
+                      const SizedBox(width: 4),
+                      Text('Expense', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 ...peers.map(buildPeerTile),
               ],
             ),

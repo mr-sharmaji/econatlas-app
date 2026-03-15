@@ -10,6 +10,38 @@ import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/mf_list_tile.dart';
 
+// ---------------------------------------------------------------------------
+// Preset icon mapping
+// ---------------------------------------------------------------------------
+const _presetIcons = <DiscoverMutualFundPreset, IconData>{
+  DiscoverMutualFundPreset.all: Icons.apps,
+  DiscoverMutualFundPreset.equity: Icons.show_chart,
+  DiscoverMutualFundPreset.debt: Icons.account_balance,
+  DiscoverMutualFundPreset.hybrid: Icons.merge_type,
+  DiscoverMutualFundPreset.largeCap: Icons.business,
+  DiscoverMutualFundPreset.midCap: Icons.store,
+  DiscoverMutualFundPreset.smallCap: Icons.storefront,
+  DiscoverMutualFundPreset.flexiCap: Icons.auto_awesome,
+  DiscoverMutualFundPreset.multiCap: Icons.grid_view,
+  DiscoverMutualFundPreset.elss: Icons.savings,
+  DiscoverMutualFundPreset.valueMf: Icons.diamond_outlined,
+  DiscoverMutualFundPreset.focused: Icons.center_focus_strong,
+  DiscoverMutualFundPreset.sectoral: Icons.category,
+  DiscoverMutualFundPreset.indexFund: Icons.trending_up,
+  DiscoverMutualFundPreset.shortDuration: Icons.timer,
+  DiscoverMutualFundPreset.corporateBond: Icons.apartment,
+  DiscoverMutualFundPreset.bankingPsu: Icons.account_balance_wallet,
+  DiscoverMutualFundPreset.gilt: Icons.security,
+  DiscoverMutualFundPreset.liquid: Icons.water_drop,
+  DiscoverMutualFundPreset.overnight: Icons.nightlight_round,
+  DiscoverMutualFundPreset.dynamicBond: Icons.swap_vert,
+  DiscoverMutualFundPreset.moneyMarket: Icons.monetization_on,
+  DiscoverMutualFundPreset.aggressiveHybrid: Icons.speed,
+  DiscoverMutualFundPreset.balancedHybrid: Icons.balance,
+  DiscoverMutualFundPreset.conservativeHybrid: Icons.shield_outlined,
+  DiscoverMutualFundPreset.lowRisk: Icons.verified_user,
+};
+
 class MfScreenerScreen extends ConsumerStatefulWidget {
   final String? initialSearch;
   final String? initialPreset;
@@ -243,6 +275,13 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
+                    avatar: Icon(
+                      _presetIcons[segment] ?? Icons.apps,
+                      size: 16,
+                      color: selected
+                          ? Theme.of(context).colorScheme.onSecondaryContainer
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                     label: Text(segment.label),
                     selected: selected,
                     onSelected: (_) {
@@ -341,6 +380,15 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                     ),
                   );
                 }
+                // Fetch sparklines for visible items
+                final schemeCodes = items.map((e) => e.schemeCode).toList();
+                final sparkAsync = ref.watch(
+                  discoverMfSparklinesProvider(
+                    (schemeCodes: schemeCodes, days: 30),
+                  ),
+                );
+                final sparkMap = sparkAsync.valueOrNull ?? {};
+
                 return RefreshIndicator(
                   onRefresh: () async {
                     ref.invalidate(discoverMutualFundsProvider);
@@ -367,8 +415,12 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                         );
                       }
                       final item = items[index];
+                      final sparkVals = sparkMap[item.schemeCode]
+                          ?.map((p) => p.value)
+                          .toList();
                       return MfListTile(
                         item: item,
+                        sparklineValues: sparkVals,
                         onTap: () {
                           context.push(
                             '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
@@ -401,6 +453,13 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
             return Padding(
               padding: const EdgeInsets.only(right: 6),
               child: ChoiceChip(
+                avatar: Icon(
+                  _presetIcons[sub] ?? Icons.apps,
+                  size: 16,
+                  color: selectedPreset == sub
+                      ? Theme.of(context).colorScheme.onSecondaryContainer
+                      : Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
                 label: Text(sub.label),
                 selected: selectedPreset == sub,
                 onSelected: (_) {

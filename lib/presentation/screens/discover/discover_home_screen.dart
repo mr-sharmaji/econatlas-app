@@ -12,6 +12,7 @@ import '../../../data/services/recently_viewed_service.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
+import 'widgets/sparkline_widget.dart';
 
 /// Bottom padding to clear the FAB.
 const double _kBottomPadding = 112;
@@ -193,15 +194,42 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         // Recently Viewed
         if (recent.isNotEmpty)
           SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Recently Viewed',
-              children: recent
-                  .map((item) => _RecentCard(
-                        item: item,
-                        onTap: () => _onRecentTap(item),
-                      ))
-                  .toList(),
-            ),
+            child: Builder(builder: (_) {
+              final recentStockSymbols = recent
+                  .where((r) => r.type == 'stock')
+                  .map((r) => r.id)
+                  .toList();
+              final recentMfCodes = recent
+                  .where((r) => r.type == 'mf')
+                  .map((r) => r.id)
+                  .toList();
+              final recentStockSparklines = recentStockSymbols.isNotEmpty
+                  ? ref.watch(discoverStockSparklinesProvider(
+                      (symbols: recentStockSymbols, days: 7)))
+                  : null;
+              final recentMfSparklines = recentMfCodes.isNotEmpty
+                  ? ref.watch(discoverMfSparklinesProvider(
+                      (schemeCodes: recentMfCodes, days: 7)))
+                  : null;
+              final recentStockSparkMap =
+                  recentStockSparklines?.valueOrNull ?? {};
+              final recentMfSparkMap =
+                  recentMfSparklines?.valueOrNull ?? {};
+              return _HorizontalSection(
+                title: 'Recently Viewed',
+                children: recent
+                    .map((item) => _RecentCard(
+                          item: item,
+                          onTap: () => _onRecentTap(item),
+                          sparklineValues: (item.type == 'stock'
+                                  ? recentStockSparkMap[item.id]
+                                  : recentMfSparkMap[item.id])
+                              ?.map((p) => p.value)
+                              .toList(),
+                        ))
+                    .toList(),
+              );
+            }),
           ),
 
         // Highest Quality Stocks (renamed from "Top Rated Stocks")
@@ -226,17 +254,30 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         // Trending This Week (MOVED UP)
         if (data.trendingThisWeek.isNotEmpty)
           SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Trending This Week',
-              cardWidth: 160,
-              children: data.trendingThisWeek
-                  .map((s) => _StockCard(
-                        item: s,
-                        onTap: () => _onStockTap(s, initialDays: 7),
-                        use1wChange: true,
-                      ))
-                  .toList(),
-            ),
+            child: Builder(builder: (_) {
+              final trendingSymbols =
+                  data.trendingThisWeek.map((s) => s.symbol).toList();
+              final trendingSparklines = trendingSymbols.isNotEmpty
+                  ? ref.watch(discoverStockSparklinesProvider(
+                      (symbols: trendingSymbols, days: 7)))
+                  : null;
+              final trendingSparkMap =
+                  trendingSparklines?.valueOrNull ?? {};
+              return _HorizontalSection(
+                title: 'Trending This Week',
+                cardWidth: 160,
+                children: data.trendingThisWeek
+                    .map((s) => _StockCard(
+                          item: s,
+                          onTap: () => _onStockTap(s, initialDays: 7),
+                          use1wChange: true,
+                          sparklineValues: trendingSparkMap[s.symbol]
+                              ?.map((p) => p.value)
+                              .toList(),
+                        ))
+                    .toList(),
+              );
+            }),
           ),
 
         // Top Equity Funds
@@ -995,6 +1036,7 @@ class _StockCard extends StatelessWidget {
   final bool use3mChange;
   final bool use1wChange;
   final bool showQualityTier;
+  final List<double>? sparklineValues;
 
   const _StockCard({
     required this.item,
@@ -1002,6 +1044,7 @@ class _StockCard extends StatelessWidget {
     this.use3mChange = false,
     this.use1wChange = false,
     this.showQualityTier = false,
+    this.sparklineValues,
   });
 
   @override
@@ -1105,6 +1148,16 @@ class _StockCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             ScoreBar(score: item.score, height: 4, showLabel: false),
+            if (sparklineValues != null && sparklineValues!.length >= 2) ...[
+              const SizedBox(height: 4),
+              SparklineWidget(
+                values: sparklineValues!,
+                color: (sparklineValues!.last >= sparklineValues!.first)
+                    ? AppTheme.accentGreen
+                    : AppTheme.accentRed,
+                height: 24,
+              ),
+            ],
           ],
         ),
       ),
@@ -1422,8 +1475,9 @@ class _SectorChampionsGrid extends StatelessWidget {
 class _RecentCard extends StatelessWidget {
   final RecentlyViewedItem item;
   final VoidCallback onTap;
+  final List<double>? sparklineValues;
 
-  const _RecentCard({required this.item, required this.onTap});
+  const _RecentCard({required this.item, required this.onTap, this.sparklineValues});
 
   @override
   Widget build(BuildContext context) {
@@ -1482,11 +1536,20 @@ class _RecentCard extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             const Spacer(),
-            Icon(
-              Icons.arrow_forward_ios_rounded,
-              size: 10,
-              color: Colors.white.withValues(alpha: 0.3),
-            ),
+            if (sparklineValues != null && sparklineValues!.length >= 2)
+              SparklineWidget(
+                values: sparklineValues!,
+                color: (sparklineValues!.last >= sparklineValues!.first)
+                    ? AppTheme.accentGreen
+                    : AppTheme.accentRed,
+                height: 24,
+              )
+            else
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 10,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
           ],
         ),
       ),

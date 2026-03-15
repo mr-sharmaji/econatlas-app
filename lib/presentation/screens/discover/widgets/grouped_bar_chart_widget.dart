@@ -9,22 +9,60 @@ class BarGroup {
   const BarGroup({
     required this.label,
     required this.values,
-    required this.colors,
+    this.colors = const [],
   });
 }
 
 class GroupedBarChartWidget extends StatelessWidget {
   final List<BarGroup> groups;
+  final List<Color> barColors;
+  final List<String> legendLabels;
 
-  const GroupedBarChartWidget({super.key, required this.groups});
+  const GroupedBarChartWidget({
+    super.key,
+    required this.groups,
+    this.barColors = const [],
+    this.legendLabels = const [],
+  });
 
   @override
   Widget build(BuildContext context) {
     if (groups.isEmpty) return const SizedBox.shrink();
 
-    return SizedBox(
-      height: 200,
-      child: BarChart(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (legendLabels.isNotEmpty && barColors.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 4,
+              children: List.generate(
+                legendLabels.length.clamp(0, barColors.length),
+                (i) => Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: barColors[i],
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      legendLabels[i],
+                      style: const TextStyle(color: Colors.white60, fontSize: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        Expanded(
+          child: BarChart(
         BarChartData(
           barGroups: _buildBarGroups(),
           titlesData: FlTitlesData(
@@ -101,7 +139,9 @@ class GroupedBarChartWidget extends StatelessWidget {
             ),
           ),
         ),
-      ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -114,9 +154,11 @@ class GroupedBarChartWidget extends StatelessWidget {
         barRods: List.generate(group.values.length, (barIdx) {
           return BarChartRodData(
             toY: group.values[barIdx],
-            color: barIdx < group.colors.length
+            color: barIdx < group.colors.length && group.colors.isNotEmpty
                 ? group.colors[barIdx]
-                : Colors.white38,
+                : barIdx < barColors.length
+                    ? barColors[barIdx]
+                    : Colors.white38,
             width: 12,
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(3),

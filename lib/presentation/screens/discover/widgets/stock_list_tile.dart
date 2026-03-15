@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme.dart';
 import '../../../../core/utils.dart';
 import '../../../../data/models/discover.dart';
+import 'sparkline_widget.dart';
 import 'tag_utils.dart';
 
 /// Which percent-change field to display in the tile.
@@ -26,11 +27,15 @@ class StockListTile extends StatelessWidget {
   /// Which change field to display (driven by sort selection).
   final StockChangeField changeField;
 
+  /// Optional 7-day sparkline data points.
+  final List<double>? sparklineValues;
+
   const StockListTile({
     super.key,
     required this.item,
     this.onTap,
     this.changeField = StockChangeField.threeMonth,
+    this.sparklineValues,
   });
 
   double? get _displayChange {
@@ -173,13 +178,25 @@ class StockListTile extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Row 3: Circular score + quality tier text
+            // Row 3: Circular score + quality tier text + sparkline
             Row(
               children: [
                 _CircularScore(score: item.score),
                 const SizedBox(width: 10),
                 if (item.qualityTier != null)
                   _QualityTierBadge(tier: item.qualityTier!),
+                const Spacer(),
+                if (sparklineValues != null && sparklineValues!.length >= 2)
+                  SizedBox(
+                    width: 50,
+                    child: SparklineWidget(
+                      values: sparklineValues!,
+                      color: (sparklineValues!.last >= sparklineValues!.first)
+                          ? AppTheme.accentGreen
+                          : AppTheme.accentRed,
+                      height: 24,
+                    ),
+                  ),
               ],
             ),
           ],

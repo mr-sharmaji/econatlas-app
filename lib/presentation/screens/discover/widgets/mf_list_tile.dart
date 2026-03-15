@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme.dart';
 import '../../../../data/models/discover.dart';
+import 'sparkline_widget.dart';
 
 /// A compact mutual fund card for the screener list.
 ///
@@ -13,7 +14,10 @@ class MfListTile extends StatelessWidget {
   final DiscoverMutualFundItem item;
   final VoidCallback? onTap;
 
-  const MfListTile({super.key, required this.item, this.onTap});
+  /// Optional 30-day sparkline data points.
+  final List<double>? sparklineValues;
+
+  const MfListTile({super.key, required this.item, this.onTap, this.sparklineValues});
 
   static Color riskColor(String? risk) {
     final r = (risk ?? '').toLowerCase();
@@ -102,7 +106,7 @@ class MfListTile extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Row 3: Circular score + "Top X%" category rank
+            // Row 3: Circular score + "Top X%" category rank + sparkline
             Row(
               children: [
                 _CompactScore(score: item.score),
@@ -113,6 +117,18 @@ class MfListTile extends StatelessWidget {
                   _CategoryRankText(
                     rank: item.categoryRank!,
                     total: item.categoryTotal!,
+                  ),
+                const Spacer(),
+                if (sparklineValues != null && sparklineValues!.length >= 2)
+                  SizedBox(
+                    width: 50,
+                    child: SparklineWidget(
+                      values: sparklineValues!,
+                      color: (sparklineValues!.last >= sparklineValues!.first)
+                          ? AppTheme.accentGreen
+                          : AppTheme.accentRed,
+                      height: 24,
+                    ),
                   ),
               ],
             ),

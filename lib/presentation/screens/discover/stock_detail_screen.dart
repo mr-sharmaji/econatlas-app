@@ -9,13 +9,13 @@ import '../../providers/discover_providers.dart';
 import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
-import 'widgets/metric_grid.dart';
 import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/tag_utils.dart';
 import 'widgets/metric_glossary.dart';
 import 'widgets/donut_chart_widget.dart';
+import 'widgets/grouped_bar_chart_widget.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
   final String symbol;
@@ -311,6 +311,23 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         maxLabel:
                             '\u20B9${Formatters.price(item.high52w!)}',
                       ),
+                      Builder(builder: (context) {
+                        final range = item.high52w! - item.low52w!;
+                        if (range <= 0) return const SizedBox.shrink();
+                        final pct = (item.lastPrice - item.low52w!) / range;
+                        if (pct >= 0.95) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('Near 52W High', style: TextStyle(color: AppTheme.accentGreen, fontSize: 11, fontWeight: FontWeight.w600)),
+                          );
+                        } else if (pct <= 0.05) {
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text('Near 52W Low', style: TextStyle(color: AppTheme.accentRed, fontSize: 11, fontWeight: FontWeight.w600)),
+                          );
+                        }
+                        return const SizedBox.shrink();
+                      }),
                     ],
                   ),
                 ),
@@ -868,7 +885,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Key Metrics',
+                  'Key Highlights',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
@@ -882,7 +899,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   childAspectRatio: 1.8,
                   children: [
                     StatCard(
-                      label: 'P/E Ratio',
+                      label: item.sectorPercentile != null
+                          ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
+                          : 'P/E Ratio',
                       value: _ratio(item.peRatio, decimals: 1),
                       valueColor: _peColor(item.peRatio),
                       tooltip: metricExplanations['pe_ratio'],
@@ -930,49 +949,127 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Profitability
-        _buildMetricSection(theme, 'Profitability', [
-          MetricItem(
-            label: 'Gross Margin',
-            value: _marginPct(item.grossMargins),
-            valueColor: item.grossMargins == null ? Colors.white38 : null,
+        // Profitability & Margins
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Profitability',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    StatCard(
+                      label: 'Gross Margin',
+                      value: _marginPct(item.grossMargins),
+                      valueColor: item.grossMargins == null ? Colors.white38 : null,
+                      tooltip: metricExplanations['gross_margin'],
+                    ),
+                    StatCard(
+                      label: 'Operating Margin',
+                      value: _marginPct(item.operatingMargins),
+                      valueColor: item.operatingMargins == null
+                          ? Colors.white38
+                          : null,
+                      tooltip: metricExplanations['operating_margin'],
+                    ),
+                    StatCard(
+                      label: 'Net Margin',
+                      value: _marginPct(item.profitMargins),
+                      valueColor: _marginColor(item.profitMargins),
+                      tooltip: metricExplanations['profit_margin'],
+                    ),
+                    StatCard(
+                      label: 'FCF Yield',
+                      value: fcfYield != null
+                          ? '${fcfYield.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      valueColor: fcfYield == null
+                          ? Colors.white38
+                          : (fcfYield > 5 ? AppTheme.accentGreen : null),
+                      tooltip: metricExplanations['fcf_yield'],
+                    ),
+                  ],
+                ),
+                // Margin trend from plAnnual if available
+                if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
+                  ..._buildMarginTrendSection(item.plAnnual!),
+              ],
+            ),
           ),
-          MetricItem(
-            label: 'Operating Margin',
-            value: _marginPct(item.operatingMargins),
-            valueColor: item.operatingMargins == null ? Colors.white38 : null,
-          ),
-          MetricItem(
-            label: 'Profit Margin',
-            value: _marginPct(item.profitMargins),
-            valueColor: _marginColor(item.profitMargins),
-          ),
-          MetricItem(
-            label: 'FCF Yield',
-            value: fcfYield != null
-                ? '${fcfYield.toStringAsFixed(1)}%'
-                : '\u2014',
-            valueColor: fcfYield == null
-                ? Colors.white38
-                : (fcfYield > 5 ? AppTheme.accentGreen : null),
-          ),
-        ]),
+        ),
         const SizedBox(height: 14),
 
         // Growth
-        _buildMetricSection(theme, 'Growth', [
-          MetricItem(
-            label: 'Revenue Growth',
-            value: _marginPct(item.revenueGrowth),
-            valueColor: _changeColor(item.revenueGrowth),
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Growth',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    StatCard(
+                      label: 'Revenue Growth',
+                      value: _marginPct(item.revenueGrowth),
+                      valueColor: _changeColor(item.revenueGrowth),
+                    ),
+                    StatCard(
+                      label: 'Earnings Growth',
+                      value: _marginPct(item.earningsGrowth),
+                      valueColor: _changeColor(item.earningsGrowth),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          MetricItem(
-            label: 'Earnings Growth',
-            value: _marginPct(item.earningsGrowth),
-            valueColor: _changeColor(item.earningsGrowth),
-          ),
-        ]),
+        ),
         const SizedBox(height: 14),
+
+        // Revenue & Profit Trend (from P&L JSONB)
+        Builder(builder: (_) {
+          if (item.plAnnual == null || item.plAnnual!.isEmpty) return const SizedBox.shrink();
+          final groups = _buildPlTrendGroups(item.plAnnual!);
+          if (groups.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Revenue & Profit Trend'),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 200,
+                child: GroupedBarChartWidget(
+                  groups: groups,
+                  barColors: [AppTheme.accentBlue, AppTheme.accentGreen],
+                  legendLabels: const ['Revenue', 'Profit'],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        }),
 
         // Growth metrics (StatCards)
         if (item.salesGrowthYoy != null ||
@@ -1035,107 +1132,156 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           const SizedBox(height: 14),
         ],
 
-        // Cash Flow Breakdown (StatCards)
-        if (item.cashFromOperations != null ||
-            item.cashFromInvesting != null ||
-            item.cashFromFinancing != null) ...[
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Cash Flow Breakdown',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 8,
-                    crossAxisSpacing: 8,
-                    childAspectRatio: 1.8,
-                    children: [
-                      if (item.cashFromOperations != null)
-                        StatCard(
-                          label: 'Operations',
-                          value:
-                              _formatLargeNumber(item.cashFromOperations),
-                          valueColor:
-                              _changeColor(item.cashFromOperations),
-                        ),
-                      if (item.cashFromInvesting != null)
-                        StatCard(
-                          label: 'Investing',
-                          value:
-                              _formatLargeNumber(item.cashFromInvesting),
-                          valueColor:
-                              _changeColor(item.cashFromInvesting),
-                        ),
-                      if (item.cashFromFinancing != null)
-                        StatCard(
-                          label: 'Financing',
-                          value:
-                              _formatLargeNumber(item.cashFromFinancing),
-                          valueColor:
-                              _changeColor(item.cashFromFinancing),
-                        ),
-                    ],
-                  ),
-                ],
+        // Cash Flow Breakdown (GroupedBarChart)
+        Builder(builder: (_) {
+          if (item.cfAnnual == null || item.cfAnnual!.isEmpty) return const SizedBox.shrink();
+          final groups = _buildCfGroups(item.cfAnnual!);
+          if (groups.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Cash Flow Breakdown'),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 180,
+                child: GroupedBarChartWidget(
+                  groups: groups,
+                  barColors: [AppTheme.accentGreen, AppTheme.accentOrange, AppTheme.accentBlue],
+                  legendLabels: const ['Operating', 'Investing', 'Financing'],
+                ),
               ),
+              const SizedBox(height: 16),
+            ],
+          );
+        }),
+
+        // Valuation (StatCards)
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Valuation',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    StatCard(
+                      label: 'Trailing P/E',
+                      value: _ratio(item.peRatio, decimals: 1),
+                      valueColor: _peColor(item.peRatio),
+                      tooltip: metricExplanations['pe_ratio'],
+                    ),
+                    StatCard(
+                      label: 'Forward P/E',
+                      value: _ratio(item.forwardPe, decimals: 1),
+                      valueColor: _peColor(item.forwardPe),
+                      tooltip: metricExplanations['forward_pe'],
+                    ),
+                    StatCard(
+                      label: 'Price to Book',
+                      value: _ratio(item.priceToBook),
+                      valueColor: item.priceToBook == null ? Colors.white38 : null,
+                      tooltip: metricExplanations['price_to_book'],
+                    ),
+                    if (item.pegRatio != null)
+                      StatCard(
+                        label: 'PEG Ratio',
+                        value: item.pegRatio!.toStringAsFixed(2),
+                        tooltip: metricExplanations['peg_ratio'],
+                      ),
+                  ],
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
-        ],
-
-        // Valuation
-        _buildMetricSection(theme, 'Valuation', [
-          MetricItem(
-            label: 'Forward P/E',
-            value: _ratio(item.forwardPe, decimals: 1),
-            valueColor: _peColor(item.forwardPe),
-          ),
-          MetricItem(
-            label: 'Trailing P/E',
-            value: _ratio(item.peRatio, decimals: 1),
-            valueColor: _peColor(item.peRatio),
-          ),
-          MetricItem(
-            label: 'Price to Book',
-            value: _ratio(item.priceToBook),
-            valueColor: item.priceToBook == null ? Colors.white38 : null,
-          ),
-        ]),
+        ),
         const SizedBox(height: 14),
 
         // Balance Sheet
-        _buildMetricSection(theme, 'Balance Sheet', [
-          MetricItem(
-            label: 'Total Debt',
-            value: _formatLargeNumber(item.totalDebt),
-            valueColor: item.totalDebt == null ? Colors.white38 : null,
+        Card(
+          margin: EdgeInsets.zero,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Balance Sheet',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 1.8,
+                  children: [
+                    StatCard(
+                      label: 'Total Debt',
+                      value: _formatLargeNumber(item.totalDebt),
+                      valueColor: item.totalDebt == null ? Colors.white38 : null,
+                      tooltip: metricExplanations['total_debt'],
+                    ),
+                    StatCard(
+                      label: 'Total Cash',
+                      value: _formatLargeNumber(item.totalCash),
+                      valueColor: item.totalCash == null ? Colors.white38 : null,
+                    ),
+                    StatCard(
+                      label: 'D/E Ratio',
+                      value: _ratio(item.debtToEquity),
+                      valueColor: _deColor(item.debtToEquity),
+                      tooltip: metricExplanations['debt_to_equity'],
+                    ),
+                    StatCard(
+                      label: 'Payout Ratio',
+                      value: _marginPct(item.payoutRatio),
+                      valueColor: item.payoutRatio == null ? Colors.white38 : null,
+                      tooltip: metricExplanations['payout_ratio'],
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-          MetricItem(
-            label: 'Total Cash',
-            value: _formatLargeNumber(item.totalCash),
-            valueColor: item.totalCash == null ? Colors.white38 : null,
-          ),
-          MetricItem(
-            label: 'Debt to Equity',
-            value: _ratio(item.debtToEquity),
-            valueColor: _deColor(item.debtToEquity),
-          ),
-          MetricItem(
-            label: 'Payout Ratio',
-            value: _marginPct(item.payoutRatio),
-            valueColor: item.payoutRatio == null ? Colors.white38 : null,
-          ),
-        ]),
+        ),
+        const SizedBox(height: 14),
+
+        // Equity vs Debt Trend (from Balance Sheet JSONB)
+        Builder(builder: (_) {
+          if (item.bsAnnual == null || item.bsAnnual!.isEmpty) return const SizedBox.shrink();
+          final groups = _buildBsGroups(item.bsAnnual!);
+          if (groups.isEmpty) return const SizedBox.shrink();
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sectionTitle('Equity vs Debt Trend'),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 180,
+                child: GroupedBarChartWidget(
+                  groups: groups,
+                  barColors: [AppTheme.accentGreen, AppTheme.accentRed],
+                  legendLabels: const ['Equity', 'Debt'],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          );
+        }),
       ],
     );
   }
@@ -1242,6 +1388,29 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               ),
             ),
           ),
+          Builder(builder: (_) {
+            if (item.shareholdingQuarterly == null || item.shareholdingQuarterly!.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            final groups = _buildShareholdingTrend(item.shareholdingQuarterly!);
+            if (groups.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: 16),
+                _sectionTitle('Shareholding Trend'),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 200,
+                  child: GroupedBarChartWidget(
+                    groups: groups,
+                    barColors: [AppTheme.accentGreen, AppTheme.accentBlue, AppTheme.accentTeal, AppTheme.accentOrange, Colors.white54],
+                    legendLabels: const ['Promoter', 'FII', 'DII', 'Govt', 'Public'],
+                  ),
+                ),
+              ],
+            );
+          }),
           const SizedBox(height: 14),
         ],
 
@@ -1426,30 +1595,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  // ── Metric Section Helper ─────────────────────────────────────
-
-  Widget _buildMetricSection(
-      ThemeData theme, String title, List<MetricItem> items) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            MetricGrid(items: items),
-          ],
-        ),
-      ),
-    );
-  }
-
   // ── Peer Comparison ───────────────────────────────────────────
 
   Widget _buildPeerComparison(ThemeData theme, DiscoverStockItem item) {
@@ -1570,6 +1715,31 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
+                if (peers.isNotEmpty) ...[
+                  SizedBox(
+                    height: 200,
+                    child: GroupedBarChartWidget(
+                      groups: [
+                        BarGroup(label: item.symbol, values: [
+                          item.score.toDouble(),
+                          item.peRatio?.toDouble() ?? 0,
+                          item.roe?.toDouble() ?? 0,
+                        ]),
+                        ...peers.take(5).map((p) => BarGroup(
+                          label: p.symbol,
+                          values: [
+                            p.score.toDouble(),
+                            p.peRatio?.toDouble() ?? 0,
+                            p.roe?.toDouble() ?? 0,
+                          ],
+                        )),
+                      ],
+                      barColors: [AppTheme.accentBlue, AppTheme.accentOrange, AppTheme.accentGreen],
+                      legendLabels: const ['Score', 'P/E', 'ROE'],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 ...peers.map(buildPeerTile),
               ],
             ),
@@ -1577,6 +1747,171 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         );
       },
     );
+  }
+
+  // ── Section Title Helper ─────────────────────────────────────
+
+  Widget _sectionTitle(String title) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w700,
+        color: Colors.white,
+      ),
+    );
+  }
+
+  // ── Safe JSONB value converter ─────────────────────────────
+  static double _toNum(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v) ?? 0;
+    return 0;
+  }
+
+  // ── JSONB helpers ──────────────────────────────────────────
+  //
+  // JSONB from backend has columnar format:
+  //   {"years": ["Mar 2020", ...], "sales": [100, 200, ...], "net_profit": [10, 20, ...]}
+  // We need to pivot this into BarGroup rows for the chart.
+
+  /// Extract a year label from "Mar 2024" → "'24" or return as-is if short.
+  static String _shortYear(String yearLabel) {
+    final match = RegExp(r'(\d{4})').firstMatch(yearLabel);
+    if (match != null) return "'${match.group(1)!.substring(2)}";
+    return yearLabel.length > 6 ? yearLabel.substring(yearLabel.length - 4) : yearLabel;
+  }
+
+  /// Safely read a value from a List<dynamic> at index.
+  static double _valAt(List<dynamic>? list, int i) {
+    if (list == null || i >= list.length) return 0;
+    return _toNum(list[i]);
+  }
+
+  // ── Margin Trend from plAnnual ─────────────────────────────
+  List<Widget> _buildMarginTrendSection(Map<String, dynamic> pl) {
+    final opmList = pl['operating_profit_margin_pct'] ?? pl['opm'] as List<dynamic>?;
+    final npmList = pl['net_profit_margin_pct'] ?? pl['npm'] as List<dynamic>?;
+    if (opmList == null && npmList == null) return [];
+
+    final years = pl['years'] as List<dynamic>? ?? [];
+    final len = years.length;
+    final start = len > 5 ? len - 5 : 0;
+    final groups = <BarGroup>[];
+    for (var i = start; i < len; i++) {
+      groups.add(BarGroup(
+        label: _shortYear(years[i].toString()),
+        values: [_valAt(opmList as List?, i), _valAt(npmList as List?, i)],
+      ));
+    }
+    if (groups.isEmpty) return [];
+
+    return [
+      const SizedBox(height: 14),
+      const Text('Margin Trend',
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white70)),
+      const SizedBox(height: 8),
+      SizedBox(
+        height: 160,
+        child: GroupedBarChartWidget(
+          groups: groups,
+          barColors: [AppTheme.accentOrange, AppTheme.accentGreen],
+          legendLabels: const ['OPM %', 'NPM %'],
+        ),
+      ),
+    ];
+  }
+
+  // ── Chart Data Helpers ──────────────────────────────────────
+
+  List<BarGroup> _buildPlTrendGroups(Map<String, dynamic> pl) {
+    final years = pl['years'] as List<dynamic>? ?? [];
+    final sales = pl['sales'] as List<dynamic>?;
+    final profit = pl['net_profit'] as List<dynamic>?;
+    if (years.isEmpty || (sales == null && profit == null)) return [];
+
+    final len = years.length;
+    final start = len > 5 ? len - 5 : 0;
+    final groups = <BarGroup>[];
+    for (var i = start; i < len; i++) {
+      groups.add(BarGroup(
+        label: _shortYear(years[i].toString()),
+        values: [_valAt(sales, i) / 100, _valAt(profit, i) / 100],
+      ));
+    }
+    return groups;
+  }
+
+  List<BarGroup> _buildCfGroups(Map<String, dynamic> cf) {
+    final years = cf['years'] as List<dynamic>? ?? [];
+    final ops = cf['cash_from_operating_activity'] ?? cf['cash_from_operations'] as List<dynamic>?;
+    final inv = cf['cash_from_investing_activity'] ?? cf['cash_from_investing'] as List<dynamic>?;
+    final fin = cf['cash_from_financing_activity'] ?? cf['cash_from_financing'] as List<dynamic>?;
+    if (years.isEmpty) return [];
+
+    final len = years.length;
+    final start = len > 5 ? len - 5 : 0;
+    final groups = <BarGroup>[];
+    for (var i = start; i < len; i++) {
+      groups.add(BarGroup(
+        label: _shortYear(years[i].toString()),
+        values: [
+          _valAt(ops as List?, i) / 100,
+          _valAt(inv as List?, i) / 100,
+          _valAt(fin as List?, i) / 100,
+        ],
+      ));
+    }
+    return groups;
+  }
+
+  List<BarGroup> _buildBsGroups(Map<String, dynamic> bs) {
+    final years = bs['years'] as List<dynamic>? ?? [];
+    final equity = bs['shareholders_equity'] ?? bs['shareholder_equity'] ?? bs['total_equity'] as List<dynamic>?;
+    final debt = bs['borrowings'] ?? bs['total_debt'] as List<dynamic>?;
+    if (years.isEmpty || (equity == null && debt == null)) return [];
+
+    final len = years.length;
+    final start = len > 5 ? len - 5 : 0;
+    final groups = <BarGroup>[];
+    for (var i = start; i < len; i++) {
+      groups.add(BarGroup(
+        label: _shortYear(years[i].toString()),
+        values: [
+          _valAt(equity as List?, i) / 100,
+          _valAt(debt as List?, i) / 100,
+        ],
+      ));
+    }
+    return groups;
+  }
+
+  List<BarGroup> _buildShareholdingTrend(Map<String, dynamic> sh) {
+    final years = sh['years'] as List<dynamic>? ?? [];
+    final promoter = sh['promoter_holding'] ?? sh['promoters'] as List<dynamic>?;
+    final fii = sh['fii_dii'] ?? sh['fiis'] ?? sh['fii'] as List<dynamic>?;
+    final dii = sh['diis'] ?? sh['dii'] as List<dynamic>?;
+    final govt = sh['government'] as List<dynamic>?;
+    final pub = sh['public'] as List<dynamic>?;
+    if (years.isEmpty) return [];
+
+    final len = years.length;
+    final start = len > 4 ? len - 4 : 0;
+    final groups = <BarGroup>[];
+    for (var i = start; i < len; i++) {
+      groups.add(BarGroup(
+        label: _shortYear(years[i].toString()),
+        values: [
+          _valAt(promoter as List?, i),
+          _valAt(fii as List?, i),
+          _valAt(dii as List?, i),
+          _valAt(govt, i),
+          _valAt(pub, i),
+        ],
+      ));
+    }
+    return groups;
   }
 
   // ── Color Helpers ─────────────────────────────────────────────
