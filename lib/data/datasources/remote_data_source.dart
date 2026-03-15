@@ -537,6 +537,37 @@ class RemoteDataSource {
     });
   }
 
+  Future<ScoreHistoryResponse> getStockScoreHistory({
+    required String symbol,
+    int days = 30,
+  }) async {
+    final response = await _dio.get(
+      '/screener/stocks/${Uri.encodeComponent(symbol)}/score-history',
+      queryParameters: {'days': days},
+    );
+    return ScoreHistoryResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<StockStory> getStockStory(String symbol) async {
+    final response = await _dio.get(
+      '/screener/stocks/${Uri.encodeComponent(symbol)}/story',
+    );
+    return StockStory.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<StockCompareResponse> compareStocks(List<String> symbols) async {
+    final response = await _dio.get(
+      '/screener/stocks/compare',
+      queryParameters: {'symbols': symbols.join(',')},
+    );
+    return StockCompareResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MarketMood> getMarketMood() async {
+    final response = await _dio.get('/screener/market-mood');
+    return MarketMood.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<IpoListResponse> getIpos({
     required String status,
     int limit = 20,

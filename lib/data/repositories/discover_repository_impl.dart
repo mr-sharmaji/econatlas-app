@@ -177,4 +177,27 @@ class DiscoverRepositoryImpl implements DiscoverRepository {
   }) {
     return _remote.getMfSparklines(schemeCodes: schemeCodes, days: days);
   }
+
+  @override
+  Future<ScoreHistoryResponse> getStockScoreHistory({
+    required String symbol,
+    int days = 30,
+  }) {
+    return _remote.getStockScoreHistory(symbol: symbol, days: days);
+  }
+
+  @override
+  Future<StockStory> getStockStory({required String symbol}) {
+    return _remote.getStockStory(symbol);
+  }
+
+  @override
+  Future<StockCompareResponse> compareStocks({required List<String> symbols}) {
+    return _remote.compareStocks(symbols);
+  }
+
+  @override
+  Future<MarketMood> getMarketMood() {
+    return _remote.getMarketMood();
+  }
 }

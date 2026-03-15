@@ -64,13 +64,11 @@ class StockListTile extends StatelessWidget {
     }
   }
 
-  /// Returns the single best tag for display. Prefers TagV2, falls back to flat tags.
+  /// Returns the single best tag for display.
   static TagDisplay? _bestTag(DiscoverStockItem item) {
-    if (item.tagsV2.isNotEmpty) {
-      final best = bestTagForListTile(item.tagsV2);
-      if (best != null) return getTagV2Display(best);
-    }
-    if (item.tags.isNotEmpty) return getTagDisplay(item.tags.first);
+    if (item.tags.isEmpty) return null;
+    final best = bestTagForListTile(item.tags);
+    if (best != null) return getTagV2Display(best);
     return null;
   }
 

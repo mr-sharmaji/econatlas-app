@@ -959,3 +959,51 @@ final recentlyViewedProvider =
   final prefs = ref.watch(sharedPreferencesProvider);
   return RecentlyViewedNotifier(RecentlyViewedService(prefs));
 });
+
+// ---------------------------------------------------------------------------
+// Score History
+// ---------------------------------------------------------------------------
+
+final discoverStockScoreHistoryProvider = FutureProvider.family
+    .autoDispose<ScoreHistoryResponse, ({String symbol, int days})>(
+  (ref, params) {
+    final repo = ref.watch(discoverRepositoryProvider);
+    return repo.getStockScoreHistory(symbol: params.symbol, days: params.days);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Stock Story
+// ---------------------------------------------------------------------------
+
+final discoverStockStoryProvider =
+    FutureProvider.family.autoDispose<StockStory, String>(
+  (ref, symbol) {
+    final repo = ref.watch(discoverRepositoryProvider);
+    return repo.getStockStory(symbol: symbol);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Stock Compare
+// ---------------------------------------------------------------------------
+
+final discoverStockCompareProvider =
+    FutureProvider.family.autoDispose<StockCompareResponse, List<String>>(
+  (ref, symbols) {
+    final repo = ref.watch(discoverRepositoryProvider);
+    return repo.compareStocks(symbols: symbols);
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Market Mood
+// ---------------------------------------------------------------------------
+
+final discoverMarketMoodProvider =
+    FutureProvider.autoDispose<MarketMood>(
+  (ref) {
+    final repo = ref.watch(discoverRepositoryProvider);
+    return repo.getMarketMood();
+  },
+);

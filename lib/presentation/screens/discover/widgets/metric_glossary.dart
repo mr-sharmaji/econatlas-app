@@ -50,8 +50,6 @@ const Map<String, String> metricExplanations = {
       'Year-over-year change in total revenue. Positive means the company is growing its top line.',
   'earnings_growth':
       'Year-over-year change in earnings per share. Positive means improving profitability.',
-  'roce':
-      'How efficiently the company uses all capital. Above 15% is generally good.',
   'eps':
       'Earnings per share — net profit divided by total shares. Higher is better.',
   'promoter_holding':

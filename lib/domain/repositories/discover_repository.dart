@@ -90,4 +90,15 @@ abstract class DiscoverRepository {
     required List<String> schemeCodes,
     int days,
   });
+
+  Future<ScoreHistoryResponse> getStockScoreHistory({
+    required String symbol,
+    int days,
+  });
+
+  Future<StockStory> getStockStory({required String symbol});
+
+  Future<StockCompareResponse> compareStocks({required List<String> symbols});
+
+  Future<MarketMood> getMarketMood();
 }

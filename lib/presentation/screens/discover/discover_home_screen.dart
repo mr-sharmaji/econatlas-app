@@ -185,6 +185,14 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         SliverToBoxAdapter(child: _MarketPulseCard()),
         const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
+        // Market Mood Card
+        if (data.marketMood != null)
+          SliverToBoxAdapter(
+            child: _MarketMoodCard(mood: data.marketMood!),
+          ),
+        if (data.marketMood != null)
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+
         // Quick category chips
         SliverToBoxAdapter(
           child: _buildQuickCategories(data.quickCategories),
@@ -893,6 +901,139 @@ class _TopSectorsChart extends StatelessWidget {
             ),
           );
         }),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// Market Mood Card — from /screener/home market_mood field
+// =============================================================================
+
+class _MarketMoodCard extends StatelessWidget {
+  final MarketMood mood;
+
+  const _MarketMoodCard({required this.mood});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dist = mood.scoreDistribution;
+    final total = dist?.total ?? 0;
+    if (total == 0 && mood.summary == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.mood_rounded,
+                    size: 16, color: AppTheme.accentTeal),
+                const SizedBox(width: 6),
+                Text(
+                  'Market Mood',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
+                const Spacer(),
+                if (mood.avgScore != null)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: ScoreBar.scoreColor(mood.avgScore!)
+                          .withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Avg ${mood.avgScore!.toStringAsFixed(1)}',
+                      style: TextStyle(
+                        color: ScoreBar.scoreColor(mood.avgScore!),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            if (mood.summary != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                mood.summary!,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.white70, height: 1.4),
+              ),
+            ],
+            if (dist != null && total > 0) ...[
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: SizedBox(
+                  height: 8,
+                  child: Row(
+                    children: [
+                      _moodBar(dist.excellent / total, AppTheme.accentGreen),
+                      _moodBar(dist.good / total, AppTheme.accentTeal),
+                      _moodBar(dist.average / total, AppTheme.accentOrange),
+                      _moodBar(dist.poor / total, AppTheme.accentRed),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  _moodLabel('Excellent', dist.excellent, AppTheme.accentGreen),
+                  const SizedBox(width: 12),
+                  _moodLabel('Good', dist.good, AppTheme.accentTeal),
+                  const SizedBox(width: 12),
+                  _moodLabel('Average', dist.average, AppTheme.accentOrange),
+                  const SizedBox(width: 12),
+                  _moodLabel('Poor', dist.poor, AppTheme.accentRed),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _moodBar(double fraction, Color color) {
+    if (fraction <= 0) return const SizedBox.shrink();
+    return Expanded(
+      flex: (fraction * 100).round().clamp(1, 100),
+      child: Container(color: color),
+    );
+  }
+
+  Widget _moodLabel(String label, int count, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$count',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }

@@ -53,7 +53,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _tabIndex = _tabController.index);
@@ -357,6 +357,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   Tab(text: 'Insights'),
                   Tab(text: 'Financials'),
                   Tab(text: 'Ownership'),
+                  Tab(text: 'Story'),
                 ],
               ),
             ),
@@ -580,6 +581,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       default:
         return Icons.bolt;
     }
+  }
+
+  static String _formatActionTag(String tag) {
+    return tag
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
   }
 
   Widget _buildBreakoutChip(ThemeData theme, String signal) {
@@ -898,6 +907,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         return _buildFinancialsTab(theme, item);
       case 2:
         return _buildOwnershipTab(theme, item);
+      case 3:
+        return _buildStoryTab(theme, item);
       default:
         return const SizedBox.shrink();
     }
@@ -976,7 +987,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             spacing: 8,
             runSpacing: 6,
             children: item.tags.map((tag) {
-              final td = getTagDisplay(tag);
+              final td = getTagV2Display(tag);
               return Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -1743,6 +1754,296 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       ),
     );
   }
+
+  // ── STORY TAB ──────────────────────────────────────────────────
+
+  Widget _buildStoryTab(ThemeData theme, DiscoverStockItem item) {
+    final storyAsync = ref.watch(discoverStockStoryProvider(item.symbol));
+
+    return storyAsync.when(
+      loading: () => const Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: CircularProgressIndicator()),
+        ),
+      ),
+      error: (_, __) => Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: Column(
+              children: [
+                const Icon(Icons.auto_stories_outlined,
+                    size: 40, color: Colors.white24),
+                const SizedBox(height: 12),
+                Text('Unable to load story',
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: Colors.white38)),
+              ],
+            ),
+          ),
+        ),
+      ),
+      data: (story) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Verdict
+          if (story.verdict != null)
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.gavel_rounded,
+                            size: 18, color: AppTheme.accentTeal),
+                        const SizedBox(width: 8),
+                        Text('Verdict',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      story.verdict!,
+                      style: theme.textTheme.bodyLarge
+                          ?.copyWith(color: Colors.white.withValues(alpha: 0.9)),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          if (story.verdict != null) const SizedBox(height: 12),
+
+          // Why Narrative
+          if (story.whyNarrative != null) ...[
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.auto_stories,
+                            size: 18, color: AppTheme.accentBlue),
+                        const SizedBox(width: 8),
+                        Text('Analysis',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      story.whyNarrative!,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white70,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Action Tag
+          if (story.actionTag != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: _actionTagColor(story.actionTag!).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _actionTagColor(story.actionTag!).withValues(alpha: 0.3),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(_actionTagIcon(story.actionTag!),
+                          size: 18,
+                          color: _actionTagColor(story.actionTag!)),
+                      const SizedBox(width: 8),
+                      Text(
+                        _formatActionTag(story.actionTag!),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: _actionTagColor(story.actionTag!),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (story.actionTagReasoning != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      story.actionTagReasoning!,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white70,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // Classification & Signals
+          _buildStorySignals(theme, story),
+
+          // Score Changes
+          if (story.scoreChanges.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.trending_up,
+                            size: 18, color: AppTheme.accentGreen),
+                        const SizedBox(width: 8),
+                        Text('Score Changes (7d)',
+                            style: theme.textTheme.titleSmall
+                                ?.copyWith(fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ...story.scoreChanges.map((sc) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 90,
+                                child: Text(
+                                  _capitalize(sc.layer),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white54),
+                                ),
+                              ),
+                              if (sc.oldValue != null)
+                                Text(
+                                  sc.oldValue!.toStringAsFixed(1),
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white38),
+                                ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                sc.direction == 'up'
+                                    ? Icons.arrow_upward
+                                    : sc.direction == 'down'
+                                        ? Icons.arrow_downward
+                                        : Icons.remove,
+                                size: 14,
+                                color: sc.direction == 'up'
+                                    ? AppTheme.accentGreen
+                                    : sc.direction == 'down'
+                                        ? AppTheme.accentRed
+                                        : Colors.white38,
+                              ),
+                              const SizedBox(width: 6),
+                              if (sc.newValue != null)
+                                Text(
+                                  sc.newValue!.toStringAsFixed(1),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: sc.direction == 'up'
+                                        ? AppTheme.accentGreen
+                                        : sc.direction == 'down'
+                                            ? AppTheme.accentRed
+                                            : Colors.white70,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        )),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStorySignals(ThemeData theme, StockStory story) {
+    final chips = <Widget>[];
+    if (story.lynchClassification != null) {
+      chips.add(_storyChip(theme, Icons.category,
+          story.lynchClassification!, AppTheme.accentBlue));
+    }
+    if (story.trendAlignment != null) {
+      final color = story.trendAlignment == 'aligned'
+          ? AppTheme.accentGreen
+          : story.trendAlignment == 'conflicting'
+              ? AppTheme.accentRed
+              : Colors.amber;
+      final icon = story.trendAlignment == 'aligned'
+          ? Icons.check_circle_outline
+          : story.trendAlignment == 'conflicting'
+              ? Icons.cancel_outlined
+              : Icons.warning_amber_rounded;
+      chips.add(_storyChip(
+          theme, icon, 'Trend: ${_capitalize(story.trendAlignment!)}', color));
+    }
+    if (story.breakoutSignal != null && story.breakoutSignal != 'none') {
+      chips.add(_storyChip(theme, Icons.flash_on,
+          _formatActionTag(story.breakoutSignal!), AppTheme.accentTeal));
+    }
+    if (story.scoreConfidence != null) {
+      final color = story.scoreConfidence == 'high'
+          ? AppTheme.accentGreen
+          : story.scoreConfidence == 'low'
+              ? Colors.amber
+              : Colors.white54;
+      chips.add(_storyChip(
+          theme, Icons.verified_outlined,
+          '${_capitalize(story.scoreConfidence!)} confidence', color));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(spacing: 8, runSpacing: 8, children: chips);
+  }
+
+  Widget _storyChip(
+      ThemeData theme, IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(label,
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: color, fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+
+  static String _capitalize(String s) =>
+      s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   // ── Peer Comparison ───────────────────────────────────────────
 

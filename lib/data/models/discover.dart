@@ -376,8 +376,7 @@ class DiscoverStockItem {
   final Map<String, dynamic>? shareholdingQuarterly;
 
   final DiscoverStockScoreBreakdown scoreBreakdown;
-  final List<String> tags;
-  final List<TagV2> tagsV2;
+  final List<TagV2> tags;
   final List<String> whyRanked;
   final String sourceStatus;
   final DateTime sourceTimestamp;
@@ -479,8 +478,7 @@ class DiscoverStockItem {
     this.cfAnnual,
     this.shareholdingQuarterly,
     required this.scoreBreakdown,
-    required this.tags,
-    this.tagsV2 = const [],
+    this.tags = const [],
     required this.whyRanked,
     required this.sourceStatus,
     required this.sourceTimestamp,
@@ -591,8 +589,7 @@ class DiscoverStockItem {
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
-      tags: (json['tags'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
-      tagsV2: (json['tags_v2'] as List<dynamic>? ?? const [])
+      tags: (json['tags'] as List<dynamic>? ?? const [])
           .map((e) => TagV2.fromJson(e as Map<String, dynamic>))
           .toList(),
       whyRanked:
@@ -723,8 +720,7 @@ class DiscoverMutualFundItem {
   final double? subCategoryPercentile;
   final String? fundClassification;
   final DiscoverMutualFundScoreBreakdown scoreBreakdown;
-  final List<String> tags;
-  final List<TagV2> tagsV2;
+  final List<TagV2> tags;
   final List<String> whyRanked;
   final String sourceStatus;
   final DateTime sourceTimestamp;
@@ -777,8 +773,7 @@ class DiscoverMutualFundItem {
     this.subCategoryPercentile,
     this.fundClassification,
     required this.scoreBreakdown,
-    required this.tags,
-    this.tagsV2 = const [],
+    this.tags = const [],
     required this.whyRanked,
     required this.sourceStatus,
     required this.sourceTimestamp,
@@ -843,8 +838,7 @@ class DiscoverMutualFundItem {
       scoreBreakdown: DiscoverMutualFundScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
-      tags: (json['tags'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
-      tagsV2: (json['tags_v2'] as List<dynamic>? ?? const [])
+      tags: (json['tags'] as List<dynamic>? ?? const [])
           .map((e) => TagV2.fromJson(e as Map<String, dynamic>))
           .toList(),
       whyRanked:
@@ -1111,6 +1105,7 @@ class DiscoverHomeData {
   final List<DiscoverHomeStockItem> losers;
   final List<DiscoverHomeStockItem> losers3m;
   final List<QuickCategory> quickCategories;
+  final MarketMood? marketMood;
 
   const DiscoverHomeData({
     this.topStocks = const [],
@@ -1123,6 +1118,7 @@ class DiscoverHomeData {
     this.losers = const [],
     this.losers3m = const [],
     this.quickCategories = const [],
+    this.marketMood,
   });
 
   factory DiscoverHomeData.fromJson(Map<String, dynamic> json) {
@@ -1154,6 +1150,200 @@ class DiscoverHomeData {
           (json['quick_categories'] as List<dynamic>? ?? const [])
               .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))
               .toList(),
+      marketMood: json['market_mood'] != null
+          ? MarketMood.fromJson(json['market_mood'] as Map<String, dynamic>)
+          : null,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Score History
+// ---------------------------------------------------------------------------
+
+@immutable
+class ScoreHistoryPoint {
+  final DateTime scoredAt;
+  final double score;
+
+  const ScoreHistoryPoint({required this.scoredAt, required this.score});
+
+  factory ScoreHistoryPoint.fromJson(Map<String, dynamic> json) {
+    return ScoreHistoryPoint(
+      scoredAt: DateTime.parse(json['scored_at'] as String),
+      score: (json['score'] as num).toDouble(),
+    );
+  }
+}
+
+@immutable
+class ScoreHistoryResponse {
+  final String symbol;
+  final List<ScoreHistoryPoint> points;
+  final int count;
+
+  const ScoreHistoryResponse({
+    required this.symbol,
+    this.points = const [],
+    this.count = 0,
+  });
+
+  factory ScoreHistoryResponse.fromJson(Map<String, dynamic> json) {
+    final pts = (json['points'] as List<dynamic>? ?? const [])
+        .map((e) => ScoreHistoryPoint.fromJson(e as Map<String, dynamic>))
+        .toList();
+    return ScoreHistoryResponse(
+      symbol: json['symbol'] as String? ?? '',
+      points: pts,
+      count: (json['count'] as num?)?.toInt() ?? pts.length,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stock Story
+// ---------------------------------------------------------------------------
+
+@immutable
+class ScoreChange {
+  final String layer;
+  final double? oldValue;
+  final double? newValue;
+  final String direction; // "up" | "down" | "unchanged"
+
+  const ScoreChange({
+    required this.layer,
+    this.oldValue,
+    this.newValue,
+    required this.direction,
+  });
+
+  factory ScoreChange.fromJson(Map<String, dynamic> json) {
+    return ScoreChange(
+      layer: json['layer'] as String? ?? '',
+      oldValue: (json['old_value'] as num?)?.toDouble(),
+      newValue: (json['new_value'] as num?)?.toDouble(),
+      direction: json['direction'] as String? ?? 'unchanged',
+    );
+  }
+}
+
+@immutable
+class StockStory {
+  final String symbol;
+  final String? verdict;
+  final String? actionTag;
+  final String? actionTagReasoning;
+  final String? trendAlignment;
+  final String? breakoutSignal;
+  final String? lynchClassification;
+  final String? whyNarrative;
+  final String? scoreConfidence;
+  final List<ScoreChange> scoreChanges;
+
+  const StockStory({
+    required this.symbol,
+    this.verdict,
+    this.actionTag,
+    this.actionTagReasoning,
+    this.trendAlignment,
+    this.breakoutSignal,
+    this.lynchClassification,
+    this.whyNarrative,
+    this.scoreConfidence,
+    this.scoreChanges = const [],
+  });
+
+  factory StockStory.fromJson(Map<String, dynamic> json) {
+    return StockStory(
+      symbol: json['symbol'] as String? ?? '',
+      verdict: json['verdict'] as String?,
+      actionTag: json['action_tag'] as String?,
+      actionTagReasoning: json['action_tag_reasoning'] as String?,
+      trendAlignment: json['trend_alignment'] as String?,
+      breakoutSignal: json['breakout_signal'] as String?,
+      lynchClassification: json['lynch_classification'] as String?,
+      whyNarrative: json['why_narrative'] as String?,
+      scoreConfidence: json['score_confidence'] as String?,
+      scoreChanges: (json['score_changes'] as List<dynamic>? ?? const [])
+          .map((e) => ScoreChange.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Stock Compare
+// ---------------------------------------------------------------------------
+
+@immutable
+class ComparisonDimension {
+  final String metric;
+  final String label;
+  final List<double?> values;
+  final int? winnerIndex;
+
+  const ComparisonDimension({
+    required this.metric,
+    required this.label,
+    required this.values,
+    this.winnerIndex,
+  });
+
+  factory ComparisonDimension.fromJson(Map<String, dynamic> json) {
+    return ComparisonDimension(
+      metric: json['metric'] as String? ?? '',
+      label: json['label'] as String? ?? '',
+      values: (json['values'] as List<dynamic>? ?? const [])
+          .map((e) => (e as num?)?.toDouble())
+          .toList(),
+      winnerIndex: (json['winner_index'] as num?)?.toInt(),
+    );
+  }
+}
+
+@immutable
+class StockCompareResponse {
+  final List<DiscoverStockItem> items;
+  final List<ComparisonDimension> dimensions;
+
+  const StockCompareResponse({
+    this.items = const [],
+    this.dimensions = const [],
+  });
+
+  factory StockCompareResponse.fromJson(Map<String, dynamic> json) {
+    return StockCompareResponse(
+      items: (json['items'] as List<dynamic>? ?? const [])
+          .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      dimensions:
+          (json['comparison_dimensions'] as List<dynamic>? ?? const [])
+              .map((e) =>
+                  ComparisonDimension.fromJson(e as Map<String, dynamic>))
+              .toList(),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Market Mood
+// ---------------------------------------------------------------------------
+
+@immutable
+class MarketMood {
+  final double? avgScore;
+  final ScoreDistribution? scoreDistribution;
+  final String? summary;
+
+  const MarketMood({this.avgScore, this.scoreDistribution, this.summary});
+
+  factory MarketMood.fromJson(Map<String, dynamic> json) {
+    final dist = json['score_distribution'] as Map<String, dynamic>?;
+    return MarketMood(
+      avgScore: (json['avg_score'] as num?)?.toDouble(),
+      scoreDistribution: dist != null ? ScoreDistribution.fromJson(dist) : null,
+      summary: json['summary'] as String?,
     );
   }
 }
