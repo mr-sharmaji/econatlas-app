@@ -155,12 +155,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             // -- Quality Badges --
             if (item.qualityBadges.isNotEmpty) ...[
               _buildQualityBadges(theme),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // -- Header --
             _buildHeader(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // -- NAV Price + Period Change --
             Row(
@@ -191,7 +191,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // -- Period Selector + Chart --
             _buildPeriodSelector(theme),
@@ -229,54 +229,54 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // -- Score --
             _buildScoreCard(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // -- What Makes This Fund Stand Out --
             if (_buildQualityReasons().length >= 2) ...[
               _buildQualityReasonsInline(theme),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // -- Why Ranked --
             if (item.whyRanked.isNotEmpty) ...[
               _buildWhyRankedCard(theme),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // Tags grouped by category
             if (item.tags.isNotEmpty) ...[
               _buildGroupedTags(theme, item.tags),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // -- Category Rank --
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // -- Returns (with XIRR/CAGR toggle) --
             _buildReturnsCard(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // -- Risk & Performance --
             _buildRiskPerformanceCard(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // -- Key Metrics --
             _buildMetricsCard(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // -- Peer Comparison --
             _buildPeerComparison(theme),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -669,7 +669,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // Radar chart
             if (hasRadarData) ...[
@@ -707,7 +707,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   fillColor: AppTheme.accentBlue,
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
 
               // Stat cards for each score dimension
               Row(
@@ -814,7 +814,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
             // Category rank (broader: e.g. Equity, Debt)
             if (item.categoryRank != null && item.categoryTotal != null) ...[
-              if (item.subCategoryRank != null) const SizedBox(height: 12),
+              if (item.subCategoryRank != null) const SizedBox(height: 8),
               _buildRankRow(
                 theme,
                 rank: item.categoryRank!,
@@ -941,7 +941,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -960,7 +960,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             // Returns vs category average (always XIRR-based from API)
             if (_hasAnyCategoryAvg()) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Divider(color: Colors.white.withValues(alpha: 0.08)),
               const SizedBox(height: 8),
               Text(
@@ -1004,7 +1004,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   Text('Category Avg', style: TextStyle(fontSize: 10, color: Colors.white54)),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               if (item.returns1y != null && item.categoryAvgReturns1y != null)
                 _buildReturnComparison(
                   theme,
@@ -1161,7 +1161,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Risk & Performance', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             // Row 1: Sharpe, Sortino, Max Drawdown
             Row(
               children: [
@@ -1280,7 +1280,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Key Metrics', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
@@ -1414,23 +1414,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             ...reasons.map((r) {
               final (icon, color, text) = r;
               return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      padding: const EdgeInsets.all(8),
+                      padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
                         color: color.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: Icon(icon, size: 20, color: color),
+                      child: Icon(icon, size: 18, color: color),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 4),

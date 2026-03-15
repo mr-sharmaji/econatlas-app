@@ -53,6 +53,7 @@ class MfScreenerScreen extends ConsumerStatefulWidget {
 }
 
 class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
   late final TextEditingController _searchController;
   late final ScrollController _listScrollController;
   Timer? _debounce;
@@ -174,7 +175,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     final badgeCount = _totalBadgeCount(filters);
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(title: const Text('Mutual Funds')),
+      endDrawer: _buildFilterDrawer(filters),
+      endDrawerEnableOpenDragGesture: false,
       body: Column(
         children: [
           // Row 1: Search + Sort & Filter pill button
@@ -672,26 +676,26 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Unified Sort & Filter Bottom Sheet
+  // Open Sort & Filter endDrawer
   // ---------------------------------------------------------------------------
 
   void _showSortAndFilterSheet(BuildContext context) {
-    final current = ref.read(discoverMutualFundFiltersProvider);
+    _scaffoldKey.currentState?.openEndDrawer();
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
+  Widget _buildFilterDrawer(DiscoverMutualFundFilters current) {
+    return Drawer(
+      width: MediaQuery.of(context).size.width * 0.82,
       backgroundColor: AppTheme.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (sheetContext) {
-        return _SortAndFilterSheet(
+      child: SafeArea(
+        child: _SortAndFilterSheet(
+          key: ValueKey(current.hashCode),
           initial: current,
           onApply: (updated) {
             ref
                 .read(discoverMutualFundFiltersProvider.notifier)
                 .setFilters(updated);
+            _scaffoldKey.currentState?.closeEndDrawer();
           },
           onReset: () {
             ref
@@ -702,9 +706,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   directOnly: current.directOnly,
                 ));
             _searchController.clear();
+            _scaffoldKey.currentState?.closeEndDrawer();
           },
-        );
-      },
+        ),
+      ),
     );
   }
 }
@@ -719,6 +724,7 @@ class _SortAndFilterSheet extends StatefulWidget {
   final VoidCallback onReset;
 
   const _SortAndFilterSheet({
+    super.key,
     required this.initial,
     required this.onApply,
     required this.onReset,
@@ -867,19 +873,6 @@ class _SortAndFilterSheetState extends State<_SortAndFilterSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 32,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 12),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-
             // Header: Sort & Filter + Reset
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -888,7 +881,6 @@ class _SortAndFilterSheetState extends State<_SortAndFilterSheet> {
                 TextButton(
                   onPressed: () {
                     widget.onReset();
-                    Navigator.pop(context);
                   },
                   child: const Text('Reset'),
                 ),
@@ -1116,7 +1108,6 @@ class _SortAndFilterSheetState extends State<_SortAndFilterSheet> {
               child: FilledButton(
                 onPressed: () {
                   widget.onApply(_buildFilters());
-                  Navigator.pop(context);
                 },
                 child: const Text('Apply'),
               ),

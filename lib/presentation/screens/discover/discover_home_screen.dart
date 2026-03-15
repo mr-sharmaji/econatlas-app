@@ -181,11 +181,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: 10)),
 
-        // Market Pulse Card
-        SliverToBoxAdapter(child: _MarketPulseCard()),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-        // Market Mood Card
+        // Market Mood Card (replaces Market Pulse — same data, richer display)
         if (data.marketMood != null)
           SliverToBoxAdapter(
             child: _MarketMoodCard(mood: data.marketMood!),

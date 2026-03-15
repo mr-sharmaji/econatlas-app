@@ -611,6 +611,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       backgroundColor: const Color(0xFF0F1E31),
       child: SafeArea(
         child: _SortFilterSheetBody(
+          key: ValueKey(current.hashCode),
           initial: current,
           onApply: (newFilters) {
             ref
@@ -700,6 +701,7 @@ class _SortFilterSheetBody extends StatefulWidget {
   final VoidCallback onReset;
 
   const _SortFilterSheetBody({
+    super.key,
     required this.initial,
     required this.onApply,
     required this.onReset,

@@ -195,7 +195,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           children: [
             // ── Quality Verdict Banner ──
             _buildQualityBanner(theme, item),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // ── Header ──
             Text(
@@ -289,14 +289,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 child: Center(child: Text('Failed to load chart')),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
 
             // ── 52-Week Range (outside tabs) ──
             if (item.high52w != null && item.low52w != null) ...[
               Card(
                 margin: EdgeInsets.zero,
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -305,7 +305,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         style: theme.textTheme.titleSmall
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                       PositionBar(
                         min: item.low52w!,
                         max: item.high52w!,
@@ -336,12 +336,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
             ],
 
             // ── Score Card ──
             _buildScoreCard(theme, item),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // ── TabBar ──
             Container(
@@ -365,11 +365,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // ── Tab Content (indexed, no TabBarView) ──
             _buildTabContent(theme, item),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // ── Peer Comparison (always visible) ──
             _buildPeerComparison(theme, item),
@@ -727,7 +727,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -780,7 +780,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
 
             // 6-layer radar or fallback breakdown
             if (item.scoreBreakdown.has6LayerScores) ...[
@@ -826,7 +826,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           height: 180,
           child: RadarChartWidget(dimensions: dimensions),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 8),
         GridView.count(
           crossAxisCount: 3,
           shrinkWrap: true,
@@ -934,7 +934,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -986,20 +986,20 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               ),
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
 
         // Tags grouped by category
         if (item.tags.isNotEmpty) ...[
           _buildGroupedTags(theme, item.tags),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
         ],
 
         // Key Metrics — 2x2 StatCard grid (P/E, ROE, D/E, Market Cap)
         Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1008,7 +1008,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 GridView.count(
                   crossAxisCount: 2,
                   shrinkWrap: true,
@@ -2159,7 +2159,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         return Card(
           margin: EdgeInsets.zero,
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2574,18 +2574,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ],
         ),
-        if (sb.whyNarrative != null) ...[
-          const SizedBox(height: 8),
-          Text(
-            sb.whyNarrative!,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white70,
-              height: 1.4,
-            ),
-            maxLines: 3,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
       ],
     );
   }
