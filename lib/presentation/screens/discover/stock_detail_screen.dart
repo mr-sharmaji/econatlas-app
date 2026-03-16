@@ -1136,7 +1136,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 // Revenue, Profit & OPM% combo chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
-                    final comboEntries = _buildComboEntries(item.plAnnual!);
+                    final (comboEntries, marginLabel) =
+                        _buildComboEntries(item.plAnnual!);
                     if (comboEntries.isEmpty) return const SizedBox.shrink();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1147,7 +1148,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                             'Revenue, Profit & Margins',
                             'Blue bars show annual revenue (total sales), '
                             'green bars show net profit, and the orange line '
-                            'tracks Operating Margin — the '
+                            'tracks $marginLabel — the '
                             'percentage of revenue retained after direct '
                             'operating costs.\n\n'
                             'Rising bars with a rising margin line is the best '
@@ -1182,7 +1183,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               AppTheme.accentGreen,
                             ],
                             lineColor: const Color(0xFFFFAB40),
-                            legendLabels: const ['Revenue', 'Profit', 'Operating Margin'],
+                            legendLabels: ['Revenue', 'Profit', marginLabel],
                           ),
                         ),
                       ],
@@ -1932,16 +1933,38 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return _toNum(list[i]);
   }
 
+  /// Nullable variant — returns null when value is absent or null.
+  static double? _valAtNullable(List<dynamic>? list, int i) {
+    if (list == null || i >= list.length) return null;
+    final v = list[i];
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    if (v is String) return double.tryParse(v);
+    return null;
+  }
+
   // ── Chart Data Helpers ──────────────────────────────────────
 
-  List<ComboChartEntry> _buildComboEntries(Map<String, dynamic> pl) {
+  /// Returns (entries, marginLabel) where marginLabel differs for banks/NBFCs.
+  (List<ComboChartEntry>, String) _buildComboEntries(Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
     final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
-    final opm = pl['opm_pct'] as List<dynamic>?;
-    if (years.isEmpty || (sales == null && profit == null)) return [];
+    // Banks/NBFCs have financing_margin_pct; non-financials have opm_pct
+    final bool isFinancial =
+        pl.containsKey('financing_margin_pct') && !pl.containsKey('opm_pct');
+    final margin = isFinancial
+        ? pl['financing_margin_pct'] as List<dynamic>?
+        : pl['opm_pct'] as List<dynamic>?;
+    final marginLabel = isFinancial ? 'NII Margin' : 'Operating Margin';
+    if (years.isEmpty || (sales == null && profit == null)) {
+      return (<ComboChartEntry>[], marginLabel);
+    }
 
-    final len = years.length;
+    // Use min of years and data lengths to avoid index mismatch
+    int len = years.length;
+    if (sales != null && sales.length < len) len = sales.length;
+    if (profit != null && profit.length < len) len = profit.length;
     final start = len > 5 ? len - 5 : 0;
     final entries = <ComboChartEntry>[];
     for (var i = start; i < len; i++) {
@@ -1949,10 +1972,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         label: _shortYear(years[i].toString()),
         bar1: _valAt(sales, i),
         bar2: _valAt(profit, i),
-        line1: _valAt(opm, i),
+        line1: _valAtNullable(margin, i),
       ));
     }
-    return entries;
+    return (entries, marginLabel);
   }
 
 

@@ -58,7 +58,9 @@ class ComboChartWidget extends StatelessWidget {
         if (e.line1! > lineMax) lineMax = e.line1!;
       }
     }
-    if (!hasLine) {
+    if (!hasLine || lineMin == lineMax) {
+      // No line data or all values identical — disable line overlay
+      hasLine = false;
       lineMin = 0;
       lineMax = 100;
     }
@@ -144,7 +146,9 @@ class ComboChartWidget extends StatelessWidget {
                       sideTitles: SideTitles(
                         showTitles: hasLine,
                         reservedSize: rightReserved,
-                        interval: barChartMax / ((lineChartMax - lineChartMin) / lineInterval),
+                        interval: (lineChartMax - lineChartMin) > 0
+                            ? barChartMax / ((lineChartMax - lineChartMin) / lineInterval)
+                            : barChartMax,
                         getTitlesWidget: (value, meta) {
                           if (value == meta.max) {
                             return const SizedBox.shrink();
