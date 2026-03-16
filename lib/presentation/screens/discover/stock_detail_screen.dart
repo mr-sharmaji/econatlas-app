@@ -16,6 +16,7 @@ import 'widgets/metric_glossary.dart';
 import 'widgets/stat_card.dart';
 import 'widgets/tag_utils.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
+import 'widgets/combo_chart_widget.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
   final String symbol;
@@ -101,6 +102,34 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return '$sign\u20B9${Formatters.fullPrice(value)}';
   }
 
+  /// Format a value (in Crores from Screener.in) into the best Indian unit
+  /// (L Cr / Cr / L / K) for display.
+  static String _formatIndianCurrency(double? value) {
+    if (value == null) return '\u2014';
+    final abs = value.abs();
+    final sign = value < 0 ? '\u2212' : '';
+    // ≥ 1 L Cr
+    if (abs >= 1e5) {
+      return '$sign\u20B9${(abs / 1e5).toStringAsFixed(2)} L Cr';
+    }
+    // ≥ 1 Cr
+    if (abs >= 1) {
+      return '$sign\u20B9${Formatters.price(abs)} Cr';
+    }
+    // ≥ 1 L  (0.01 Cr = 1 L)
+    final lakhs = abs * 100; // 1 Cr = 100 L
+    if (lakhs >= 1) {
+      return '$sign\u20B9${lakhs.toStringAsFixed(lakhs == lakhs.roundToDouble() ? 0 : 1)} L';
+    }
+    // < 1 L → show in thousands (1 Cr = 10,000 K)
+    final thousands = abs * 10000;
+    if (thousands >= 1) {
+      return '$sign\u20B9${thousands.toStringAsFixed(thousands == thousands.roundToDouble() ? 0 : 1)} K';
+    }
+    // Extremely small — just show raw
+    return '$sign\u20B9${(abs * 1e7).toStringAsFixed(0)}';
+  }
+
   /// Normalize market_cap to crores (some sources store raw rupees, others crores).
   /// Indian max market cap is ~20 lakh crore = 2e7 Cr.  Anything > 1e7 is likely raw rupees.
   static double _mcapInCr(double raw) => raw > 1e7 ? raw / 1e7 : raw;
@@ -113,13 +142,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       return '\u20B9${(cr / 1e5).toStringAsFixed(2)} L Cr';
     }
     return '\u20B9${Formatters.price(cr)} Cr';
-  }
-
-  static String _formatShareholderCount(int count) {
-    if (count >= 1e7) return '${(count / 1e7).toStringAsFixed(1)} Cr';
-    if (count >= 1e5) return '${(count / 1e5).toStringAsFixed(1)} L';
-    if (count >= 1e3) return '${(count / 1e3).toStringAsFixed(0)}K';
-    return count.toString();
   }
 
   static String _pct(double? value) {
@@ -1093,36 +1115,38 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   _metricRow(context,
                       label: 'Revenue CAGR (3Y)',
                       value: '${item.compoundedSalesGrowth3y!.toStringAsFixed(0)}%',
-                      valueColor: _changeColor(item.compoundedSalesGrowth3y! / 100)),
+                      valueColor: _changeColor(item.compoundedSalesGrowth3y! / 100),
+                      metricKey: 'compounded_sales_growth_3y'),
                 if (item.compoundedProfitGrowth3y != null)
                   _metricRow(context,
                       label: 'Profit CAGR (3Y)',
                       value: '${item.compoundedProfitGrowth3y!.toStringAsFixed(0)}%',
                       valueColor: _changeColor(item.compoundedProfitGrowth3y! / 100),
+                      metricKey: 'compounded_profit_growth_3y',
                       isLast: item.plAnnual == null || item.plAnnual!.isEmpty),
-                // Revenue & Profit Trend chart
+                // Revenue, Profit & OPM% combo chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
-                    final groups = _buildPlTrendGroups(item.plAnnual!);
-                    if (groups.isEmpty) return const SizedBox.shrink();
+                    final comboEntries = _buildComboEntries(item.plAnnual!);
+                    if (comboEntries.isEmpty) return const SizedBox.shrink();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 12),
-                        Text('Revenue & Profit Trend',
+                        Text('Revenue, Profit & Margins',
                             style: theme.textTheme.bodySmall
                                 ?.copyWith(color: Colors.white54)),
                         const SizedBox(height: 8),
                         SizedBox(
-                          height: 160,
-                          child: GroupedBarChartWidget(
-                            groups: groups,
+                          height: 180,
+                          child: ComboChartWidget(
+                            entries: comboEntries,
                             barColors: [
                               AppTheme.accentBlue,
-                              AppTheme.accentGreen
+                              AppTheme.accentGreen,
                             ],
-                            legendLabels: const ['Revenue', 'Profit'],
-                            yAxisLabel: '\u20B9 Cr',
+                            lineColor: const Color(0xFFFFAB40),
+                            legendLabels: const ['Revenue', 'Profit', 'OPM%'],
                           ),
                         ),
                       ],
@@ -1168,7 +1192,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     metricKey: 'total_debt'),
                 _metricRow(context,
                     label: 'Total Cash',
-                    value: _formatLargeNumber(item.totalCash)),
+                    value: _formatLargeNumber(item.totalCash),
+                    metricKey: 'total_cash'),
                 if (item.freeCashFlow != null)
                   _metricRow(context,
                       label: 'Free Cash Flow',
@@ -1208,7 +1233,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   if (item.cashFromOperations != null)
                     _metricRow(context,
                         label: 'Operating (CFO)',
-                        value: _formatLargeNumber(item.cashFromOperations),
+                        value: _formatIndianCurrency(item.cashFromOperations),
                         valueColor: item.cashFromOperations! >= 0
                             ? AppTheme.accentGreen
                             : AppTheme.accentRed,
@@ -1216,7 +1241,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   if (item.cashFromInvesting != null)
                     _metricRow(context,
                         label: 'Investing (CFI)',
-                        value: _formatLargeNumber(item.cashFromInvesting),
+                        value: _formatIndianCurrency(item.cashFromInvesting),
                         valueColor: item.cashFromInvesting! >= 0
                             ? AppTheme.accentGreen
                             : Colors.white54,
@@ -1224,7 +1249,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   if (item.cashFromFinancing != null)
                     _metricRow(context,
                         label: 'Financing (CFF)',
-                        value: _formatLargeNumber(item.cashFromFinancing),
+                        value: _formatIndianCurrency(item.cashFromFinancing),
                         metricKey: 'cash_from_financing',
                         isLast: true),
                 ],
@@ -1330,40 +1355,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           ),
         ),
 
-        // Shareholder count + trends
-        if (item.numShareholders != null) ...[
-          const SizedBox(height: 8),
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Retail Sentiment',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  _metricRow(context,
-                      label: 'Shareholders',
-                      value: _formatShareholderCount(item.numShareholders!),
-                      metricKey: 'num_shareholders'),
-                  if (item.numShareholdersChangeQoq != null)
-                    _metricRow(context,
-                        label: 'QoQ Change',
-                        value: '${item.numShareholdersChangeQoq! >= 0 ? '+' : ''}${item.numShareholdersChangeQoq!.toStringAsFixed(1)}%',
-                        valueColor: _changeColor(item.numShareholdersChangeQoq! / 100)),
-                  if (item.numShareholdersChangeYoy != null)
-                    _metricRow(context,
-                        label: 'YoY Change',
-                        value: '${item.numShareholdersChangeYoy! >= 0 ? '+' : ''}${item.numShareholdersChangeYoy!.toStringAsFixed(1)}%',
-                        valueColor: _changeColor(item.numShareholdersChangeYoy! / 100),
-                        isLast: true),
-                ],
-              ),
-            ),
-          ),
-        ],
 
         // Pledged shares warning
         if (item.pledgedPromoterPct != null &&
@@ -1907,22 +1898,25 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   // ── Chart Data Helpers ──────────────────────────────────────
 
-  List<BarGroup> _buildPlTrendGroups(Map<String, dynamic> pl) {
+  List<ComboChartEntry> _buildComboEntries(Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
     final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
+    final opm = pl['opm_pct'] as List<dynamic>?;
     if (years.isEmpty || (sales == null && profit == null)) return [];
 
     final len = years.length;
     final start = len > 5 ? len - 5 : 0;
-    final groups = <BarGroup>[];
+    final entries = <ComboChartEntry>[];
     for (var i = start; i < len; i++) {
-      groups.add(BarGroup(
+      entries.add(ComboChartEntry(
         label: _shortYear(years[i].toString()),
-        values: [_valAt(sales, i), _valAt(profit, i)],
+        bar1: _valAt(sales, i),
+        bar2: _valAt(profit, i),
+        line1: _valAt(opm, i),
       ));
     }
-    return groups;
+    return entries;
   }
 
 
