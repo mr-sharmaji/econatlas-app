@@ -149,7 +149,7 @@ class ComboChartWidget extends StatelessWidget {
                 BarChartData(
                   minY: barChartMin,
                   maxY: barChartMax,
-                  barGroups: _buildBarGroups(),
+                  barGroups: _buildBarGroups(barChartMax),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       axisNameWidget: const Text('\u20B9 Cr',
@@ -392,33 +392,40 @@ class ComboChartWidget extends StatelessWidget {
     return spots;
   }
 
-  List<BarChartGroupData> _buildBarGroups() {
+  List<BarChartGroupData> _buildBarGroups(double barChartMax) {
+    // Cap negative bars at 20% of chart height so they don't hide the margin line.
+    final negCap = -barChartMax * 0.2;
     return List.generate(entries.length, (i) {
       final e = entries[i];
-      // Clamp bars at 0 — negative space is reserved for the margin line.
-      // Negative values still appear in the tooltip.
-      final v1 = math.max(e.bar1 ?? 0, 0.0);
-      final v2 = math.max(e.bar2 ?? 0, 0.0);
+      final v1 = e.bar1 ?? 0;
+      final v2 = e.bar2 ?? 0;
+      final c1 = v1 < 0 ? math.max(v1, negCap) : v1;
+      final c2 = v2 < 0 ? math.max(v2, negCap) : v2;
       return BarChartGroupData(
         x: i,
         barsSpace: 4,
         barRods: [
           BarChartRodData(
             fromY: 0,
-            toY: v1,
+            toY: c1,
             color: barColors.isNotEmpty ? barColors[0] : Colors.blue,
             width: 12,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(3)),
+            borderRadius: c1 >= 0
+                ? const BorderRadius.vertical(top: Radius.circular(3))
+                : const BorderRadius.vertical(
+                    bottom: Radius.circular(3)),
           ),
           BarChartRodData(
             fromY: 0,
-            toY: v2,
-            color:
-                barColors.length > 1 ? barColors[1] : Colors.green,
+            toY: c2,
+            color: c2 >= 0
+                ? (barColors.length > 1 ? barColors[1] : Colors.green)
+                : Colors.redAccent.withValues(alpha: 0.5),
             width: 12,
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(3)),
+            borderRadius: c2 >= 0
+                ? const BorderRadius.vertical(top: Radius.circular(3))
+                : const BorderRadius.vertical(
+                    bottom: Radius.circular(3)),
           ),
         ],
       );
