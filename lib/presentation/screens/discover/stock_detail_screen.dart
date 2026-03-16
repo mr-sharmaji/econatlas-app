@@ -727,63 +727,69 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
     final bannerTags = _bannerContextTags(item.tags);
 
-    return GestureDetector(
-      onTap: () => _showVerdictDetails(theme, color, actionTag,
-          narrative: narrative),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                if (actionTag != null) ...[
-                  Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    actionTag != null ? _formatActionTag(actionTag) : '',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              if (actionTag != null) ...[
+                Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  actionTag != null ? _formatActionTag(actionTag) : '',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
                   ),
                 ),
-                if (item.scoreConfidence != null)
-                  _miniIndicator(theme,
-                      item.scoreConfidence == 'high'
-                          ? Icons.verified_rounded
-                          : item.scoreConfidence == 'medium'
-                              ? Icons.check_circle_outline
-                              : Icons.info_outline,
-                      '${_capitalize(item.scoreConfidence!)} confidence',
-                      item.scoreConfidence == 'high'
-                          ? AppTheme.accentGreen
-                          : item.scoreConfidence == 'medium'
-                              ? Colors.amber
-                              : Colors.white38),
-              ],
-            ),
-            if (bannerTags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: bannerTags.map((t) {
-                  final td = getTagV2Display(t);
-                  return _bannerChip(theme, td.icon, td.label, td.color);
-                }).toList(),
               ),
+              if (item.scoreConfidence != null)
+                _miniIndicator(theme,
+                    item.scoreConfidence == 'high'
+                        ? Icons.verified_rounded
+                        : item.scoreConfidence == 'medium'
+                            ? Icons.check_circle_outline
+                            : Icons.info_outline,
+                    '${_capitalize(item.scoreConfidence!)} confidence',
+                    item.scoreConfidence == 'high'
+                        ? AppTheme.accentGreen
+                        : item.scoreConfidence == 'medium'
+                            ? Colors.amber
+                            : Colors.white38),
             ],
+          ),
+          if (narrative != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              narrative,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.4,
+              ),
+            ),
           ],
-        ),
+          if (bannerTags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: bannerTags.map((t) {
+                final td = getTagV2Display(t);
+                return _bannerChip(theme, td, t);
+              }).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -794,7 +800,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final actionTag = story.actionTag ?? item.actionTag;
     final verdict = story.verdict;
     final narrative = story.whyNarrative ?? item.scoreBreakdown.whyNarrative;
-    final reasoning = story.actionTagReasoning;
 
     if (actionTag == null && verdict == null && narrative == null) {
       return const SizedBox.shrink();
@@ -806,78 +811,86 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
     final bannerTags = _bannerContextTags(item.tags);
 
-    return GestureDetector(
-      onTap: () => _showVerdictDetails(theme, color, actionTag,
-          narrative: narrative, reasoning: reasoning),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Action tag header row with confidence badge
-            Row(
-              children: [
-                if (actionTag != null) ...[
-                  Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: Text(
-                    actionTag != null ? _formatActionTag(actionTag) : '',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: color,
-                    ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Action tag header row with confidence badge
+          Row(
+            children: [
+              if (actionTag != null) ...[
+                Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  actionTag != null ? _formatActionTag(actionTag) : '',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: color,
                   ),
                 ),
-                if (item.scoreConfidence != null)
-                  _miniIndicator(theme,
-                      item.scoreConfidence == 'high'
-                          ? Icons.verified_rounded
-                          : item.scoreConfidence == 'medium'
-                              ? Icons.check_circle_outline
-                              : Icons.info_outline,
-                      '${_capitalize(item.scoreConfidence!)} confidence',
-                      item.scoreConfidence == 'high'
-                          ? AppTheme.accentGreen
-                          : item.scoreConfidence == 'medium'
-                              ? Colors.amber
-                              : Colors.white38),
-              ],
+              ),
+              if (item.scoreConfidence != null)
+                _miniIndicator(theme,
+                    item.scoreConfidence == 'high'
+                        ? Icons.verified_rounded
+                        : item.scoreConfidence == 'medium'
+                            ? Icons.check_circle_outline
+                            : Icons.info_outline,
+                    '${_capitalize(item.scoreConfidence!)} confidence',
+                    item.scoreConfidence == 'high'
+                        ? AppTheme.accentGreen
+                        : item.scoreConfidence == 'medium'
+                            ? Colors.amber
+                            : Colors.white38),
+            ],
+          ),
+
+          // Verdict one-liner
+          if (verdict != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              verdict,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontWeight: FontWeight.w500,
+              ),
             ),
-
-            // Verdict one-liner
-            if (verdict != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                verdict,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-
-            // Context tag chips
-            if (bannerTags.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: bannerTags.map((t) {
-                  final td = getTagV2Display(t);
-                  return _bannerChip(theme, td.icon, td.label, td.color);
-                }).toList(),
-              ),
-            ],
           ],
-        ),
+
+          // Narrative paragraph
+          if (narrative != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              narrative,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white70,
+                height: 1.4,
+              ),
+            ),
+          ],
+
+          // Context tag chips
+          if (bannerTags.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: bannerTags.map((t) {
+                final td = getTagV2Display(t);
+                return _bannerChip(theme, td, t);
+              }).toList(),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -898,25 +911,36 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     }).toList();
   }
 
-  /// Compact chip for banner display.
-  Widget _bannerChip(ThemeData theme, IconData icon, String label, Color color) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+  /// Compact chip for banner display. Matches tag chip style exactly.
+  /// Tappable when tag has an explanation — reuses the same popup as Tags section.
+  Widget _bannerChip(ThemeData theme, TagDisplay td, TagV2 tag) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.20)),
+        color: td.color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: td.color.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 12, color: color),
+          Icon(td.icon, size: 14, color: td.color),
           const SizedBox(width: 4),
-          Text(label,
+          Text(td.label,
               style: theme.textTheme.labelSmall?.copyWith(
-                  color: color, fontWeight: FontWeight.w600, fontSize: 10)),
+                  color: td.color, fontWeight: FontWeight.w600)),
+          if (tag.explanation != null) ...[
+            const SizedBox(width: 4),
+            Icon(Icons.info_outline,
+                size: 12, color: td.color.withValues(alpha: 0.6)),
+          ],
         ],
       ),
+    );
+    if (tag.explanation == null) return chip;
+    return GestureDetector(
+      onTap: () => _showTagExplanation(theme, tag),
+      child: chip,
     );
   }
 
@@ -933,16 +957,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 color: color, fontWeight: FontWeight.w600, fontSize: 11)),
       ],
     );
-  }
-
-  /// Find a TagV2 explanation by matching tag name (case-insensitive).
-  String? _findTagExplanation(List<TagV2>? tags, String tagName) {
-    if (tags == null) return null;
-    final lower = tagName.toLowerCase();
-    for (final t in tags) {
-      if (t.tag.toLowerCase() == lower && t.explanation != null) return t.explanation;
-    }
-    return null;
   }
 
 
@@ -1454,69 +1468,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return (groups, activeColors, activeLabels);
   }
 
-  void _showVerdictDetails(ThemeData theme, Color color, String? actionTag,
-      {String? narrative, String? reasoning}) {
-    if (narrative == null && reasoning == null) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppTheme.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (actionTag != null)
-              Text(
-                _formatActionTag(actionTag),
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
-              ),
-            if (narrative != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                narrative,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-            ],
-            if (reasoning != null) ...[
-              const SizedBox(height: 10),
-              Text(
-                reasoning,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  height: 1.5,
-                ),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
 
   static String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
