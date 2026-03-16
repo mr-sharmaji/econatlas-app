@@ -29,6 +29,16 @@ class RadarChartWidget extends StatelessWidget {
       child: RadarChart(
         RadarChartData(
           dataSets: [
+            // Hidden reference dataset to fix scale at 0-100
+            RadarDataSet(
+              dataEntries: dimensions
+                  .map((_) => const RadarEntry(value: 100))
+                  .toList(),
+              fillColor: Colors.transparent,
+              borderColor: Colors.transparent,
+              borderWidth: 0,
+              entryRadius: 0,
+            ),
             RadarDataSet(
               dataEntries: dimensions
                   .map((d) => RadarEntry(value: d.value))
