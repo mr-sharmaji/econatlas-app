@@ -12,7 +12,6 @@ import '../../../data/services/recently_viewed_service.dart';
 import '../../providers/discover_providers.dart';
 import '../../providers/tab_navigation_providers.dart';
 import '../../widgets/shimmer_loading.dart';
-import 'widgets/score_bar.dart';
 import 'widgets/sparkline_widget.dart';
 
 /// Bottom padding to clear the FAB.
@@ -26,15 +25,23 @@ class DiscoverHomeScreen extends ConsumerStatefulWidget {
       _DiscoverHomeScreenState();
 }
 
-class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
+class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
+    with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
   Timer? _debounce;
   String _searchQuery = '';
+  late final TabController _tabController;
 
   // LayerLink for anchoring the search overlay to the search bar.
   final LayerLink _searchLayerLink = LayerLink();
   final GlobalKey _searchBarKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
 
   void _scrollToTop() {
     if (!_scrollController.hasClients) return;
@@ -49,6 +56,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _tabController.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -67,13 +75,11 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     setState(() => _searchQuery = '');
   }
 
-  void _onStockTap(DiscoverHomeStockItem item, {int? initialDays}) {
+  void _onStockTap(DiscoverHomeStockItem item) {
     ref
         .read(recentlyViewedProvider.notifier)
         .add(type: 'stock', id: item.symbol, name: item.displayName);
-    final Map<String, dynamic>? extra =
-        initialDays != null ? {'initialDays': initialDays} : null;
-    context.push('/discover/stock/${item.symbol}', extra: extra);
+    context.push('/discover/stock/${item.symbol}');
   }
 
   void _onMfTap(DiscoverHomeMfItem item) {
@@ -109,13 +115,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
     }
   }
 
-  void _onSectorChampionTap(DiscoverHomeStockItem item) {
-    context.push('/discover/stocks', extra: {
-      'preset': 'quality',
-      if (item.sector != null) 'sector': item.sector,
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     // Discover tab is index 3 in bottom nav
@@ -126,7 +125,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
 
     final isSearchActive = _searchQuery.length >= 2;
     final homeAsync = ref.watch(discoverHomeDataProvider);
-    final recentlyViewed = ref.watch(recentlyViewedProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -137,63 +135,80 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.accentBlue,
+          labelColor: AppTheme.accentBlue,
+          unselectedLabelColor: Colors.white54,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          tabs: const [
+            Tab(text: 'Stocks'),
+            Tab(text: 'Mutual Funds'),
+          ],
+        ),
       ),
       body: Column(
         children: [
           // Search bar — always above dim overlay
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
             child: CompositedTransformTarget(
               link: _searchLayerLink,
               child: _buildSearchBar(),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           // Feed + overlays
           Expanded(
             child: Stack(
               children: [
-                RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(discoverHomeDataProvider);
-                    ref.invalidate(
-                        discoverOverviewProvider(DiscoverSegment.stocks));
-                    // Wait for the new data so the spinner stays visible
-                    await ref.read(discoverHomeDataProvider.future);
-                  },
-                  child: homeAsync.when(
-                    loading: () => const ShimmerDiscoverHome(),
-                    error: (err, _) => ListView(
-                      children: [
-                        const SizedBox(height: 80),
-                        const Icon(Icons.cloud_off_rounded,
-                            size: 48, color: Colors.white24),
-                        const SizedBox(height: 12),
-                        Center(
-                          child: Text(
-                            friendlyErrorMessage(err),
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
+                homeAsync.when(
+                  loading: () => const ShimmerDiscoverHome(),
+                  error: (err, _) => ListView(
+                    children: [
+                      const SizedBox(height: 80),
+                      const Icon(Icons.cloud_off_rounded,
+                          size: 48, color: Colors.white24),
+                      const SizedBox(height: 12),
+                      Center(
+                        child: Text(
+                          friendlyErrorMessage(err),
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
-                        const SizedBox(height: 16),
-                        Center(
-                          child: OutlinedButton.icon(
-                            onPressed: () =>
-                                ref.invalidate(discoverHomeDataProvider),
-                            icon: const Icon(Icons.refresh, size: 16),
-                            label: const Text('Retry'),
-                          ),
+                      ),
+                      const SizedBox(height: 16),
+                      Center(
+                        child: OutlinedButton.icon(
+                          onPressed: () =>
+                              ref.invalidate(discoverHomeDataProvider),
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: const Text('Retry'),
                         ),
-                      ],
-                    ),
-                    data: (data) => _buildFeed(data, recentlyViewed),
+                      ),
+                    ],
+                  ),
+                  data: (data) => TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildStocksTab(data),
+                      _buildMfTab(data),
+                    ],
                   ),
                 ),
                 // Dim overlay when search results are visible
                 if (isSearchActive)
                   GestureDetector(
                     onTap: _clearSearch,
-                    child: Container(color: Colors.black.withValues(alpha: 0.60)),
+                    child:
+                        Container(color: Colors.black.withValues(alpha: 0.60)),
                   ),
                 if (isSearchActive) _buildSearchOverlay(),
               ],
@@ -205,156 +220,130 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Main Feed
+  // Stocks Tab
   // ---------------------------------------------------------------------------
 
-  Widget _buildFeed(DiscoverHomeData data, List<RecentlyViewedItem> recent) {
-    return CustomScrollView(
-      controller: _scrollController,
-      slivers: [
-        // Market Mood Card (replaces Market Pulse — same data, richer display)
-        if (data.marketMood != null)
-          SliverToBoxAdapter(
-            child: _MarketMoodCard(mood: data.marketMood!),
+  Widget _buildStocksTab(DiscoverHomeData data) {
+    final recentlyViewed = ref.watch(recentlyViewedProvider);
+    final recentStocks =
+        recentlyViewed.where((r) => r.type == 'stock').toList();
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(discoverHomeDataProvider);
+        await ref.read(discoverHomeDataProvider.future);
+      },
+      child: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.only(top: 4),
+        children: [
+          // Quick categories (stocks only)
+          _buildQuickCategories(
+            data.quickCategories
+                .where((c) => c.segment == 'stocks')
+                .toList(),
           ),
-        if (data.marketMood != null)
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          const SizedBox(height: 12),
 
-        // Quick category chips
-        SliverToBoxAdapter(
-          child: _buildQuickCategories(data.quickCategories),
-        ),
-        const SliverToBoxAdapter(child: SizedBox(height: 12)),
+          // Recently viewed stocks
+          if (recentStocks.isNotEmpty) ...[
+            _buildRecentlyViewed(recentStocks),
+            const SizedBox(height: 8),
+          ],
 
-        // Recently Viewed
-        if (recent.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Builder(builder: (_) {
-              final recentStockSymbols = recent
-                  .where((r) => r.type == 'stock')
-                  .map((r) => r.id)
-                  .toList();
-              final recentMfCodes = recent
-                  .where((r) => r.type == 'mf')
-                  .map((r) => r.id)
-                  .toList();
-              final recentStockSparklines = recentStockSymbols.isNotEmpty
-                  ? ref.watch(discoverStockSparklinesProvider(
-                      (symbols: recentStockSymbols, days: 7)))
-                  : null;
-              final recentMfSparklines = recentMfCodes.isNotEmpty
-                  ? ref.watch(discoverMfSparklinesProvider(
-                      (schemeCodes: recentMfCodes, days: 7)))
-                  : null;
-              final recentStockSparkMap =
-                  recentStockSparklines?.valueOrNull ?? {};
-              final recentMfSparkMap =
-                  recentMfSparklines?.valueOrNull ?? {};
-              return _HorizontalSection(
-                title: 'Recently Viewed',
-                children: recent
-                    .map((item) => _RecentCard(
-                          item: item,
-                          onTap: () => _onRecentTap(item),
-                          sparklineValues: (item.type == 'stock'
-                                  ? recentStockSparkMap[item.id]
-                                  : recentMfSparkMap[item.id])
-                              ?.map((p) => p.value)
-                              .toList(),
-                        ))
+          // Signal & theme sections
+          for (final section in data.stockSections)
+            _StockSectionWidget(
+              section: section,
+              onStockTap: _onStockTap,
+            ),
+
+          const SizedBox(height: _kBottomPadding),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // MF Tab
+  // ---------------------------------------------------------------------------
+
+  Widget _buildMfTab(DiscoverHomeData data) {
+    final recentlyViewed = ref.watch(recentlyViewedProvider);
+    final recentMfs = recentlyViewed.where((r) => r.type == 'mf').toList();
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        ref.invalidate(discoverHomeDataProvider);
+        await ref.read(discoverHomeDataProvider.future);
+      },
+      child: ListView(
+        padding: const EdgeInsets.only(top: 4),
+        children: [
+          // Quick categories (MFs only)
+          _buildQuickCategories(
+            data.quickCategories
+                .where((c) => c.segment == 'mutual_funds')
+                .toList(),
+          ),
+          const SizedBox(height: 12),
+
+          // Recently viewed MFs
+          if (recentMfs.isNotEmpty) ...[
+            _buildRecentlyViewed(recentMfs),
+            const SizedBox(height: 8),
+          ],
+
+          // MF sections
+          for (final section in data.mfSections)
+            _MfSectionWidget(
+              section: section,
+              onMfTap: _onMfTap,
+            ),
+
+          const SizedBox(height: _kBottomPadding),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Recently Viewed (horizontal scroll)
+  // ---------------------------------------------------------------------------
+
+  Widget _buildRecentlyViewed(List<RecentlyViewedItem> items) {
+    final recentStockSymbols = items
+        .where((r) => r.type == 'stock')
+        .map((r) => r.id)
+        .toList();
+    final recentMfCodes = items
+        .where((r) => r.type == 'mf')
+        .map((r) => r.id)
+        .toList();
+    final recentStockSparklines = recentStockSymbols.isNotEmpty
+        ? ref.watch(discoverStockSparklinesProvider(
+            (symbols: recentStockSymbols, days: 7)))
+        : null;
+    final recentMfSparklines = recentMfCodes.isNotEmpty
+        ? ref.watch(discoverMfSparklinesProvider(
+            (schemeCodes: recentMfCodes, days: 7)))
+        : null;
+    final recentStockSparkMap = recentStockSparklines?.valueOrNull ?? {};
+    final recentMfSparkMap = recentMfSparklines?.valueOrNull ?? {};
+
+    return _HorizontalSection(
+      title: 'Recently Viewed',
+      children: items
+          .map((item) => _RecentCard(
+                item: item,
+                onTap: () => _onRecentTap(item),
+                sparklineValues: (item.type == 'stock'
+                        ? recentStockSparkMap[item.id]
+                        : recentMfSparkMap[item.id])
+                    ?.map((p) => p.value)
                     .toList(),
-              );
-            }),
-          ),
-
-        // Highest Quality Stocks (renamed from "Top Rated Stocks")
-        if (data.topStocks.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Highest Quality Stocks',
-              seeAllRoute: '/discover/stocks',
-              seeAllExtra: const {'preset': 'quality'},
-              cardWidth: 160,
-              children: data.topStocks
-                  .map((s) => _StockCard(
-                        item: s,
-                        onTap: () => _onStockTap(s),
-                        use3mChange: true,
-                        showQualityTier: true,
-                      ))
-                  .toList(),
-            ),
-          ),
-
-        // Trending This Week (MOVED UP)
-        if (data.trendingThisWeek.isNotEmpty)
-          SliverToBoxAdapter(
-            child: Builder(builder: (_) {
-              final trendingSymbols =
-                  data.trendingThisWeek.map((s) => s.symbol).toList();
-              final trendingSparklines = trendingSymbols.isNotEmpty
-                  ? ref.watch(discoverStockSparklinesProvider(
-                      (symbols: trendingSymbols, days: 7)))
-                  : null;
-              final trendingSparkMap =
-                  trendingSparklines?.valueOrNull ?? {};
-              return _HorizontalSection(
-                title: 'Trending This Week',
-                cardWidth: 160,
-                children: data.trendingThisWeek
-                    .map((s) => _StockCard(
-                          item: s,
-                          onTap: () => _onStockTap(s, initialDays: 7),
-                          use1wChange: true,
-                          sparklineValues: trendingSparkMap[s.symbol]
-                              ?.map((p) => p.value)
-                              .toList(),
-                        ))
-                    .toList(),
-              );
-            }),
-          ),
-
-        // Top Equity Funds
-        if (data.topEquityFunds.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Top Equity Funds',
-              seeAllRoute: '/discover/mutual-funds',
-              seeAllExtra: const {'preset': 'equity'},
-              cardWidth: 160,
-              children: data.topEquityFunds
-                  .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
-                  .toList(),
-            ),
-          ),
-
-        // Top Debt Funds
-        if (data.topDebtFunds.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _HorizontalSection(
-              title: 'Top Debt Funds',
-              seeAllRoute: '/discover/mutual-funds',
-              seeAllExtra: const {'preset': 'debt'},
-              cardWidth: 160,
-              children: data.topDebtFunds
-                  .map((m) => _MfCard(item: m, onTap: () => _onMfTap(m)))
-                  .toList(),
-            ),
-          ),
-
-        // Sector Champions — 2-column grid (all sectors)
-        if (data.sectorChampions.isNotEmpty)
-          SliverToBoxAdapter(
-            child: _SectorChampionsGrid(
-              items: data.sectorChampions,
-              onTap: _onSectorChampionTap,
-            ),
-          ),
-
-        // Bottom padding for FAB
-        const SliverToBoxAdapter(child: SizedBox(height: _kBottomPadding)),
-      ],
+              ))
+          .toList(),
     );
   }
 
@@ -363,25 +352,15 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   // ---------------------------------------------------------------------------
 
   Widget _buildQuickCategories(List<QuickCategory> apiCategories) {
-    // Fixed quick-access grid of curated categories
     final gridItems = <({String label, IconData icon, VoidCallback onTap})>[
-      (
-        label: 'All Stocks',
-        icon: Icons.bar_chart_rounded,
-        onTap: () =>
-            context.push('/discover/stocks', extra: const {'preset': 'all'}),
-      ),
-      (
-        label: 'All MFs',
-        icon: Icons.account_balance_rounded,
-        onTap: () => context.push('/discover/mutual-funds'),
-      ),
-      ...apiCategories.take(6).map((cat) => (
+      ...apiCategories.take(8).map((cat) => (
             label: cat.name,
             icon: _quickCategoryIcon(cat) ?? Icons.label_outline,
             onTap: () => _onQuickCategoryTap(cat),
           )),
     ];
+
+    if (gridItems.isEmpty) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -420,13 +399,19 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
         return Icons.store;
       case 'elss':
         return Icons.receipt_long_outlined;
+      case 'flexi-cap':
+        return Icons.swap_vert_rounded;
+      case 'low-risk':
+        return Icons.shield_outlined;
+      case 'index':
+        return Icons.pie_chart_outline;
       default:
         return null;
     }
   }
 
   // ---------------------------------------------------------------------------
-  // Search bar — highlighted border when search is active
+  // Search bar
   // ---------------------------------------------------------------------------
 
   Widget _buildSearchBar() {
@@ -467,7 +452,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
           focusedBorder: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
         textInputAction: TextInputAction.search,
       ),
@@ -475,7 +461,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // Search overlay — centered below search bar
+  // Search overlay
   // ---------------------------------------------------------------------------
 
   Widget _buildSearchOverlay() {
@@ -516,7 +502,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
                         color: AppTheme.cardDark,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color: AppTheme.accentBlue.withValues(alpha: 0.20)),
+                            color:
+                                AppTheme.accentBlue.withValues(alpha: 0.20)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.4),
@@ -691,380 +678,417 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen> {
 }
 
 // =============================================================================
-// Market Pulse Card — uses discoverOverviewProvider
+// Stock Section — vertical list of stock tiles
 // =============================================================================
 
-class _MarketPulseCard extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final overviewAsync =
-        ref.watch(discoverOverviewProvider(DiscoverSegment.stocks));
-    final theme = Theme.of(context);
+class _StockSectionWidget extends StatelessWidget {
+  final DiscoverHomeSection<DiscoverHomeStockItem> section;
+  final void Function(DiscoverHomeStockItem) onStockTap;
 
-    return overviewAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (overview) {
-        final dist = overview.scoreDistribution;
-        final avgScore = overview.avgScore;
-        if (dist == null || avgScore == null) return const SizedBox.shrink();
-
-        final total = dist.total;
-        if (total == 0) return const SizedBox.shrink();
-
-        final scoreColor = ScoreBar.scoreColor(avgScore);
-
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppTheme.cardDark,
-              borderRadius: BorderRadius.circular(14),
-              border:
-                  Border.all(color: Colors.white.withValues(alpha: 0.06)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header
-                Row(
-                  children: [
-                    const Icon(Icons.insights_rounded,
-                        size: 16, color: AppTheme.accentBlue),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Market Pulse',
-                      style: theme.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    Text(
-                      '${overview.totalItems} stocks',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: Colors.white38,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Avg score + distribution bar
-                Row(
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          avgScore.toStringAsFixed(0),
-                          style: TextStyle(
-                            color: scoreColor,
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          'Avg Quality',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white54,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _ScoreDistributionBar(dist: dist, total: total),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Top 5 sectors
-                if (overview.topSectors.isNotEmpty)
-                  _TopSectorsChart(
-                      sectors: overview.topSectors.take(5).toList()),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _ScoreDistributionBar extends StatelessWidget {
-  final ScoreDistribution dist;
-  final int total;
-
-  const _ScoreDistributionBar({required this.dist, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final segments = [
-      (dist.excellent, AppTheme.accentGreen, 'Excellent'),
-      (dist.good, AppTheme.accentTeal, 'Good'),
-      (dist.average, AppTheme.accentOrange, 'Average'),
-      (dist.poor, AppTheme.accentRed, 'Below Avg'),
-    ];
-
-    return Column(
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: SizedBox(
-            height: 8,
-            child: Row(
-              children: segments
-                  .where((s) => s.$1 > 0)
-                  .map((s) {
-                    final fraction = s.$1 / total;
-                    return Flexible(
-                      flex: (fraction * 1000).round(),
-                      child: Container(color: s.$2),
-                    );
-                  })
-                  .toList(),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: segments.map((s) {
-            return Expanded(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: s.$2,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 3),
-                  Flexible(
-                    child: Text(
-                      '${s.$1}',
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 10,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-}
-
-class _TopSectorsChart extends StatelessWidget {
-  final List<TopSegmentEntry> sectors;
-
-  const _TopSectorsChart({required this.sectors});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Top Sectors by Quality',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white38,
-                fontWeight: FontWeight.w600,
-              ),
-        ),
-        const SizedBox(height: 8),
-        ...sectors.map((sector) {
-          final fraction = (sector.avgScore / 100).clamp(0.0, 1.0);
-          final color = ScoreBar.scoreColor(sector.avgScore);
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 80,
-                  child: Text(
-                    sector.name,
-                    style: const TextStyle(
-                      color: Colors.white60,
-                      fontSize: 11,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(3),
-                    child: LinearProgressIndicator(
-                      value: fraction,
-                      minHeight: 6,
-                      backgroundColor: Colors.white.withValues(alpha: 0.06),
-                      valueColor: AlwaysStoppedAnimation(color),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 28,
-                  child: Text(
-                    sector.avgScore.toStringAsFixed(0),
-                    textAlign: TextAlign.right,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        }),
-      ],
-    );
-  }
-}
-
-// =============================================================================
-// Market Mood Card — from /screener/home market_mood field
-// =============================================================================
-
-class _MarketMoodCard extends StatelessWidget {
-  final MarketMood mood;
-
-  const _MarketMoodCard({required this.mood});
+  const _StockSectionWidget({
+    required this.section,
+    required this.onStockTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final dist = mood.scoreDistribution;
-    final total = dist?.total ?? 0;
-    if (total == 0 && mood.summary == null) return const SizedBox.shrink();
-
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Section header
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              section.title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+            child: Text(
+              section.subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white38,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          // Stock tiles
+          ...section.items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _HomeStockTile(
+                  item: item,
+                  onTap: () => onStockTap(item),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// MF Section — vertical list of MF tiles
+// =============================================================================
+
+class _MfSectionWidget extends StatelessWidget {
+  final DiscoverHomeSection<DiscoverHomeMfItem> section;
+  final void Function(DiscoverHomeMfItem) onMfTap;
+
+  const _MfSectionWidget({
+    required this.section,
+    required this.onMfTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: Text(
+              section.title,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+            child: Text(
+              section.subtitle,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white38,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          ...section.items.map((item) => Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: _HomeMfTile(
+                  item: item,
+                  onTap: () => onMfTap(item),
+                ),
+              )),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Home Stock Tile — compact list tile for DiscoverHomeStockItem
+// =============================================================================
+
+class _HomeStockTile extends StatelessWidget {
+  final DiscoverHomeStockItem item;
+  final VoidCallback onTap;
+
+  const _HomeStockTile({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final change = item.percentChange3m ?? item.percentChange;
+    final isPositive = (change ?? 0) >= 0;
+    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final changeLabel = item.percentChange3m != null ? '3M ' : '';
+    final scoreColor = item.score >= 70
+        ? AppTheme.accentGreen
+        : item.score >= 40
+            ? AppTheme.accentOrange
+            : AppTheme.accentRed;
+
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Row 1: name + price
             Row(
               children: [
-                const Icon(Icons.mood_rounded,
-                    size: 16, color: AppTheme.accentTeal),
-                const SizedBox(width: 6),
-                Text(
-                  'Market Mood',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Text(
+                    item.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
                 ),
-                const Spacer(),
-                if (mood.avgScore != null)
+                const SizedBox(width: 8),
+                Text(
+                  Formatters.fullPrice(item.lastPrice),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Row 2: symbol · sector/industry  |  change badge
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${item.symbol}${item.sector != null ? ' \u00b7 ${item.industry ?? item.sector}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white54),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: changeColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '$changeLabel${Formatters.changeTag(change)}',
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: changeColor,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Row 3: score circle + action tag
+            Row(
+              children: [
+                // Circular score
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scoreColor.withValues(alpha: 0.12),
+                    border: Border.all(
+                        color: scoreColor.withValues(alpha: 0.4), width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    item.score.toInt().toString(),
+                    style: TextStyle(
+                      color: scoreColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (item.actionTag != null) ...[
+                  const SizedBox(width: 10),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: ScoreBar.scoreColor(mood.avgScore!)
+                      color: _actionTagColor(item.actionTag!)
                           .withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'Avg ${mood.avgScore!.toStringAsFixed(1)}',
+                      item.actionTag!,
                       style: TextStyle(
-                        color: ScoreBar.scoreColor(mood.avgScore!),
+                        color: _actionTagColor(item.actionTag!),
                         fontSize: 11,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
+                    ),
+                  ),
+                ],
+                const Spacer(),
+                // Market cap
+                if (item.marketCap != null)
+                  Text(
+                    _formatMarketCap(item.marketCap!),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white38,
+                      fontSize: 10,
                     ),
                   ),
               ],
             ),
-            if (mood.summary != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                mood.summary!,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.white70, height: 1.4),
-              ),
-            ],
-            if (dist != null && total > 0) ...[
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: SizedBox(
-                  height: 8,
-                  child: Row(
-                    children: [
-                      _moodBar(dist.excellent / total, AppTheme.accentGreen),
-                      _moodBar(dist.good / total, AppTheme.accentTeal),
-                      _moodBar(dist.average / total, AppTheme.accentOrange),
-                      _moodBar(dist.poor / total, AppTheme.accentRed),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  _moodLabel('Excellent', dist.excellent, AppTheme.accentGreen),
-                  const SizedBox(width: 12),
-                  _moodLabel('Good', dist.good, AppTheme.accentTeal),
-                  const SizedBox(width: 12),
-                  _moodLabel('Average', dist.average, AppTheme.accentOrange),
-                  const SizedBox(width: 12),
-                  _moodLabel('Poor', dist.poor, AppTheme.accentRed),
-                ],
-              ),
-            ],
           ],
         ),
       ),
     );
   }
 
-  Widget _moodBar(double fraction, Color color) {
-    if (fraction <= 0) return const SizedBox.shrink();
-    return Expanded(
-      flex: (fraction * 100).round().clamp(1, 100),
-      child: Container(color: color),
-    );
+  static Color _actionTagColor(String tag) {
+    final lower = tag.toLowerCase();
+    if (lower.contains('buy') || lower.contains('accumulate')) {
+      return AppTheme.accentGreen;
+    }
+    if (lower.contains('sell') || lower.contains('reduce')) {
+      return AppTheme.accentRed;
+    }
+    if (lower.contains('hold') || lower.contains('watch')) {
+      return AppTheme.accentOrange;
+    }
+    return AppTheme.accentBlue;
   }
 
-  Widget _moodLabel(String label, int count, Color color) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 6,
-          height: 6,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+  static String _formatMarketCap(double crores) {
+    if (crores >= 1e5) {
+      return '\u20B9${(crores / 1e5).toStringAsFixed(1)} L Cr';
+    }
+    if (crores >= 1e3) {
+      return '\u20B9${(crores / 1e3).toStringAsFixed(1)}K Cr';
+    }
+    return '\u20B9${crores.toStringAsFixed(0)} Cr';
+  }
+}
+
+// =============================================================================
+// Home MF Tile — compact list tile for DiscoverHomeMfItem
+// =============================================================================
+
+class _HomeMfTile extends StatelessWidget {
+  final DiscoverHomeMfItem item;
+  final VoidCallback onTap;
+
+  const _HomeMfTile({required this.item, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ret1y = item.returns1y;
+    final retPositive = (ret1y ?? 0) >= 0;
+    final retColor = retPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final scoreColor = (item.score) >= 70
+        ? AppTheme.accentGreen
+        : (item.score) >= 40
+            ? AppTheme.accentOrange
+            : AppTheme.accentRed;
+    final firstBadge =
+        item.qualityBadges.isNotEmpty ? item.qualityBadges.first : null;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerHighest
+              .withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
-        const SizedBox(width: 4),
-        Text(
-          '$count',
-          style: TextStyle(
-            color: Colors.white54,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Row 1: name + 1Y return
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    item.displayName ?? item.schemeName,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (ret1y != null) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: retColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: retColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Row 2: category
+            if (item.category != null)
+              Text(
+                item.category!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: Colors.white54),
+              ),
+            const SizedBox(height: 8),
+            // Row 3: score + badge
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: scoreColor.withValues(alpha: 0.12),
+                    border: Border.all(
+                        color: scoreColor.withValues(alpha: 0.4), width: 1.5),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    item.score.toInt().toString(),
+                    style: TextStyle(
+                      color: scoreColor,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (firstBadge != null) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentTeal.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      firstBadge,
+                      style: const TextStyle(
+                        color: AppTheme.accentTeal,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -1117,432 +1141,31 @@ class _CategoryChip extends StatelessWidget {
 }
 
 // =============================================================================
-// Horizontal Section — fixed "See All" tap target
+// Horizontal Section — for recently viewed
 // =============================================================================
 
 class _HorizontalSection extends StatelessWidget {
   final String title;
-  final String? seeAllRoute;
-  final Map<String, String>? seeAllExtra;
   final List<Widget> children;
-  final double cardWidth;
 
   const _HorizontalSection({
     required this.title,
-    this.seeAllRoute,
-    this.seeAllExtra,
     required this.children,
-    this.cardWidth = 160,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: 8),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header row
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    title,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                ),
-                if (seeAllRoute != null)
-                  TextButton(
-                    onPressed: () => context.push(
-                      seeAllRoute!,
-                      extra: seeAllExtra,
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                    ),
-                    child: Text(
-                      'See All',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppTheme.accentBlue,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Horizontal list
-          SizedBox(
-            height: 152,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: children.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
-              itemBuilder: (_, i) => children[i],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Stock Card
-// =============================================================================
-
-class _StockCard extends StatelessWidget {
-  final DiscoverHomeStockItem item;
-  final VoidCallback onTap;
-  final bool use3mChange;
-  final bool use1wChange;
-  final bool showQualityTier;
-  final List<double>? sparklineValues;
-
-  const _StockCard({
-    required this.item,
-    required this.onTap,
-    this.use3mChange = false,
-    this.use1wChange = false,
-    this.showQualityTier = false,
-    this.sparklineValues,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    late final double pct;
-    late final String periodLabel;
-    if (use1wChange && item.percentChange1w != null) {
-      pct = item.percentChange1w!;
-      periodLabel = ' 1W';
-    } else if (use3mChange && item.percentChange3m != null) {
-      pct = item.percentChange3m!;
-      periodLabel = ' 3M';
-    } else {
-      pct = item.percentChange ?? 0;
-      periodLabel = '';
-    }
-
-    final isUp = pct >= 0;
-    final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.symbol,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (showQualityTier && item.qualityTier != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: _qualityTierColor(item.qualityTier!)
-                          .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      item.qualityTier!,
-                      style: TextStyle(
-                        color: _qualityTierColor(item.qualityTier!),
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            Text(
-              item.displayName,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: Colors.white54,
-                fontSize: 10,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const Spacer(),
-            Text(
-              Formatters.price(item.lastPrice),
-              style: theme.textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: changeColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                '${Formatters.changeTag(pct)}$periodLabel',
-                style: TextStyle(
-                  color: changeColor,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
-            ScoreBar(score: item.score, height: 4, showLabel: false),
-            if (sparklineValues != null && sparklineValues!.length >= 2) ...[
-              const SizedBox(height: 4),
-              SparklineWidget(
-                values: sparklineValues!,
-                color: (sparklineValues!.last >= sparklineValues!.first)
-                    ? AppTheme.accentGreen
-                    : AppTheme.accentRed,
-                height: 24,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Color _qualityTierColor(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'excellent':
-        return AppTheme.accentGreen;
-      case 'good':
-        return AppTheme.accentTeal;
-      case 'average':
-        return AppTheme.accentOrange;
-      default:
-        return AppTheme.accentRed;
-    }
-  }
-}
-
-// =============================================================================
-// MF Card
-// =============================================================================
-
-class _MfCard extends StatelessWidget {
-  final DiscoverHomeMfItem item;
-  final VoidCallback onTap;
-
-  const _MfCard({required this.item, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ret1y = item.returns1y;
-    final hasReturn = ret1y != null;
-    final isUp = (ret1y ?? 0) >= 0;
-    final returnColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
-    final firstBadge =
-        item.qualityBadges.isNotEmpty ? item.qualityBadges.first : null;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 160,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.cardDark,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              item.displayName ?? item.schemeName,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 12,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 2),
-            if (item.category != null)
-              Container(
-                margin: const EdgeInsets.only(top: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentBlue.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  item.category!,
-                  style: const TextStyle(
-                    color: AppTheme.accentBlue,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            const Spacer(),
-            Row(
-              children: [
-                if (hasReturn)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: returnColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
-                      style: TextStyle(
-                        color: returnColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                if (firstBadge != null) ...[
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentTeal.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        firstBadge,
-                        style: const TextStyle(
-                          color: AppTheme.accentTeal,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 6),
-            ScoreBar(score: item.score, height: 4, showLabel: false),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// =============================================================================
-// Sector Champions — 2-column grid (all sectors)
-// =============================================================================
-
-class _SectorChampionsGrid extends StatelessWidget {
-  final List<DiscoverHomeStockItem> items;
-  final void Function(DiscoverHomeStockItem) onTap;
-
-  const _SectorChampionsGrid({
-    required this.items,
-    required this.onTap,
-  });
-
-  static IconData _sectorIcon(String? sector) {
-    switch (sector?.toLowerCase()) {
-      case 'energy':
-      case 'oil & gas':
-        return Icons.bolt_rounded;
-      case 'information technology':
-      case 'it':
-        return Icons.computer_rounded;
-      case 'financial services':
-      case 'financials':
-        return Icons.account_balance_rounded;
-      case 'healthcare':
-      case 'pharma':
-        return Icons.local_hospital_rounded;
-      case 'automobile':
-      case 'auto':
-        return Icons.directions_car_rounded;
-      case 'fmcg':
-      case 'consumer goods':
-        return Icons.shopping_cart_rounded;
-      case 'metals':
-      case 'metal':
-        return Icons.hardware_rounded;
-      case 'realty':
-      case 'real estate':
-        return Icons.apartment_rounded;
-      case 'telecom':
-      case 'telecommunication':
-        return Icons.cell_tower_rounded;
-      case 'media':
-        return Icons.movie_rounded;
-      case 'construction':
-        return Icons.construction_rounded;
-      case 'chemicals':
-        return Icons.science_rounded;
-      case 'textiles':
-        return Icons.checkroom_rounded;
-      case 'capital goods':
-        return Icons.precision_manufacturing_rounded;
-      case 'consumer durables':
-        return Icons.devices_rounded;
-      case 'diversified':
-        return Icons.grid_view_rounded;
-      case 'services':
-        return Icons.miscellaneous_services_rounded;
-      case 'power':
-        return Icons.electrical_services_rounded;
-      default:
-        return Icons.business_rounded;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              'Sector Champions',
+              title,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,
@@ -1550,87 +1173,14 @@ class _SectorChampionsGrid extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: items.map((item) {
-                final scoreColor = ScoreBar.scoreColor(item.score);
-                return GestureDetector(
-                  onTap: () => onTap(item),
-                  child: Container(
-                    width: (MediaQuery.of(context).size.width - 42) / 2,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.cardDark,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.06)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color:
-                                AppTheme.accentBlue.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                          child: Icon(
-                            _sectorIcon(item.sector),
-                            size: 14,
-                            color: AppTheme.accentBlue,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                item.sector ?? 'Other',
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: Colors.white54,
-                                  fontSize: 10,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              Text(
-                                item.symbol,
-                                style: theme.textTheme.labelMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: scoreColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            item.score.toStringAsFixed(0),
-                            style: TextStyle(
-                              color: scoreColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
+          SizedBox(
+            height: 130,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: children.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              itemBuilder: (_, i) => children[i],
             ),
           ),
         ],
@@ -1648,7 +1198,8 @@ class _RecentCard extends StatelessWidget {
   final VoidCallback onTap;
   final List<double>? sparklineValues;
 
-  const _RecentCard({required this.item, required this.onTap, this.sparklineValues});
+  const _RecentCard(
+      {required this.item, required this.onTap, this.sparklineValues});
 
   @override
   Widget build(BuildContext context) {

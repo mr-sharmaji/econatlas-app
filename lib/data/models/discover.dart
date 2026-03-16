@@ -981,33 +981,47 @@ class DiscoverHomeStockItem {
   final String symbol;
   final String displayName;
   final String? sector;
+  final String? industry;
   final double lastPrice;
   final double? percentChange;
   final double? percentChange3m;
   final double? percentChange1w;
+  final double? percentChange1y;
   final double score;
-  final double? scoreVolatility;
+  final double? scoreQuality;
   final double? scoreGrowth;
+  final double? scoreValuation;
   final double? high52w;
   final double? low52w;
   final double? marketCap;
-  final String? qualityTier;
+  final double? peRatio;
+  final double? roe;
+  final double? debtToEquity;
+  final double? dividendYield;
+  final String? actionTag;
 
   const DiscoverHomeStockItem({
     required this.symbol,
     required this.displayName,
     this.sector,
+    this.industry,
     required this.lastPrice,
     this.percentChange,
     this.percentChange3m,
     this.percentChange1w,
+    this.percentChange1y,
     required this.score,
-    this.scoreVolatility,
+    this.scoreQuality,
     this.scoreGrowth,
+    this.scoreValuation,
     this.high52w,
     this.low52w,
     this.marketCap,
-    this.qualityTier,
+    this.peRatio,
+    this.roe,
+    this.debtToEquity,
+    this.dividendYield,
+    this.actionTag,
   });
 
   factory DiscoverHomeStockItem.fromJson(Map<String, dynamic> json) {
@@ -1015,17 +1029,24 @@ class DiscoverHomeStockItem {
       symbol: json['symbol'] as String,
       displayName: json['display_name'] as String,
       sector: json['sector'] as String?,
+      industry: json['industry'] as String?,
       lastPrice: (json['last_price'] as num).toDouble(),
       percentChange: (json['percent_change'] as num?)?.toDouble(),
       percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
+      percentChange1y: (json['percent_change_1y'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
-      scoreVolatility: (json['score_volatility'] as num?)?.toDouble(),
+      scoreQuality: (json['score_quality'] as num?)?.toDouble(),
       scoreGrowth: (json['score_growth'] as num?)?.toDouble(),
+      scoreValuation: (json['score_valuation'] as num?)?.toDouble(),
       high52w: (json['high_52w'] as num?)?.toDouble(),
       low52w: (json['low_52w'] as num?)?.toDouble(),
       marketCap: (json['market_cap'] as num?)?.toDouble(),
-      qualityTier: json['quality_tier'] as String?,
+      peRatio: (json['pe_ratio'] as num?)?.toDouble(),
+      roe: (json['roe'] as num?)?.toDouble(),
+      debtToEquity: (json['debt_to_equity'] as num?)?.toDouble(),
+      dividendYield: (json['dividend_yield'] as num?)?.toDouble(),
+      actionTag: json['action_tag'] as String?,
     );
   }
 }
@@ -1093,65 +1114,68 @@ class QuickCategory {
 }
 
 @immutable
+class DiscoverHomeSection<T> {
+  final String key;
+  final String title;
+  final String subtitle;
+  final List<T> items;
+
+  const DiscoverHomeSection({
+    required this.key,
+    required this.title,
+    required this.subtitle,
+    this.items = const [],
+  });
+}
+
+@immutable
 class DiscoverHomeData {
-  final List<DiscoverHomeStockItem> topStocks;
-  final List<DiscoverHomeMfItem> topEquityFunds;
-  final List<DiscoverHomeMfItem> topDebtFunds;
-  final List<DiscoverHomeStockItem> trendingThisWeek;
-  final List<DiscoverHomeStockItem> sectorChampions;
-  final List<DiscoverHomeStockItem> gainers;
-  final List<DiscoverHomeStockItem> gainers3m;
-  final List<DiscoverHomeStockItem> losers;
-  final List<DiscoverHomeStockItem> losers3m;
+  final List<DiscoverHomeSection<DiscoverHomeStockItem>> stockSections;
+  final List<DiscoverHomeSection<DiscoverHomeMfItem>> mfSections;
   final List<QuickCategory> quickCategories;
-  final MarketMood? marketMood;
 
   const DiscoverHomeData({
-    this.topStocks = const [],
-    this.topEquityFunds = const [],
-    this.topDebtFunds = const [],
-    this.trendingThisWeek = const [],
-    this.sectorChampions = const [],
-    this.gainers = const [],
-    this.gainers3m = const [],
-    this.losers = const [],
-    this.losers3m = const [],
+    this.stockSections = const [],
+    this.mfSections = const [],
     this.quickCategories = const [],
-    this.marketMood,
   });
 
   factory DiscoverHomeData.fromJson(Map<String, dynamic> json) {
-    List<DiscoverHomeStockItem> parseStocks(String key) =>
-        (json[key] as List<dynamic>? ?? const [])
+    final stockSections = (json['stock_sections'] as List<dynamic>? ?? [])
+        .map((s) {
+      final sec = s as Map<String, dynamic>;
+      return DiscoverHomeSection<DiscoverHomeStockItem>(
+        key: sec['key'] as String,
+        title: sec['title'] as String,
+        subtitle: sec['subtitle'] as String,
+        items: (sec['items'] as List<dynamic>? ?? [])
             .map((e) =>
                 DiscoverHomeStockItem.fromJson(e as Map<String, dynamic>))
-            .toList();
+            .toList(),
+      );
+    }).toList();
+
+    final mfSections = (json['mf_sections'] as List<dynamic>? ?? [])
+        .map((s) {
+      final sec = s as Map<String, dynamic>;
+      return DiscoverHomeSection<DiscoverHomeMfItem>(
+        key: sec['key'] as String,
+        title: sec['title'] as String,
+        subtitle: sec['subtitle'] as String,
+        items: (sec['items'] as List<dynamic>? ?? [])
+            .map((e) =>
+                DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      );
+    }).toList();
 
     return DiscoverHomeData(
-      topStocks: parseStocks('top_stocks'),
-      topEquityFunds:
-          (json['top_equity_funds'] as List<dynamic>? ?? const [])
-              .map((e) =>
-                  DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
-              .toList(),
-      topDebtFunds:
-          (json['top_debt_funds'] as List<dynamic>? ?? const [])
-              .map((e) =>
-                  DiscoverHomeMfItem.fromJson(e as Map<String, dynamic>))
-              .toList(),
-      trendingThisWeek: parseStocks('trending_this_week'),
-      sectorChampions: parseStocks('sector_champions'),
-      gainers: parseStocks('gainers'),
-      gainers3m: parseStocks('gainers_3m'),
-      losers: parseStocks('losers'),
-      losers3m: parseStocks('losers_3m'),
+      stockSections: stockSections,
+      mfSections: mfSections,
       quickCategories:
           (json['quick_categories'] as List<dynamic>? ?? const [])
               .map((e) => QuickCategory.fromJson(e as Map<String, dynamic>))
               .toList(),
-      marketMood: json['market_mood'] != null
-          ? MarketMood.fromJson(json['market_mood'] as Map<String, dynamic>)
-          : null,
     );
   }
 }

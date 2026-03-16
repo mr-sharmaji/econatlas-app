@@ -100,7 +100,7 @@ class DiscoverPickCard extends StatelessWidget {
             // Row 3: Quality tier + change
             Row(
               children: [
-                if (item.qualityTier != null)
+                if (item.actionTag != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
@@ -108,7 +108,7 @@ class DiscoverPickCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      item.qualityTier!,
+                      item.actionTag!,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: scoreColor,
                         fontWeight: FontWeight.w600,
