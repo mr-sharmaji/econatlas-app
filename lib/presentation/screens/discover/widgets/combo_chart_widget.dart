@@ -288,6 +288,14 @@ class ComboChartWidget extends StatelessWidget {
                         } else {
                           text = '${val.toStringAsFixed(0)} Cr';
                         }
+                        // On the last rod, also append the margin % line value
+                        final isLastRod = rodIdx == group.barRods.length - 1;
+                        if (isLastRod && hasLine && groupIdx < entries.length) {
+                          final margin = entries[groupIdx].line1;
+                          if (margin != null) {
+                            text += '\n${margin.toStringAsFixed(1)}%';
+                          }
+                        }
                         return BarTooltipItem(
                           text,
                           const TextStyle(
