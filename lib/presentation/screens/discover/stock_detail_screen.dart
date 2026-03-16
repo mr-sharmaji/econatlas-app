@@ -725,6 +725,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         ? _actionTagColor(actionTag)
         : Colors.white54;
 
+    final bannerTags = _bannerContextTags(item.tags);
+
     return GestureDetector(
       onTap: () => _showVerdictDetails(theme, color, actionTag,
           narrative: narrative),
@@ -736,34 +738,50 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (actionTag != null) ...[
-              Icon(_actionTagIcon(actionTag), size: 18, color: color),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                actionTag != null ? _formatActionTag(actionTag) : '',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: color,
+            Row(
+              children: [
+                if (actionTag != null) ...[
+                  Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    actionTag != null ? _formatActionTag(actionTag) : '',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
                 ),
-              ),
+                if (item.scoreConfidence != null)
+                  _miniIndicator(theme,
+                      item.scoreConfidence == 'high'
+                          ? Icons.verified_rounded
+                          : item.scoreConfidence == 'medium'
+                              ? Icons.check_circle_outline
+                              : Icons.info_outline,
+                      '${_capitalize(item.scoreConfidence!)} confidence',
+                      item.scoreConfidence == 'high'
+                          ? AppTheme.accentGreen
+                          : item.scoreConfidence == 'medium'
+                              ? Colors.amber
+                              : Colors.white38),
+              ],
             ),
-            if (item.scoreConfidence != null)
-              _miniIndicator(theme,
-                  item.scoreConfidence == 'high'
-                      ? Icons.verified_rounded
-                      : item.scoreConfidence == 'medium'
-                          ? Icons.check_circle_outline
-                          : Icons.info_outline,
-                  '${_capitalize(item.scoreConfidence!)} confidence',
-                  item.scoreConfidence == 'high'
-                      ? AppTheme.accentGreen
-                      : item.scoreConfidence == 'medium'
-                          ? Colors.amber
-                          : Colors.white38),
+            if (bannerTags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: bannerTags.map((t) {
+                  final td = getTagV2Display(t);
+                  return _bannerChip(theme, td.icon, td.label, td.color);
+                }).toList(),
+              ),
+            ],
           ],
         ),
       ),
@@ -785,6 +803,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final color = actionTag != null
         ? _actionTagColor(actionTag)
         : Colors.white54;
+
+    final bannerTags = _bannerContextTags(item.tags);
 
     return GestureDetector(
       onTap: () => _showVerdictDetails(theme, color, actionTag,
@@ -843,8 +863,59 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 ),
               ),
             ],
+
+            // Context tag chips
+            if (bannerTags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: bannerTags.map((t) {
+                  final td = getTagV2Display(t);
+                  return _bannerChip(theme, td.icon, td.label, td.color);
+                }).toList(),
+              ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// Pick conviction, risk-context, and context tags for the banner.
+  List<TagV2> _bannerContextTags(List<TagV2> tags) {
+    const bannerCategories = {'conviction', 'context'};
+    // Also include specific risk tags from context generation (not the general risk tags)
+    const contextRiskTags = {
+      'Oversold Quality', 'Low Risk Setup', 'High Risk Momentum',
+      'Overbought Warning', 'Near 52W Low', 'Near 52W High',
+    };
+    return tags.where((t) {
+      if (t.isExpired) return false;
+      if (bannerCategories.contains(t.category)) return true;
+      if (t.category == 'risk' && contextRiskTags.contains(t.tag)) return true;
+      return false;
+    }).toList();
+  }
+
+  /// Compact chip for banner display.
+  Widget _bannerChip(ThemeData theme, IconData icon, String label, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.20)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                  color: color, fontWeight: FontWeight.w600, fontSize: 10)),
+        ],
       ),
     );
   }
@@ -1863,8 +1934,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   /// Only removes Signal, Risk-Reward, Regime (shown in the compact strip).
   /// Keeps Lynch, Trend, Breakout tags — they have explanations useful in Tags section.
   List<TagV2> _filterVerdictTags(DiscoverStockItem item) {
+    // Tags shown in the banner are excluded from the Tags section
+    final bannerSet = _bannerContextTags(item.tags).map((t) => t.tag).toSet();
     return item.tags.where((t) {
-      // Safety net: filter out old Signal/Risk-Reward/Regime tags if backend hasn't been updated yet
+      if (bannerSet.contains(t.tag)) return false;
+      // Safety net: filter out old Signal/Risk-Reward/Regime tags
       if (t.tag.startsWith('Signal:')) return false;
       if (t.tag.startsWith('Risk-Reward:')) return false;
       if (t.tag.startsWith('Regime:')) return false;

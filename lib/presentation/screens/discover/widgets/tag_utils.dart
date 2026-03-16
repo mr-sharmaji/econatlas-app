@@ -192,7 +192,6 @@ const Map<String, TagDisplay> _tagMappings = {
   'paper profits': TagDisplay(label: 'Paper Profits', icon: Icons.warning_rounded, color: AppTheme.accentRed),
   'high pledge risk': TagDisplay(label: 'High Pledge Risk', icon: Icons.warning_amber_rounded, color: AppTheme.accentRed),
   'consistent compounder': TagDisplay(label: 'Consistent Compounder', icon: Icons.auto_graph, color: AppTheme.accentGreen),
-  'sector leader': TagDisplay(label: 'Sector Leader', icon: Icons.emoji_events_rounded, color: Colors.amber),
 
   // Compounding
   'decade compounder': TagDisplay(label: 'Decade Compounder', icon: Icons.auto_graph, color: AppTheme.accentGreen),
