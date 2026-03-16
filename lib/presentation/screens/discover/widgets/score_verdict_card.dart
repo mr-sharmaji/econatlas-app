@@ -88,7 +88,7 @@ class ScoreVerdictCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: 4),
-                      // Confidence + Trend alignment chips
+                      // Signal alignment + Trend alignment chips
                       Row(
                         children: [
                           if (sb.scoreConfidence != null &&
@@ -96,8 +96,8 @@ class ScoreVerdictCard extends StatelessWidget {
                             _buildMiniChip(
                               context,
                               sb.scoreConfidence == 'medium'
-                                  ? '~ Medium confidence'
-                                  : '\u26A0 Low confidence',
+                                  ? '~ Mixed alignment'
+                                  : '\u26A0 Low alignment',
                               sb.scoreConfidence == 'medium'
                                   ? AppTheme.accentOrange
                                   : AppTheme.accentRed,

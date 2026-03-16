@@ -760,7 +760,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         : item.scoreConfidence == 'medium'
                             ? Icons.check_circle_outline
                             : Icons.info_outline,
-                    '${_capitalize(item.scoreConfidence!)} confidence',
+                    '${_capitalize(item.scoreConfidence!)} alignment',
                     item.scoreConfidence == 'high'
                         ? AppTheme.accentGreen
                         : item.scoreConfidence == 'medium'
@@ -845,7 +845,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         : item.scoreConfidence == 'medium'
                             ? Icons.check_circle_outline
                             : Icons.info_outline,
-                    '${_capitalize(item.scoreConfidence!)} confidence',
+                    '${_capitalize(item.scoreConfidence!)} alignment',
                     item.scoreConfidence == 'high'
                         ? AppTheme.accentGreen
                         : item.scoreConfidence == 'medium'
