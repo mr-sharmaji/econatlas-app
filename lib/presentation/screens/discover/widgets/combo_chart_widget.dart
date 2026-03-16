@@ -43,9 +43,15 @@ class ComboChartWidget extends StatelessWidget {
 
     // --- Bar axis (left) — interval based on positive data only ---
     double barDataMax = 0;
+    double bar2Min = 0; // track most negative profit for normalization
+    bool hasNegProfit = false;
     for (final e in entries) {
       for (final v in [e.bar1, e.bar2]) {
         if (v != null && v > barDataMax) barDataMax = v;
+      }
+      if (e.bar2 != null && e.bar2! < 0) {
+        hasNegProfit = true;
+        if (e.bar2! < bar2Min) bar2Min = e.bar2!;
       }
     }
     final barInterval = _niceInterval(barDataMax);
@@ -133,8 +139,10 @@ class ComboChartWidget extends StatelessWidget {
                     legendLabels[0]),
               if (legendLabels.length > 1)
                 _legendItem(
-                    barColors.length > 1 ? barColors[1] : Colors.green,
-                    legendLabels[1]),
+                    hasNegProfit
+                        ? Colors.redAccent
+                        : (barColors.length > 1 ? barColors[1] : Colors.green),
+                    hasNegProfit ? 'Loss' : legendLabels[1]),
               if (legendLabels.length > 2 && hasLine)
                 _legendItem(lineColor, legendLabels[2], isLine: true),
             ],
@@ -149,7 +157,7 @@ class ComboChartWidget extends StatelessWidget {
                 BarChartData(
                   minY: barChartMin,
                   maxY: barChartMax,
-                  barGroups: _buildBarGroups(barChartMax),
+                  barGroups: _buildBarGroups(barChartMax, bar2Min),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       axisNameWidget: const Text('\u20B9 Cr',
@@ -392,15 +400,21 @@ class ComboChartWidget extends StatelessWidget {
     return spots;
   }
 
-  List<BarChartGroupData> _buildBarGroups(double barChartMax) {
-    // Cap negative bars at 20% of chart height so they don't hide the margin line.
+  List<BarChartGroupData> _buildBarGroups(double barChartMax, double bar2Min) {
+    // Negative bars are normalized proportionally within 20% of chart height.
+    // The most negative value maps to the full cap; others scale relative to it.
     final negCap = -barChartMax * 0.2;
     return List.generate(entries.length, (i) {
       final e = entries[i];
       final v1 = e.bar1 ?? 0;
       final v2 = e.bar2 ?? 0;
-      final c1 = v1 < 0 ? math.max(v1, negCap) : v1;
-      final c2 = v2 < 0 ? math.max(v2, negCap) : v2;
+      // Normalize: (v / mostNegative) * cap → preserves relative magnitude
+      final c1 = v1 < 0 && bar2Min < 0
+          ? negCap * (v1 / bar2Min)
+          : v1;
+      final c2 = v2 < 0 && bar2Min < 0
+          ? negCap * (v2 / bar2Min)
+          : v2;
       return BarChartGroupData(
         x: i,
         barsSpace: 4,
@@ -420,7 +434,7 @@ class ComboChartWidget extends StatelessWidget {
             toY: c2,
             color: c2 >= 0
                 ? (barColors.length > 1 ? barColors[1] : Colors.green)
-                : Colors.redAccent.withValues(alpha: 0.5),
+                : Colors.redAccent,
             width: 12,
             borderRadius: c2 >= 0
                 ? const BorderRadius.vertical(top: Radius.circular(3))
