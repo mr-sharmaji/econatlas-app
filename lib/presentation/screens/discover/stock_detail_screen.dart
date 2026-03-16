@@ -354,9 +354,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // ── Tags (outside tabs) ──
             if (item.tags.isNotEmpty) ...[
-              _buildGroupedTags(theme, item.tags
-                  .where((t) => t.tag != 'Bullish Trend' && t.tag != 'Bearish Trend')
-                  .toList()),
+              _buildGroupedTags(theme, _filterVerdictTags(item)),
               const SizedBox(height: 8),
             ],
 
@@ -727,42 +725,47 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         ? _actionTagColor(actionTag)
         : Colors.white54;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (actionTag != null)
-            Row(
-              children: [
-                Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                const SizedBox(width: 8),
-                Text(
-                  _formatActionTag(actionTag),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
+    return GestureDetector(
+      onTap: () => _showVerdictDetails(theme, color, actionTag,
+          narrative: narrative),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Row(
+          children: [
+            if (actionTag != null) ...[
+              Icon(_actionTagIcon(actionTag), size: 18, color: color),
+              const SizedBox(width: 8),
+            ],
+            Expanded(
+              child: Text(
+                actionTag != null ? _formatActionTag(actionTag) : '',
+                style: theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
                 ),
-              ],
-            ),
-          if (narrative != null) ...[
-            if (actionTag != null) const SizedBox(height: 8),
-            Text(
-              narrative,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-                height: 1.4,
               ),
             ),
+            if (item.scoreConfidence != null)
+              _miniIndicator(theme,
+                  item.scoreConfidence == 'high'
+                      ? Icons.verified_rounded
+                      : item.scoreConfidence == 'medium'
+                          ? Icons.check_circle_outline
+                          : Icons.info_outline,
+                  '${_capitalize(item.scoreConfidence!)} confidence',
+                  item.scoreConfidence == 'high'
+                      ? AppTheme.accentGreen
+                      : item.scoreConfidence == 'medium'
+                          ? Colors.amber
+                          : Colors.white38),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -783,74 +786,81 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         ? _actionTagColor(actionTag)
         : Colors.white54;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Action tag header
-          if (actionTag != null)
+    return GestureDetector(
+      onTap: () => _showVerdictDetails(theme, color, actionTag,
+          narrative: narrative, reasoning: reasoning),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Action tag header row with confidence badge
             Row(
               children: [
-                Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                const SizedBox(width: 8),
-                Text(
-                  _formatActionTag(actionTag),
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: color,
+                if (actionTag != null) ...[
+                  Icon(_actionTagIcon(actionTag), size: 18, color: color),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: Text(
+                    actionTag != null ? _formatActionTag(actionTag) : '',
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
                   ),
                 ),
+                if (item.scoreConfidence != null)
+                  _miniIndicator(theme,
+                      item.scoreConfidence == 'high'
+                          ? Icons.verified_rounded
+                          : item.scoreConfidence == 'medium'
+                              ? Icons.check_circle_outline
+                              : Icons.info_outline,
+                      '${_capitalize(item.scoreConfidence!)} confidence',
+                      item.scoreConfidence == 'high'
+                          ? AppTheme.accentGreen
+                          : item.scoreConfidence == 'medium'
+                              ? Colors.amber
+                              : Colors.white38),
               ],
             ),
 
-          // Verdict
-          if (verdict != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              verdict,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontWeight: FontWeight.w500,
+            // Verdict one-liner
+            if (verdict != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                verdict,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.9),
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-            ),
+            ],
           ],
-
-          // Narrative
-          if (narrative != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              narrative,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-                height: 1.4,
-              ),
-            ),
-          ],
-
-          // Action tag reasoning
-          if (reasoning != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              reasoning,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white54,
-                fontStyle: FontStyle.italic,
-                height: 1.4,
-              ),
-            ),
-          ],
-
-          // Signal chips
-          _buildVerdictSignals(theme, story, item.tags),
-        ],
+        ),
       ),
+    );
+  }
+
+  /// Tiny icon + label indicator used in the banner strip.
+  Widget _miniIndicator(
+      ThemeData theme, IconData icon, String label, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 3),
+        Text(label,
+            style: theme.textTheme.labelSmall?.copyWith(
+                color: color, fontWeight: FontWeight.w600, fontSize: 11)),
+      ],
     );
   }
 
@@ -864,58 +874,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return null;
   }
 
-  Widget _buildVerdictSignals(ThemeData theme, StockStory story, List<TagV2>? tags) {
-    final chips = <Widget>[];
-    if (story.lynchClassification != null) {
-      final lynchLabel = _formatActionTag(story.lynchClassification!);
-      chips.add(_storyChip(theme, Icons.category,
-          lynchLabel, AppTheme.accentBlue,
-          explanation: _findTagExplanation(tags, lynchLabel)));
-    }
-    if (story.trendAlignment != null) {
-      final tLabel = 'Trend: ${_capitalize(story.trendAlignment!)}';
-      final tColor = story.trendAlignment == 'aligned'
-          ? AppTheme.accentGreen
-          : story.trendAlignment == 'conflicting'
-              ? AppTheme.accentRed
-              : Colors.amber;
-      final icon = story.trendAlignment == 'aligned'
-          ? Icons.check_circle_outline
-          : story.trendAlignment == 'conflicting'
-              ? Icons.cancel_outlined
-              : Icons.warning_amber_rounded;
-      chips.add(_storyChip(theme, icon, tLabel, tColor,
-          explanation: _findTagExplanation(tags, tLabel)));
-    }
-    if (story.breakoutSignal != null && story.breakoutSignal != 'none') {
-      final bLabel = _formatActionTag(story.breakoutSignal!);
-      chips.add(_storyChip(theme, Icons.flash_on, bLabel, AppTheme.accentTeal,
-          explanation: _findTagExplanation(tags, bLabel)));
-    }
-
-    // Bullish/Bearish Trend from DMA data
-    if (tags != null) {
-      final dmaTag = tags.cast<TagV2?>().firstWhere(
-          (t) => t!.tag == 'Bullish Trend' || t.tag == 'Bearish Trend',
-          orElse: () => null);
-      if (dmaTag != null) {
-        final isBullish = dmaTag.tag == 'Bullish Trend';
-        chips.add(_storyChip(
-          theme,
-          isBullish ? Icons.trending_up : Icons.trending_down,
-          dmaTag.tag,
-          isBullish ? AppTheme.accentGreen : AppTheme.accentRed,
-          explanation: dmaTag.explanation,
-        ));
-      }
-    }
-
-    if (chips.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 10),
-      child: Wrap(spacing: 8, runSpacing: 8, children: chips),
-    );
-  }
 
   // ── FINANCIALS TAB ──────────────────────────────────────────
 
@@ -1425,43 +1383,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return (groups, activeColors, activeLabels);
   }
 
-  Widget _storyChip(
-      ThemeData theme, IconData icon, String label, Color color,
-      {String? explanation}) {
-    final chip = Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(label,
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: color, fontWeight: FontWeight.w600)),
-          if (explanation != null) ...[
-            const SizedBox(width: 4),
-            Icon(Icons.info_outline, size: 12,
-                color: color.withValues(alpha: 0.6)),
-          ],
-        ],
-      ),
-    );
-    if (explanation != null) {
-      return GestureDetector(
-        onTap: () => _showChipExplanation(theme, label, explanation, color),
-        child: chip,
-      );
-    }
-    return chip;
-  }
-
-  void _showChipExplanation(
-      ThemeData theme, String title, String explanation, Color color) {
+  void _showVerdictDetails(ThemeData theme, Color color, String? actionTag,
+      {String? narrative, String? reasoning}) {
+    if (narrative == null && reasoning == null) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -1486,22 +1410,37 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              title,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
+            if (actionTag != null)
+              Text(
+                _formatActionTag(actionTag),
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              explanation,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 14,
-                height: 1.5,
+            if (narrative != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                narrative,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
               ),
-            ),
+            ],
+            if (reasoning != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                reasoning,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic,
+                  height: 1.5,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -1918,6 +1857,19 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   static String _marginPct(double? value) {
     if (value == null) return '\u2014';
     return '${(value * 100).toStringAsFixed(1)}%';
+  }
+
+  /// Filter out tags already shown in the verdict banner indicator strip.
+  /// Only removes Signal, Risk-Reward, Regime (shown in the compact strip).
+  /// Keeps Lynch, Trend, Breakout tags — they have explanations useful in Tags section.
+  List<TagV2> _filterVerdictTags(DiscoverStockItem item) {
+    return item.tags.where((t) {
+      // Safety net: filter out old Signal/Risk-Reward/Regime tags if backend hasn't been updated yet
+      if (t.tag.startsWith('Signal:')) return false;
+      if (t.tag.startsWith('Risk-Reward:')) return false;
+      if (t.tag.startsWith('Regime:')) return false;
+      return true;
+    }).toList();
   }
 
   Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {

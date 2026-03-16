@@ -48,20 +48,24 @@ Color severityBackground(String severity) {
 const Map<String, String> _categoryLabels = {
   'classification': 'Classification',
   'style': 'Style',
+  'conviction': 'Conviction',
   'strength': 'Strengths',
   'valuation': 'Valuation',
   'risk': 'Risks',
   'trend': 'Trends',
+  'context': 'Context',
   'ownership': 'Ownership',
 };
 
 const Map<String, IconData> _categoryIcons = {
   'classification': Icons.category_outlined,
   'style': Icons.style_outlined,
+  'conviction': Icons.psychology,
   'strength': Icons.verified_outlined,
   'valuation': Icons.attach_money,
   'risk': Icons.warning_amber_rounded,
   'trend': Icons.trending_up,
+  'context': Icons.lightbulb_outline,
   'ownership': Icons.people_outline,
 };
 
@@ -101,10 +105,12 @@ TagDisplay getTagV2Display(TagV2 tag) {
 /// Tags within each group remain sorted by priority (lower = higher priority).
 Map<String, List<TagV2>> groupTagsByCategory(List<TagV2> tags) {
   const categoryOrder = [
+    'conviction',
     'strength',
     'risk',
     'valuation',
     'trend',
+    'context',
     'ownership',
     'style',
     'classification',
@@ -242,6 +248,27 @@ const Map<String, TagDisplay> _tagMappings = {
 
   // Other
   'negative eps': TagDisplay(label: 'Negative EPS', icon: Icons.remove_circle_outline, color: AppTheme.accentRed),
+
+  // ── Conviction tags ──
+  'strong conviction': TagDisplay(label: 'Strong Conviction', icon: Icons.verified_rounded, color: AppTheme.accentGreen),
+  'improving setup': TagDisplay(label: 'Improving Setup', icon: Icons.trending_up, color: AppTheme.accentGreen),
+  'technicals lagging': TagDisplay(label: 'Technicals Lagging', icon: Icons.speed, color: AppTheme.accentOrange),
+  'momentum without fundamentals': TagDisplay(label: 'Momentum Without Fundamentals', icon: Icons.warning_amber, color: AppTheme.accentRed),
+  'weak conviction': TagDisplay(label: 'Weak Conviction', icon: Icons.remove_circle_outline, color: AppTheme.accentRed),
+
+  // ── Risk context tags ──
+  'oversold quality': TagDisplay(label: 'Oversold Quality', icon: Icons.local_offer, color: AppTheme.accentGreen),
+  'low risk setup': TagDisplay(label: 'Low Risk Setup', icon: Icons.shield_rounded, color: AppTheme.accentGreen),
+  'high risk momentum': TagDisplay(label: 'High Risk Momentum', icon: Icons.warning_amber_rounded, color: AppTheme.accentRed),
+  'overbought warning': TagDisplay(label: 'Overbought Warning', icon: Icons.trending_down, color: AppTheme.accentRed),
+  'near 52w low': TagDisplay(label: 'Near 52W Low', icon: Icons.arrow_downward, color: AppTheme.accentOrange),
+  'near 52w high': TagDisplay(label: 'Near 52W High', icon: Icons.arrow_upward, color: AppTheme.accentGreen),
+
+  // ── Context tags ──
+  'sector outperformer': TagDisplay(label: 'Sector Outperformer', icon: Icons.emoji_events_rounded, color: AppTheme.accentGreen),
+  'sector laggard': TagDisplay(label: 'Sector Laggard', icon: Icons.trending_down, color: AppTheme.accentRed),
+  'recovery candidate': TagDisplay(label: 'Recovery Candidate', icon: Icons.refresh_rounded, color: AppTheme.accentOrange),
+  'data limited': TagDisplay(label: 'Data Limited', icon: Icons.info_outline, color: AppTheme.accentBlue),
 };
 
 /// Legacy: resolve a flat string tag to display info.

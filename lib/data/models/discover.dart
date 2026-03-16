@@ -192,9 +192,8 @@ class DiscoverStockScoreBreakdown {
   final String? actionTag;
   final String? actionTagReasoning;
   final String? scoreConfidence; // "high" | "medium" | "low"
-  final String? trendAlignment; // "aligned" | "divergent" | "conflicting"
+  final String? trendAlignment; // "aligned" | "aligned_bullish" | "aligned_bearish" | "divergent" | "conflicting"
   final String? breakoutSignal; // "breakout" | "approaching_breakout" | "breakdown" | "approaching_breakdown" | "resistance" | "support" | "none"
-
   const DiscoverStockScoreBreakdown({
     required this.momentum,
     required this.liquidity,

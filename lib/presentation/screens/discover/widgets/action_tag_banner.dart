@@ -72,6 +72,9 @@ class ActionTagBanner extends StatelessWidget {
       case 'Neutral':
         return AppTheme.accentOrange;
       case 'Momentum Only':
+        return AppTheme.accentBlue;
+      case 'Deteriorating':
+      case 'Underperformer':
       case 'Caution':
       case 'Avoid':
         return AppTheme.accentRed;
@@ -97,6 +100,9 @@ class ActionTagBanner extends StatelessWidget {
         return Icons.remove_circle_outline;
       case 'Momentum Only':
         return Icons.speed;
+      case 'Deteriorating':
+      case 'Underperformer':
+        return Icons.trending_down;
       case 'Caution':
         return Icons.warning_amber_rounded;
       case 'Avoid':
