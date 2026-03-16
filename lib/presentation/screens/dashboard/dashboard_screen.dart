@@ -90,7 +90,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Markets tab — existing watchlist
+          // Markets tab — watchlist with health card
           RefreshIndicator(
             onRefresh: () async {
               await ref.read(watchlistProvider.notifier).load(silent: true);
@@ -156,14 +156,204 @@ class _StarredStocksTab extends ConsumerWidget {
       );
     }
 
-    return ListView.builder(
+    // Only items with percent change data for health card
+    final withChange = starred.where((e) => e.percentChange != null).toList();
+
+    return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
-      itemCount: starred.length,
-      itemBuilder: (context, index) {
-        final item = starred[index];
-        return _StarredItemTile(item: item);
-      },
+      children: [
+        if (withChange.isNotEmpty) ...[
+          _StocksHealthCard(items: withChange),
+          const SizedBox(height: 8),
+        ],
+        for (final item in starred) _StarredItemTile(item: item),
+      ],
+    );
+  }
+}
+
+class _StocksHealthCard extends StatelessWidget {
+  final List<StarredItem> items;
+
+  const _StocksHealthCard({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = items.length;
+    final gainers =
+        items.where((p) => (p.percentChange ?? 0) > 0).length;
+    final losers =
+        items.where((p) => (p.percentChange ?? 0) < 0).length;
+    final unchanged = total - gainers - losers;
+    final avgChange = items.fold<double>(
+          0,
+          (sum, p) => sum + (p.percentChange ?? 0),
+        ) /
+        total;
+    final avgColor =
+        avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgSign = avgChange >= 0 ? '+' : '';
+
+    // Best and worst performers
+    final sorted = [...items]
+      ..sort((a, b) =>
+          (b.percentChange ?? 0).compareTo(a.percentChange ?? 0));
+    final best = sorted.first;
+    final worst = sorted.last;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.monitor_heart_outlined,
+                    size: 18, color: AppTheme.accentBlue),
+                const SizedBox(width: 8),
+                Text(
+                  'Stocks Health',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: avgColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Avg $avgSign${avgChange.toStringAsFixed(1)}% 3M',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: avgColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _HealthStat(
+                  label: 'Total',
+                  value: '$total',
+                  color: AppTheme.accentBlue,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Gainers',
+                  value: '$gainers',
+                  color: AppTheme.accentGreen,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Losers',
+                  value: '$losers',
+                  color: AppTheme.accentRed,
+                ),
+                if (unchanged > 0) ...[
+                  const SizedBox(width: 16),
+                  _HealthStat(
+                    label: 'Flat',
+                    value: '$unchanged',
+                    color: Colors.white38,
+                  ),
+                ],
+              ],
+            ),
+            if (items.length >= 2) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PerformerChip(
+                      label: 'Best',
+                      symbol: best.id,
+                      pct: best.percentChange ?? 0,
+                      color: AppTheme.accentGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _PerformerChip(
+                      label: 'Worst',
+                      symbol: worst.id,
+                      pct: worst.percentChange ?? 0,
+                      color: AppTheme.accentRed,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PerformerChip extends StatelessWidget {
+  final String label;
+  final String symbol;
+  final double pct;
+  final Color color;
+
+  const _PerformerChip({
+    required this.label,
+    required this.symbol,
+    required this.pct,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final sign = pct >= 0 ? '+' : '';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Text(
+            '$label: ',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white38,
+              fontSize: 10,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              symbol,
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 10,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            '$sign${pct.toStringAsFixed(1)}%',
+            style: TextStyle(
+              color: color,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -176,18 +366,13 @@ class _StarredItemTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isStock = item.type == 'stock';
+    final pct = item.percentChange;
+    final pctColor = (pct ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: InkWell(
-        onTap: () {
-          if (isStock) {
-            context.push('/discover/stock/${item.id}');
-          } else {
-            context.push('/discover/mf/${item.id}');
-          }
-        },
+        onTap: () => context.push('/discover/stock/${item.id}'),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -197,19 +382,14 @@ class _StarredItemTile extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color:
-                      (isStock ? AppTheme.accentBlue : AppTheme.accentOrange)
-                          .withValues(alpha: 0.12),
+                  color: AppTheme.accentBlue.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
-                child: Icon(
-                  isStock
-                      ? Icons.bar_chart_rounded
-                      : Icons.account_balance_rounded,
+                child: const Icon(
+                  Icons.bar_chart_rounded,
                   size: 16,
-                  color:
-                      isStock ? AppTheme.accentBlue : AppTheme.accentOrange,
+                  color: AppTheme.accentBlue,
                 ),
               ),
               const SizedBox(width: 12),
@@ -218,46 +398,42 @@ class _StarredItemTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isStock ? item.id : item.name,
+                      item.id,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    if (isStock)
-                      Text(
-                        item.name,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    Text(
+                      item.name,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white54,
+                        fontSize: 11,
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ),
               ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color:
-                      (isStock ? AppTheme.accentBlue : AppTheme.accentOrange)
-                          .withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  isStock ? 'Stock' : 'MF',
-                  style: TextStyle(
-                    color: isStock
-                        ? AppTheme.accentBlue
-                        : AppTheme.accentOrange,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
+              if (pct != null)
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: pctColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% 3M',
+                    style: TextStyle(
+                      color: pctColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-              ),
               const SizedBox(width: 8),
               Icon(
                 Icons.chevron_right_rounded,
@@ -304,7 +480,15 @@ class _MarketOverviewGrid extends ConsumerWidget {
 
         final watchlistAssets = watchlistAsync.valueOrNull;
         if (watchlistAssets == null) {
-          return const ShimmerList(itemCount: 4, itemHeight: 70);
+          if (watchlistAsync.isLoading) {
+            return const ShimmerList(itemCount: 4, itemHeight: 70);
+          }
+          // Error state — show retry
+          return ErrorView(
+            message: 'Failed to load watchlist',
+            onRetry: () =>
+                ref.read(watchlistProvider.notifier).load(),
+          );
         }
         final byAsset = <String, MarketPrice>{};
         for (final price in allPrices) {
@@ -323,17 +507,10 @@ class _MarketOverviewGrid extends ConsumerWidget {
           return const EmptyView(message: 'Your watchlist is empty');
         }
 
-        final pricesWithData = rows
-            .where((r) => r.price != null)
-            .map((r) => r.price!)
-            .toList();
-
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Column(
             children: [
-              if (pricesWithData.isNotEmpty)
-                _WatchlistHealthCard(prices: pricesWithData),
               for (final row in rows)
                 row.price != null
                     ? _DashboardTile(
@@ -510,103 +687,6 @@ class _DashboardTile extends StatelessWidget {
   }
 }
 
-class _WatchlistHealthCard extends StatelessWidget {
-  final List<MarketPrice> prices;
-
-  const _WatchlistHealthCard({required this.prices});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final total = prices.length;
-    final gainers =
-        prices.where((p) => (p.changePercent ?? 0) > 0).length;
-    final losers =
-        prices.where((p) => (p.changePercent ?? 0) < 0).length;
-    final unchanged = total - gainers - losers;
-    final avgChange = prices.fold<double>(
-          0,
-          (sum, p) => sum + (p.changePercent ?? 0),
-        ) /
-        total;
-    final avgColor =
-        avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-    final avgSign = avgChange >= 0 ? '+' : '';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.monitor_heart_outlined,
-                    size: 18, color: AppTheme.accentBlue),
-                const SizedBox(width: 8),
-                Text(
-                  'Watchlist Health',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
-                ),
-                const Spacer(),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: avgColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'Avg $avgSign${avgChange.toStringAsFixed(2)}%',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: avgColor,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _HealthStat(
-                  label: 'Total',
-                  value: '$total',
-                  color: AppTheme.accentBlue,
-                ),
-                const SizedBox(width: 16),
-                _HealthStat(
-                  label: 'Gainers',
-                  value: '$gainers',
-                  color: AppTheme.accentGreen,
-                ),
-                const SizedBox(width: 16),
-                _HealthStat(
-                  label: 'Losers',
-                  value: '$losers',
-                  color: AppTheme.accentRed,
-                ),
-                if (unchanged > 0) ...[
-                  const SizedBox(width: 16),
-                  _HealthStat(
-                    label: 'Flat',
-                    value: '$unchanged',
-                    color: Colors.white38,
-                  ),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 class _HealthStat extends StatelessWidget {
   final String label;

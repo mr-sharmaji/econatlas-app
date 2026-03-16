@@ -1024,8 +1024,14 @@ class StarredStocksNotifier extends StateNotifier<List<StarredItem>> {
     required String type,
     required String id,
     required String name,
+    double? percentChange,
   }) async {
-    state = await _service.toggle(type: type, id: id, name: name);
+    state = await _service.toggle(
+      type: type,
+      id: id,
+      name: name,
+      percentChange: percentChange,
+    );
   }
 
   bool isStarred({required String type, required String id}) {

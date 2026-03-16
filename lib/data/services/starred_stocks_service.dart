@@ -19,11 +19,15 @@ class StarredItem {
   /// Epoch millis when starred.
   final int timestamp;
 
+  /// Latest percent change (3M for stocks, 1Y for MFs). Updated on star.
+  final double? percentChange;
+
   const StarredItem({
     required this.type,
     required this.id,
     required this.name,
     required this.timestamp,
+    this.percentChange,
   });
 
   Map<String, dynamic> toJson() => {
@@ -31,6 +35,7 @@ class StarredItem {
         'id': id,
         'name': name,
         'timestamp': timestamp,
+        if (percentChange != null) 'percentChange': percentChange,
       };
 
   factory StarredItem.fromJson(Map<String, dynamic> json) {
@@ -39,6 +44,7 @@ class StarredItem {
       id: json['id'] as String,
       name: json['name'] as String,
       timestamp: json['timestamp'] as int,
+      percentChange: (json['percentChange'] as num?)?.toDouble(),
     );
   }
 }
@@ -65,6 +71,7 @@ class StarredStocksService {
     required String type,
     required String id,
     required String name,
+    double? percentChange,
   }) async {
     final items = load();
     final existingIdx = items.indexWhere((e) => e.type == type && e.id == id);
@@ -79,6 +86,7 @@ class StarredStocksService {
           id: id,
           name: name,
           timestamp: DateTime.now().millisecondsSinceEpoch,
+          percentChange: percentChange,
         ),
       );
     }

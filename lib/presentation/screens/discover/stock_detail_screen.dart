@@ -231,7 +231,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       appBar: AppBar(
         title: Text(item.symbol),
         actions: [
-          _StarButton(symbol: item.symbol, displayName: item.displayName),
+          _StarButton(
+            symbol: item.symbol,
+            displayName: item.displayName,
+            percentChange: item.percentChange3m ?? item.percentChange,
+          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -2207,8 +2211,13 @@ class _RadarStat {
 class _StarButton extends ConsumerWidget {
   final String symbol;
   final String displayName;
+  final double? percentChange;
 
-  const _StarButton({required this.symbol, required this.displayName});
+  const _StarButton({
+    required this.symbol,
+    required this.displayName,
+    this.percentChange,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -2226,6 +2235,7 @@ class _StarButton extends ConsumerWidget {
               type: 'stock',
               id: symbol,
               name: displayName,
+              percentChange: percentChange,
             );
       },
     );

@@ -12,6 +12,7 @@ import '../../../data/services/recently_viewed_service.dart';
 import '../../providers/discover_providers.dart';
 import '../../providers/tab_navigation_providers.dart';
 import '../../widgets/shimmer_loading.dart';
+import 'widgets/score_bar.dart';
 import 'widgets/sparkline_widget.dart';
 
 /// Bottom padding to clear the FAB.
@@ -33,7 +34,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
   String _searchQuery = '';
   late final TabController _tabController;
 
-  // LayerLink for anchoring the search overlay to the search bar.
   final LayerLink _searchLayerLink = LayerLink();
   final GlobalKey _searchBarKey = GlobalKey();
 
@@ -117,7 +117,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Discover tab is index 3 in bottom nav
     ref.listen<int>(bottomTabReselectTickProvider(3), (prev, next) {
       if (prev == null || prev == next) return;
       _scrollToTop();
@@ -135,37 +134,38 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.accentBlue,
-          labelColor: AppTheme.accentBlue,
-          unselectedLabelColor: Colors.white54,
-          indicatorSize: TabBarIndicatorSize.label,
-          labelStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            fontSize: 14,
-          ),
-          unselectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w500,
-            fontSize: 14,
-          ),
-          tabs: const [
-            Tab(text: 'Stocks'),
-            Tab(text: 'Mutual Funds'),
-          ],
-        ),
       ),
       body: Column(
         children: [
-          // Search bar — always above dim overlay
+          // Search bar — above tabs
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            padding: const EdgeInsets.fromLTRB(12, 4, 12, 0),
             child: CompositedTransformTarget(
               link: _searchLayerLink,
               child: _buildSearchBar(),
             ),
           ),
           const SizedBox(height: 8),
+          // Tab bar
+          TabBar(
+            controller: _tabController,
+            indicatorColor: AppTheme.accentBlue,
+            labelColor: AppTheme.accentBlue,
+            unselectedLabelColor: Colors.white54,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: 14,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontWeight: FontWeight.w500,
+              fontSize: 14,
+            ),
+            tabs: const [
+              Tab(text: 'Stocks'),
+              Tab(text: 'Mutual Funds'),
+            ],
+          ),
           // Feed + overlays
           Expanded(
             child: Stack(
@@ -203,7 +203,6 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                     ],
                   ),
                 ),
-                // Dim overlay when search results are visible
                 if (isSearchActive)
                   GestureDetector(
                     onTap: _clearSearch,
@@ -220,7 +219,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
   }
 
   // ---------------------------------------------------------------------------
-  // Stocks Tab
+  // Stocks Tab — horizontal card sections
   // ---------------------------------------------------------------------------
 
   Widget _buildStocksTab(DiscoverHomeData data) {
@@ -228,38 +227,36 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
     final recentStocks =
         recentlyViewed.where((r) => r.type == 'stock').toList();
 
+    // Build list of sections for lazy rendering
+    final sections = <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: _buildQuickCategories(
+          data.quickCategories
+              .where((c) => c.segment == 'stocks')
+              .toList(),
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (recentStocks.isNotEmpty) _buildRecentlyViewed(recentStocks),
+      ...data.stockSections.map((section) => _HorizontalStockSection(
+            title: section.title,
+            subtitle: section.subtitle,
+            items: section.items,
+            onStockTap: _onStockTap,
+          )),
+      const SizedBox(height: _kBottomPadding),
+    ];
+
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(discoverHomeDataProvider);
         await ref.read(discoverHomeDataProvider.future);
       },
-      child: ListView(
+      child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.only(top: 4),
-        children: [
-          // Quick categories (stocks only)
-          _buildQuickCategories(
-            data.quickCategories
-                .where((c) => c.segment == 'stocks')
-                .toList(),
-          ),
-          const SizedBox(height: 12),
-
-          // Recently viewed stocks
-          if (recentStocks.isNotEmpty) ...[
-            _buildRecentlyViewed(recentStocks),
-            const SizedBox(height: 8),
-          ],
-
-          // Signal & theme sections
-          for (final section in data.stockSections)
-            _StockSectionWidget(
-              section: section,
-              onStockTap: _onStockTap,
-            ),
-
-          const SizedBox(height: _kBottomPadding),
-        ],
+        itemCount: sections.length,
+        itemBuilder: (_, i) => sections[i],
       ),
     );
   }
@@ -277,56 +274,56 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         ref.invalidate(discoverHomeDataProvider);
         await ref.read(discoverHomeDataProvider.future);
       },
-      child: ListView(
-        padding: const EdgeInsets.only(top: 4),
-        children: [
-          // Quick categories (MFs only)
-          _buildQuickCategories(
-            data.quickCategories
-                .where((c) => c.segment == 'mutual_funds')
-                .toList(),
+      child: CustomScrollView(
+        slivers: [
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 12),
+              child: _buildQuickCategories(
+                data.quickCategories
+                    .where((c) => c.segment == 'mutual_funds')
+                    .toList(),
+              ),
+            ),
           ),
-          const SizedBox(height: 12),
+          const SliverToBoxAdapter(child: SizedBox(height: 12)),
 
-          // Recently viewed MFs
-          if (recentMfs.isNotEmpty) ...[
-            _buildRecentlyViewed(recentMfs),
-            const SizedBox(height: 8),
+          if (recentMfs.isNotEmpty)
+            SliverToBoxAdapter(child: _buildRecentlyViewed(recentMfs)),
+
+          for (final section in data.mfSections) ...[
+            SliverToBoxAdapter(
+              child: _HorizontalMfSection(
+                title: section.title,
+                subtitle: section.subtitle,
+                items: section.items,
+                onMfTap: _onMfTap,
+              ),
+            ),
           ],
 
-          // MF sections
-          for (final section in data.mfSections)
-            _MfSectionWidget(
-              section: section,
-              onMfTap: _onMfTap,
-            ),
-
-          const SizedBox(height: _kBottomPadding),
+          const SliverToBoxAdapter(child: SizedBox(height: _kBottomPadding)),
         ],
       ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // Recently Viewed (horizontal scroll)
+  // Recently Viewed
   // ---------------------------------------------------------------------------
 
   Widget _buildRecentlyViewed(List<RecentlyViewedItem> items) {
-    final recentStockSymbols = items
-        .where((r) => r.type == 'stock')
-        .map((r) => r.id)
-        .toList();
-    final recentMfCodes = items
-        .where((r) => r.type == 'mf')
-        .map((r) => r.id)
-        .toList();
+    final recentStockSymbols =
+        items.where((r) => r.type == 'stock').map((r) => r.id).toList();
+    final recentMfCodes =
+        items.where((r) => r.type == 'mf').map((r) => r.id).toList();
     final recentStockSparklines = recentStockSymbols.isNotEmpty
         ? ref.watch(discoverStockSparklinesProvider(
             (symbols: recentStockSymbols, days: 7)))
         : null;
     final recentMfSparklines = recentMfCodes.isNotEmpty
-        ? ref.watch(discoverMfSparklinesProvider(
-            (schemeCodes: recentMfCodes, days: 7)))
+        ? ref.watch(
+            discoverMfSparklinesProvider((schemeCodes: recentMfCodes, days: 7)))
         : null;
     final recentStockSparkMap = recentStockSparklines?.valueOrNull ?? {};
     final recentMfSparkMap = recentMfSparklines?.valueOrNull ?? {};
@@ -353,7 +350,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   Widget _buildQuickCategories(List<QuickCategory> apiCategories) {
     final gridItems = <({String label, IconData icon, VoidCallback onTap})>[
-      ...apiCategories.take(8).map((cat) => (
+      ...apiCategories.take(12).map((cat) => (
             label: cat.name,
             icon: _quickCategoryIcon(cat) ?? Icons.label_outline,
             onTap: () => _onQuickCategoryTap(cat),
@@ -397,6 +394,10 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         return Icons.business;
       case 'small-cap':
         return Icons.store;
+      case 'mid-cap':
+        return Icons.apartment;
+      case 'high-volume':
+        return Icons.trending_up;
       case 'elss':
         return Icons.receipt_long_outlined;
       case 'flexi-cap':
@@ -489,7 +490,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
             child: Align(
               alignment: Alignment.topCenter,
               child: GestureDetector(
-                onTap: () {}, // absorb tap so card doesn't dismiss
+                onTap: () {},
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Material(
@@ -678,15 +679,19 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 }
 
 // =============================================================================
-// Stock Section — vertical list of stock tiles
+// Horizontal Stock Section — card scroll with title + subtitle
 // =============================================================================
 
-class _StockSectionWidget extends StatelessWidget {
-  final DiscoverHomeSection<DiscoverHomeStockItem> section;
+class _HorizontalStockSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<DiscoverHomeStockItem> items;
   final void Function(DiscoverHomeStockItem) onStockTap;
 
-  const _StockSectionWidget({
-    required this.section,
+  const _HorizontalStockSection({
+    required this.title,
+    required this.subtitle,
+    required this.items,
     required this.onStockTap,
   });
 
@@ -694,15 +699,15 @@ class _StockSectionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section header
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              section.title,
+              title,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,
@@ -712,21 +717,26 @@ class _StockSectionWidget extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
             child: Text(
-              section.subtitle,
+              subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: Colors.white38,
                 fontSize: 11,
               ),
             ),
           ),
-          // Stock tiles
-          ...section.items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _HomeStockTile(
-                  item: item,
-                  onTap: () => onStockTap(item),
-                ),
-              )),
+          SizedBox(
+            height: 126,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, i) => _StockCard(
+                item: items[i],
+                onTap: () => onStockTap(items[i]),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -734,15 +744,19 @@ class _StockSectionWidget extends StatelessWidget {
 }
 
 // =============================================================================
-// MF Section — vertical list of MF tiles
+// Horizontal MF Section
 // =============================================================================
 
-class _MfSectionWidget extends StatelessWidget {
-  final DiscoverHomeSection<DiscoverHomeMfItem> section;
+class _HorizontalMfSection extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final List<DiscoverHomeMfItem> items;
   final void Function(DiscoverHomeMfItem) onMfTap;
 
-  const _MfSectionWidget({
-    required this.section,
+  const _HorizontalMfSection({
+    required this.title,
+    required this.subtitle,
+    required this.items,
     required this.onMfTap,
   });
 
@@ -750,14 +764,15 @@ class _MfSectionWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Text(
-              section.title,
+              title,
               style: theme.textTheme.titleSmall?.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,
@@ -767,20 +782,26 @@ class _MfSectionWidget extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
             child: Text(
-              section.subtitle,
+              subtitle,
               style: theme.textTheme.bodySmall?.copyWith(
                 color: Colors.white38,
                 fontSize: 11,
               ),
             ),
           ),
-          ...section.items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: _HomeMfTile(
-                  item: item,
-                  onTap: () => onMfTap(item),
-                ),
-              )),
+          SizedBox(
+            height: 120,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, i) => _MfCard(
+                item: items[i],
+                onTap: () => onMfTap(items[i]),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -788,146 +809,126 @@ class _MfSectionWidget extends StatelessWidget {
 }
 
 // =============================================================================
-// Home Stock Tile — compact list tile for DiscoverHomeStockItem
+// Stock Card — 160px wide with action tag
 // =============================================================================
 
-class _HomeStockTile extends StatelessWidget {
+class _StockCard extends StatelessWidget {
   final DiscoverHomeStockItem item;
   final VoidCallback onTap;
 
-  const _HomeStockTile({required this.item, required this.onTap});
+  const _StockCard({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final change = item.percentChange3m ?? item.percentChange;
-    final isPositive = (change ?? 0) >= 0;
-    final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
-    final changeLabel = item.percentChange3m != null ? '3M ' : '';
-    final scoreColor = item.score >= 70
-        ? AppTheme.accentGreen
-        : item.score >= 40
-            ? AppTheme.accentOrange
-            : AppTheme.accentRed;
+    final pct = item.percentChange3m ?? item.percentChange ?? 0;
+    final periodLabel = item.percentChange3m != null ? ' 3M' : '';
+    final isUp = pct >= 0;
+    final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
+        width: 148,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.10),
+          color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: name + price
+            // Row 1: symbol + action tag
             Row(
               children: [
                 Expanded(
                   child: Text(
-                    item.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  Formatters.fullPrice(item.lastPrice),
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Row 2: symbol · sector/industry  |  change badge
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    '${item.symbol}${item.sector != null ? ' \u00b7 ${item.industry ?? item.sector}' : ''}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white54),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: changeColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    '$changeLabel${Formatters.changeTag(change)}',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: changeColor,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Row 3: score circle + action tag
-            Row(
-              children: [
-                // Circular score
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: scoreColor.withValues(alpha: 0.12),
-                    border: Border.all(
-                        color: scoreColor.withValues(alpha: 0.4), width: 1.5),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    item.score.toInt().toString(),
-                    style: TextStyle(
-                      color: scoreColor,
-                      fontSize: 13,
+                    item.symbol,
+                    style: theme.textTheme.labelMedium?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (item.actionTag != null) ...[
-                  const SizedBox(width: 10),
+                if (item.actionTag != null)
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                        horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
                       color: _actionTagColor(item.actionTag!)
                           .withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
+                      borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
                       item.actionTag!,
                       style: TextStyle(
                         color: _actionTagColor(item.actionTag!),
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
-                ],
-                const Spacer(),
-                // Market cap
-                if (item.marketCap != null)
-                  Text(
-                    _formatMarketCap(item.marketCap!),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: Colors.white38,
-                      fontSize: 10,
+              ],
+            ),
+            // Row 2: display name
+            Text(
+              item.displayName,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white54,
+                fontSize: 10,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const Spacer(),
+            // Price
+            Text(
+              Formatters.price(item.lastPrice),
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 3),
+            // Change + score
+            Row(
+              children: [
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: changeColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${Formatters.changeTag(pct)}$periodLabel',
+                    style: TextStyle(
+                      color: changeColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ScoreBar.scoreColor(item.score)
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    item.score.toStringAsFixed(0),
+                    style: TextStyle(
+                      color: ScoreBar.scoreColor(item.score),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
               ],
             ),
           ],
@@ -949,83 +950,109 @@ class _HomeStockTile extends StatelessWidget {
     }
     return AppTheme.accentBlue;
   }
-
-  static String _formatMarketCap(double crores) {
-    if (crores >= 1e5) {
-      return '\u20B9${(crores / 1e5).toStringAsFixed(1)} L Cr';
-    }
-    if (crores >= 1e3) {
-      return '\u20B9${(crores / 1e3).toStringAsFixed(1)}K Cr';
-    }
-    return '\u20B9${crores.toStringAsFixed(0)} Cr';
-  }
 }
 
 // =============================================================================
-// Home MF Tile — compact list tile for DiscoverHomeMfItem
+// MF Card
 // =============================================================================
 
-class _HomeMfTile extends StatelessWidget {
+class _MfCard extends StatelessWidget {
   final DiscoverHomeMfItem item;
   final VoidCallback onTap;
 
-  const _HomeMfTile({required this.item, required this.onTap});
+  const _MfCard({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ret1y = item.returns1y;
-    final retPositive = (ret1y ?? 0) >= 0;
-    final retColor = retPositive ? AppTheme.accentGreen : AppTheme.accentRed;
-    final scoreColor = (item.score) >= 70
-        ? AppTheme.accentGreen
-        : (item.score) >= 40
-            ? AppTheme.accentOrange
-            : AppTheme.accentRed;
+    final hasReturn = ret1y != null;
+    final isUp = (ret1y ?? 0) >= 0;
+    final returnColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
     final firstBadge =
         item.qualityBadges.isNotEmpty ? item.qualityBadges.first : null;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
+        width: 148,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest
-              .withValues(alpha: 0.10),
+          color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: name + 1Y return
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    item.displayName ?? item.schemeName,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(fontWeight: FontWeight.w600),
-                  ),
+            Text(
+              item.displayName ?? item.schemeName,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (item.category != null)
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: AppTheme.accentBlue.withValues(alpha: 0.10),
+                  borderRadius: BorderRadius.circular(4),
                 ),
-                if (ret1y != null) ...[
-                  const SizedBox(width: 8),
+                child: Text(
+                  item.category!,
+                  style: const TextStyle(
+                    color: AppTheme.accentBlue,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            const Spacer(),
+            Row(
+              children: [
+                if (hasReturn)
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: retColor.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(4),
+                      color: returnColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: retColor,
-                        fontWeight: FontWeight.w700,
+                      '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                      style: TextStyle(
+                        color: returnColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                if (firstBadge != null) ...[
+                  const SizedBox(width: 4),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 4, vertical: 1),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accentTeal.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        firstBadge,
+                        style: const TextStyle(
+                          color: AppTheme.accentTeal,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ),
@@ -1033,59 +1060,7 @@ class _HomeMfTile extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            // Row 2: category
-            if (item.category != null)
-              Text(
-                item.category!,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.white54),
-              ),
-            const SizedBox(height: 8),
-            // Row 3: score + badge
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: scoreColor.withValues(alpha: 0.12),
-                    border: Border.all(
-                        color: scoreColor.withValues(alpha: 0.4), width: 1.5),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    item.score.toInt().toString(),
-                    style: TextStyle(
-                      color: scoreColor,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (firstBadge != null) ...[
-                  const SizedBox(width: 10),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentTeal.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      firstBadge,
-                      style: const TextStyle(
-                        color: AppTheme.accentTeal,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            ScoreBar(score: item.score, height: 4, showLabel: false),
           ],
         ),
       ),
@@ -1157,7 +1132,7 @@ class _HorizontalSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1174,12 +1149,12 @@ class _HorizontalSection extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           SizedBox(
-            height: 130,
+            height: 110,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               itemCount: children.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 12),
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (_, i) => children[i],
             ),
           ),
@@ -1209,8 +1184,8 @@ class _RecentCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 130,
-        padding: const EdgeInsets.all(12),
+        width: 120,
+        padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(14),
@@ -1219,25 +1194,6 @@ class _RecentCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: (isStock ? AppTheme.accentBlue : AppTheme.accentOrange)
-                    .withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(4),
-              ),
-              child: Text(
-                isStock ? 'Stock' : 'MF',
-                style: TextStyle(
-                  color:
-                      isStock ? AppTheme.accentBlue : AppTheme.accentOrange,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            const SizedBox(height: 6),
             Text(
               isStock ? item.id : item.name,
               style: theme.textTheme.labelMedium?.copyWith(
