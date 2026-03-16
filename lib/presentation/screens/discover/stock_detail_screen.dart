@@ -1132,10 +1132,37 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const SizedBox(height: 12),
-                        Text('Revenue, Profit & Margins',
-                            style: theme.textTheme.bodySmall
-                                ?.copyWith(color: Colors.white54)),
+                        InkWell(
+                          onTap: () => _showMetricExplanation(
+                            context,
+                            'Revenue, Profit & Margins',
+                            'Blue bars show annual revenue (total sales), '
+                            'green bars show net profit, and the orange line '
+                            'tracks Operating Margin — the '
+                            'percentage of revenue retained after direct '
+                            'operating costs.\n\n'
+                            'Rising bars with a rising margin line is the best '
+                            'signal — it means the company is growing revenue '
+                            'while becoming more efficient. Falling margin '
+                            'despite rising revenue suggests margin pressure '
+                            'from competition or rising costs.',
+                          ),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                                vertical: 10, horizontal: 4),
+                            child: Row(
+                              children: [
+                                Text('Revenue, Profit & Margins',
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(color: Colors.white54)),
+                                const SizedBox(width: 4),
+                                const Icon(Icons.info_outline,
+                                    size: 13, color: Colors.white30),
+                              ],
+                            ),
+                          ),
+                        ),
                         const SizedBox(height: 8),
                         SizedBox(
                           height: 180,
@@ -1146,7 +1173,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               AppTheme.accentGreen,
                             ],
                             lineColor: const Color(0xFFFFAB40),
-                            legendLabels: const ['Revenue', 'Profit', 'OPM%'],
+                            legendLabels: const ['Revenue', 'Profit', 'Operating Margin'],
                           ),
                         ),
                       ],
