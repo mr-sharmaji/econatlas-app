@@ -269,6 +269,20 @@ class DiscoverStockScoreBreakdown {
 }
 
 @immutable
+class MetricInsight {
+  final String explanation;
+  final String sentiment; // positive, negative, neutral, warning
+
+  const MetricInsight({required this.explanation, required this.sentiment});
+
+  factory MetricInsight.fromJson(Map<String, dynamic> json) {
+    return MetricInsight(
+      explanation: json['explanation'] as String,
+      sentiment: json['sentiment'] as String? ?? 'neutral',
+    );
+  }
+}
+
 class DiscoverStockItem {
   final String symbol;
   final String displayName;
@@ -377,6 +391,7 @@ class DiscoverStockItem {
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<TagV2> tags;
   final List<String> whyRanked;
+  final Map<String, MetricInsight> metricInsights;
   final String sourceStatus;
   final DateTime sourceTimestamp;
   final DateTime ingestedAt;
@@ -479,6 +494,7 @@ class DiscoverStockItem {
     required this.scoreBreakdown,
     this.tags = const [],
     required this.whyRanked,
+    this.metricInsights = const {},
     required this.sourceStatus,
     required this.sourceTimestamp,
     required this.ingestedAt,
@@ -593,6 +609,9 @@ class DiscoverStockItem {
           .toList(),
       whyRanked:
           (json['why_ranked'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
+      metricInsights: (json['metric_insights'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, MetricInsight.fromJson(v as Map<String, dynamic>)),
+          ) ?? const {},
       sourceStatus: json['source_status'] as String? ?? 'limited',
       sourceTimestamp: DateTime.parse(json['source_timestamp'] as String),
       ingestedAt: DateTime.parse(json['ingested_at'] as String),

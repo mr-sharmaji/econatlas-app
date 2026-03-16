@@ -674,6 +674,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     value: e.value.toStringAsFixed(0),
                     valueColor: ScoreBar.scoreColor(e.value),
                     metricKey: e.metricKey,
+                    insight: e.metricKey != null
+                        ? item.metricInsights[e.metricKey!]
+                        : null,
                   ))
               .toList(),
         ),
@@ -1022,36 +1025,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Market Cap',
                     value: _formatMarketCap(item.marketCap),
                     metricKey: 'market_cap'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: item.sectorPercentile != null
                         ? 'P/E Ratio (${item.sectorPercentile!.toStringAsFixed(0)}th %ile)'
                         : 'P/E Ratio',
                     value: _ratio(item.peRatio, decimals: 1),
-                    valueColor: _peColor(item.peRatio),
                     metricKey: 'pe_ratio'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'P/B Ratio',
                     value: _ratio(item.priceToBook),
                     metricKey: 'price_to_book'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'EPS',
                     value: item.eps != null
                         ? '\u20B9${item.eps!.toStringAsFixed(1)}'
                         : '\u2014',
                     metricKey: 'eps'),
                 if (item.forwardPe != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'Forward PE',
                       value: item.forwardPe!.toStringAsFixed(1),
                       valueColor: item.peRatio != null && item.forwardPe! < item.peRatio!
                           ? AppTheme.accentGreen : null,
                       metricKey: 'forward_pe'),
                 if (item.pegRatio != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'PEG Ratio',
                       value: item.pegRatio!.toStringAsFixed(2),
                       valueColor: item.pegRatio! < 1.0
@@ -1060,13 +1062,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               ? AppTheme.accentRed
                               : null,
                       metricKey: 'peg_ratio'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Dividend Yield',
                     value: item.dividendYield != null
                         ? '${item.dividendYield!.toStringAsFixed(2)}%'
                         : '\u2014',
                     metricKey: 'dividend_yield'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Beta',
                     value: item.beta != null
                         ? item.beta!.toStringAsFixed(2)
@@ -1091,43 +1093,40 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'ROE',
                     value: _pct(item.roe),
-                    valueColor: _roeColor(item.roe),
                     metricKey: 'roe'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'ROCE',
                     value: _pct(item.roce),
-                    valueColor: _roeColor(item.roce),
                     metricKey: 'roce'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Operating Margin',
                     value: _marginPct(item.operatingMargins),
                     metricKey: 'operating_margin'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Net Margin',
                     value: _marginPct(item.profitMargins),
-                    valueColor: _marginColor(item.profitMargins),
                     metricKey: 'profit_margin'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Revenue Growth',
                     value: _marginPct(item.revenueGrowth),
                     valueColor: _changeColor(item.revenueGrowth),
                     metricKey: 'revenue_growth'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Earnings Growth',
                     value: _marginPct(item.earningsGrowth),
                     valueColor: _changeColor(item.earningsGrowth),
                     metricKey: 'earnings_growth'),
                 if (item.compoundedSalesGrowth3y != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'Revenue CAGR (3Y)',
                       value: '${item.compoundedSalesGrowth3y!.toStringAsFixed(0)}%',
                       valueColor: _changeColor(item.compoundedSalesGrowth3y! / 100),
                       metricKey: 'compounded_sales_growth_3y'),
                 if (item.compoundedProfitGrowth3y != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'Profit CAGR (3Y)',
                       value: '${item.compoundedProfitGrowth3y!.toStringAsFixed(0)}%',
                       valueColor: _changeColor(item.compoundedProfitGrowth3y! / 100),
@@ -1207,13 +1206,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'D/E Ratio',
                     value: _ratio(item.debtToEquity),
-                    valueColor: _deColor(item.debtToEquity),
                     metricKey: 'debt_to_equity'),
                 if (item.interestCoverage != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'Interest Coverage',
                       value:
                           '${item.interestCoverage!.toStringAsFixed(1)}x',
@@ -1223,16 +1221,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               ? AppTheme.accentGreen
                               : null),
                       metricKey: 'interest_coverage'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Total Debt',
                     value: _formatLargeNumber(item.totalDebt),
                     metricKey: 'total_debt'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Total Cash',
                     value: _formatLargeNumber(item.totalCash),
                     metricKey: 'total_cash'),
                 if (item.freeCashFlow != null)
-                  _metricRow(context,
+                  _metricRow(context, item,
                       label: 'Free Cash Flow',
                       value: _formatLargeNumber(item.freeCashFlow),
                       valueColor: item.freeCashFlow != null &&
@@ -1240,7 +1238,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           ? AppTheme.accentRed
                           : AppTheme.accentGreen,
                       metricKey: 'free_cash_flow'),
-                _metricRow(context,
+                _metricRow(context, item,
                     label: 'Payout Ratio',
                     value: _marginPct(item.payoutRatio),
                     metricKey: 'payout_ratio',
@@ -1268,7 +1266,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 4),
                   if (item.cashFromOperations != null)
-                    _metricRow(context,
+                    _metricRow(context, item,
                         label: 'Operating (CFO)',
                         value: _formatIndianCurrency(item.cashFromOperations),
                         valueColor: item.cashFromOperations! >= 0
@@ -1276,7 +1274,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                             : AppTheme.accentRed,
                         metricKey: 'cash_from_operations'),
                   if (item.cashFromInvesting != null)
-                    _metricRow(context,
+                    _metricRow(context, item,
                         label: 'Investing (CFI)',
                         value: _formatIndianCurrency(item.cashFromInvesting),
                         valueColor: item.cashFromInvesting! >= 0
@@ -1284,7 +1282,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                             : Colors.white54,
                         metricKey: 'cash_from_investing'),
                   if (item.cashFromFinancing != null)
-                    _metricRow(context,
+                    _metricRow(context, item,
                         label: 'Financing (CFF)',
                         value: _formatIndianCurrency(item.cashFromFinancing),
                         metricKey: 'cash_from_financing',
@@ -1853,16 +1851,43 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
+  /// Resolve explanation: prefer backend contextual insight, fall back to static glossary.
+  String? _metricExplanation(DiscoverStockItem item, String? metricKey) {
+    if (metricKey == null) return null;
+    final insight = item.metricInsights[metricKey];
+    if (insight != null) return insight.explanation;
+    return metricExplanations[metricKey];
+  }
+
+  /// Resolve sentiment color from backend insight.
+  Color? _sentimentColor(DiscoverStockItem item, String? metricKey) {
+    if (metricKey == null) return null;
+    final insight = item.metricInsights[metricKey];
+    if (insight == null) return null;
+    switch (insight.sentiment) {
+      case 'positive':
+        return AppTheme.accentGreen;
+      case 'negative':
+        return AppTheme.accentRed;
+      case 'warning':
+        return AppTheme.accentOrange;
+      default:
+        return null;
+    }
+  }
+
   Widget _metricRow(
-    BuildContext context, {
+    BuildContext context,
+    DiscoverStockItem item, {
     required String label,
     required String value,
     Color? valueColor,
     String? metricKey,
     bool isLast = false,
   }) {
-    final explanation =
-        metricKey != null ? metricExplanations[metricKey] : null;
+    final explanation = _metricExplanation(item, metricKey);
+    // Use backend sentiment color if available, otherwise keep explicit valueColor
+    final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
     return InkWell(
       onTap: explanation != null
           ? () => _showMetricExplanation(context, label, explanation)
@@ -1897,7 +1922,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
             Text(value,
                 style: TextStyle(
-                    color: valueColor ?? Colors.white,
+                    color: effectiveColor ?? Colors.white,
                     fontSize: 14,
                     fontWeight: FontWeight.w600)),
           ],
@@ -2018,35 +2043,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     };
   }
 
-  // ── Color Helpers ─────────────────────────────────────────────
-
-  static Color? _peColor(double? pe) {
-    if (pe == null) return Colors.white38;
-    if (pe < 25) return AppTheme.accentGreen;
-    if (pe > 40) return AppTheme.accentRed;
-    return null;
-  }
-
-  static Color? _roeColor(double? roe) {
-    if (roe == null) return Colors.white38;
-    if (roe > 15) return AppTheme.accentGreen;
-    if (roe < 10) return AppTheme.accentRed;
-    return null;
-  }
-
-  static Color? _deColor(double? de) {
-    if (de == null) return Colors.white38;
-    if (de < 0.5) return AppTheme.accentGreen;
-    if (de > 1.0) return AppTheme.accentRed;
-    return null;
-  }
-
-  static Color? _marginColor(double? margin) {
-    if (margin == null) return Colors.white38;
-    if (margin > 0.15) return AppTheme.accentGreen;
-    if (margin < 0.05) return AppTheme.accentRed;
-    return null;
-  }
 
   /// Margins from Yahoo come as decimals (0.25 = 25%). Format as percentage.
   static String _marginPct(double? value) {

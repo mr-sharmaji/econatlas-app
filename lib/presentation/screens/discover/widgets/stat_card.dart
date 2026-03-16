@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/theme.dart';
+import '../../../../data/models/discover.dart';
 import 'metric_glossary.dart';
 
 class StatCard extends StatelessWidget {
@@ -13,6 +14,9 @@ class StatCard extends StatelessWidget {
   /// shows a bottom sheet with the explanation instead of a tooltip.
   final String? metricKey;
 
+  /// Optional backend-provided contextual insight (preferred over static glossary).
+  final MetricInsight? insight;
+
   const StatCard({
     super.key,
     required this.label,
@@ -20,9 +24,12 @@ class StatCard extends StatelessWidget {
     this.valueColor,
     this.tooltip,
     this.metricKey,
+    this.insight,
   });
 
   String? get _explanation {
+    // Prefer backend insight over static glossary
+    if (insight != null) return insight!.explanation;
     if (metricKey != null && metricExplanations.containsKey(metricKey)) {
       return metricExplanations[metricKey];
     }
