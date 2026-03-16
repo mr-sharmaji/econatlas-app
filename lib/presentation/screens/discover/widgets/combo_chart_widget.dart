@@ -41,18 +41,14 @@ class ComboChartWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (entries.isEmpty) return const SizedBox.shrink();
 
-    // --- Bar axis (left) ---
+    // --- Bar axis (left) — interval based on positive data only ---
     double barDataMax = 0;
-    double barDataMin = 0;
     for (final e in entries) {
       for (final v in [e.bar1, e.bar2]) {
-        if (v != null) {
-          if (v > barDataMax) barDataMax = v;
-          if (v < barDataMin) barDataMin = v;
-        }
+        if (v != null && v > barDataMax) barDataMax = v;
       }
     }
-    final barInterval = _niceInterval(barDataMax - math.min(barDataMin, 0));
+    final barInterval = _niceInterval(barDataMax);
     final barChartMax =
         (barDataMax / barInterval).ceilToDouble() * barInterval;
 
@@ -97,13 +93,7 @@ class ComboChartWidget extends StatelessWidget {
         barChartMin = -barChartMax;
       }
     }
-    // Also accommodate negative bar values (negative profit)
-    if (barDataMin < 0) {
-      final minFromBars =
-          (barDataMin / barInterval).floorToDouble() * barInterval;
-      barChartMin = math.min(barChartMin, minFromBars);
-    }
-    // Final safety cap
+    // Cap: negative space ≤ positive space
     barChartMin = math.max(barChartMin, -barChartMax);
 
     // Piecewise scales anchored at zero:
