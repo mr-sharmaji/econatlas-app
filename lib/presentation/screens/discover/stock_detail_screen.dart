@@ -115,6 +115,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return '\u20B9${Formatters.price(cr)} Cr';
   }
 
+  static String _formatShareholderCount(int count) {
+    if (count >= 1e7) return '${(count / 1e7).toStringAsFixed(1)} Cr';
+    if (count >= 1e5) return '${(count / 1e5).toStringAsFixed(1)} L';
+    if (count >= 1e3) return '${(count / 1e3).toStringAsFixed(0)}K';
+    return count.toString();
+  }
+
   static String _pct(double? value) {
     if (value == null) return '\u2014';
     return '${value.toStringAsFixed(1)}%';
@@ -360,13 +367,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // ── Peer Comparison ──
             _buildPeerComparison(theme, item),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
+
+            // ── Deep Dive section divider ──
+            Row(
+              children: [
+                Container(
+                  width: 3,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentBlue,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text('Deep Dive',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+              ],
+            ),
+            const SizedBox(height: 10),
 
             // ── TabBar ──
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.08),
+                ),
               ),
               child: TabBar(
                 controller: _tabController,
@@ -999,6 +1028,23 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         ? '\u20B9${item.eps!.toStringAsFixed(1)}'
                         : '\u2014',
                     metricKey: 'eps'),
+                if (item.forwardPe != null)
+                  _metricRow(context,
+                      label: 'Forward PE',
+                      value: item.forwardPe!.toStringAsFixed(1),
+                      valueColor: item.peRatio != null && item.forwardPe! < item.peRatio!
+                          ? AppTheme.accentGreen : null,
+                      metricKey: 'forward_pe'),
+                if (item.pegRatio != null)
+                  _metricRow(context,
+                      label: 'PEG Ratio',
+                      value: item.pegRatio!.toStringAsFixed(2),
+                      valueColor: item.pegRatio! < 1.0
+                          ? AppTheme.accentGreen
+                          : item.pegRatio! > 2.5
+                              ? AppTheme.accentRed
+                              : null,
+                      metricKey: 'peg_ratio'),
                 _metricRow(context,
                     label: 'Dividend Yield',
                     value: item.dividendYield != null
@@ -1058,8 +1104,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     label: 'Earnings Growth',
                     value: _marginPct(item.earningsGrowth),
                     valueColor: _changeColor(item.earningsGrowth),
-                    metricKey: 'earnings_growth',
-                    isLast: item.plAnnual == null || item.plAnnual!.isEmpty),
+                    metricKey: 'earnings_growth'),
+                if (item.compoundedSalesGrowth3y != null)
+                  _metricRow(context,
+                      label: 'Revenue CAGR (3Y)',
+                      value: '${item.compoundedSalesGrowth3y!.toStringAsFixed(0)}%',
+                      valueColor: _changeColor(item.compoundedSalesGrowth3y! / 100)),
+                if (item.compoundedProfitGrowth3y != null)
+                  _metricRow(context,
+                      label: 'Profit CAGR (3Y)',
+                      value: '${item.compoundedProfitGrowth3y!.toStringAsFixed(0)}%',
+                      valueColor: _changeColor(item.compoundedProfitGrowth3y! / 100),
+                      isLast: item.plAnnual == null || item.plAnnual!.isEmpty),
                 // Revenue & Profit Trend chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
@@ -1147,6 +1203,51 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ),
+
+        // ── Cash Flow ──
+        if (item.cashFromOperations != null ||
+            item.cashFromInvesting != null ||
+            item.cashFromFinancing != null) ...[
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Cash Flow',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  if (item.cashFromOperations != null)
+                    _metricRow(context,
+                        label: 'Operating (CFO)',
+                        value: _formatLargeNumber(item.cashFromOperations),
+                        valueColor: item.cashFromOperations! >= 0
+                            ? AppTheme.accentGreen
+                            : AppTheme.accentRed,
+                        metricKey: 'cash_from_operations'),
+                  if (item.cashFromInvesting != null)
+                    _metricRow(context,
+                        label: 'Investing (CFI)',
+                        value: _formatLargeNumber(item.cashFromInvesting),
+                        valueColor: item.cashFromInvesting! >= 0
+                            ? AppTheme.accentGreen
+                            : Colors.white54,
+                        metricKey: 'cash_from_investing'),
+                  if (item.cashFromFinancing != null)
+                    _metricRow(context,
+                        label: 'Financing (CFF)',
+                        value: _formatLargeNumber(item.cashFromFinancing),
+                        metricKey: 'cash_from_financing',
+                        isLast: true),
+                ],
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -1244,6 +1345,41 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ),
+
+        // Shareholder count + trends
+        if (item.numShareholders != null) ...[
+          const SizedBox(height: 8),
+          Card(
+            margin: EdgeInsets.zero,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Retail Sentiment',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 4),
+                  _metricRow(context,
+                      label: 'Shareholders',
+                      value: _formatShareholderCount(item.numShareholders!),
+                      metricKey: 'num_shareholders'),
+                  if (item.numShareholdersChangeQoq != null)
+                    _metricRow(context,
+                        label: 'QoQ Change',
+                        value: '${item.numShareholdersChangeQoq! >= 0 ? '+' : ''}${item.numShareholdersChangeQoq!.toStringAsFixed(1)}%',
+                        valueColor: _changeColor(item.numShareholdersChangeQoq! / 100)),
+                  if (item.numShareholdersChangeYoy != null)
+                    _metricRow(context,
+                        label: 'YoY Change',
+                        value: '${item.numShareholdersChangeYoy! >= 0 ? '+' : ''}${item.numShareholdersChangeYoy!.toStringAsFixed(1)}%',
+                        valueColor: _changeColor(item.numShareholdersChangeYoy! / 100),
+                        isLast: true),
+                ],
+              ),
+            ),
+          ),
+        ],
 
         // Pledged shares warning
         if (item.pledgedPromoterPct != null &&
