@@ -25,6 +25,8 @@ Color severityColor(String severity) {
       return AppTheme.accentGreen;
     case 'negative':
       return AppTheme.accentRed;
+    case 'cautionary':
+      return AppTheme.accentOrange;
     default:
       return AppTheme.accentBlue;
   }
@@ -36,6 +38,8 @@ Color severityBackground(String severity) {
       return AppTheme.accentGreen.withValues(alpha: 0.12);
     case 'negative':
       return AppTheme.accentRed.withValues(alpha: 0.12);
+    case 'cautionary':
+      return AppTheme.accentOrange.withValues(alpha: 0.12);
     default:
       return AppTheme.accentBlue.withValues(alpha: 0.10);
   }
