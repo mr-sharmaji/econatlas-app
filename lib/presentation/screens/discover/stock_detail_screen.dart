@@ -367,41 +367,25 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
             // ── Peer Comparison ──
             _buildPeerComparison(theme, item),
-            const SizedBox(height: 16),
-
-            // ── Deep Dive section divider ──
-            Row(
-              children: [
-                Container(
-                  width: 3,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color: AppTheme.accentBlue,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('Deep Dive',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700)),
-              ],
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
             // ── TabBar ──
             Container(
               decoration: BoxDecoration(
                 color: AppTheme.cardDark,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.08),
-                ),
               ),
               child: TabBar(
                 controller: _tabController,
                 isScrollable: false,
                 indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: AppTheme.accentBlue.withValues(alpha: 0.20),
+                  borderRadius: BorderRadius.circular(10),
+                ),
                 dividerColor: Colors.transparent,
+                labelColor: AppTheme.accentBlue,
+                unselectedLabelColor: Colors.white54,
                 labelStyle: theme.textTheme.labelMedium
                     ?.copyWith(fontWeight: FontWeight.w700),
                 unselectedLabelStyle: theme.textTheme.labelMedium,
