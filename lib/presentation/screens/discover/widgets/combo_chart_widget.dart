@@ -20,7 +20,9 @@ class ComboChartEntry {
 
 /// Combo chart: grouped bars (left Y-axis, ₹ Cr) + line overlay (right Y-axis, %).
 /// Uses a Stack with matching axis configs so both charts align perfectly.
-/// Handles negative profit bars and negative margin lines correctly.
+///
+/// Zero-aligned: 0% on the line axis always corresponds to 0 on the bar axis.
+/// Negative margins render below the x-axis; positive margins above it.
 class ComboChartWidget extends StatelessWidget {
   final List<ComboChartEntry> entries;
   final List<Color> barColors;
@@ -70,24 +72,30 @@ class ComboChartWidget extends StatelessWidget {
       lineMax = 100;
     }
 
-    // Always include 0 in the line range so negative margins appear below zero
+    // Always include 0 in line range so negative margins go below the x-axis
     final adjLineMin = math.min(lineMin, 0.0);
     final adjLineMax = math.max(lineMax, 0.0);
     final adjLineInterval = _niceInterval(adjLineMax - adjLineMin);
-    final lineChartMax =
-        (adjLineMax / adjLineInterval).ceilToDouble() * adjLineInterval;
-    final lineChartMin =
-        (adjLineMin / adjLineInterval).floorToDouble() * adjLineInterval;
-    final lineRange = lineChartMax - lineChartMin;
+    final lineChartMax = adjLineMax <= 0
+        ? 0.0
+        : (adjLineMax / adjLineInterval).ceilToDouble() * adjLineInterval;
+    final lineChartMin = adjLineMin >= 0
+        ? 0.0
+        : (adjLineMin / adjLineInterval).floorToDouble() * adjLineInterval;
 
-    // Extend bar chart below 0 if line has negative values, so the line
-    // renders below the x-axis.  0% on right axis aligns with 0 on left axis.
+    // Extend bar chart below 0 for negative margins / negative profits.
+    // Zero-aligned: 0% ↔ bar=0, so bars and line share the zero point.
     double barChartMin = 0.0;
-    if (lineChartMin < 0 && lineChartMax > 0) {
-      barChartMin = barChartMax * lineChartMin / lineChartMax;
-    } else if (lineChartMax <= 0) {
-      // All-negative margins — equal space below
-      barChartMin = -barChartMax;
+    if (lineChartMin < 0) {
+      if (lineChartMax > 0) {
+        // Proportional: e.g. line -20..+15 → bar -barMax..+barMax * 15/20?
+        // Cap so negative space doesn't dominate
+        final ratio = math.min(lineChartMin.abs() / lineChartMax, 1.0);
+        barChartMin = -barChartMax * ratio;
+      } else {
+        // All negative margins — give equal space below
+        barChartMin = -barChartMax;
+      }
     }
     // Also accommodate negative bar values (negative profit)
     if (barDataMin < 0) {
@@ -95,9 +103,16 @@ class ComboChartWidget extends StatelessWidget {
           (barDataMin / barInterval).floorToDouble() * barInterval;
       barChartMin = math.min(barChartMin, minFromBars);
     }
-    // Cap: negative space should not exceed positive space
+    // Final safety cap
     barChartMin = math.max(barChartMin, -barChartMax);
-    final barRange = barChartMax - barChartMin;
+
+    // Piecewise scales anchored at zero:
+    //   v ≥ 0 → mapped = v × posScale   (0 → 0,  lineMax → barMax)
+    //   v < 0 → mapped = v × negScale   (0 → 0,  lineMin → barMin)
+    final posScale =
+        lineChartMax > 0 ? barChartMax / lineChartMax : 0.0;
+    final negScale =
+        lineChartMin < 0 ? barChartMin.abs() / lineChartMin.abs() : 0.0;
 
     // Shared axis configs to guarantee identical plot-area sizing
     const leftReserved = 40.0;
@@ -105,10 +120,12 @@ class ComboChartWidget extends StatelessWidget {
     const bottomReserved = 24.0;
     const leftAxisNameSize = 16.0;
 
-    // Compute right-axis interval in bar-space
-    final rightInterval = lineRange > 0
-        ? barRange / (lineRange / adjLineInterval)
-        : barRange;
+    // Right-axis interval: use the line interval mapped to bar space via
+    // the larger scale so labels are evenly spaced in the dominant half.
+    final dominantScale = math.max(posScale, negScale);
+    final rightInterval = dominantScale > 0
+        ? adjLineInterval * dominantScale
+        : (barChartMax - barChartMin);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -157,8 +174,8 @@ class ComboChartWidget extends StatelessWidget {
                           if (value == meta.max || value == meta.min) {
                             return const SizedBox.shrink();
                           }
-                          // Only show labels for bar values >= 0
-                          // (negative space is for the line axis)
+                          // Hide left-axis labels below 0 (negative space
+                          // is for the line overlay, labelled on the right)
                           if (value < 0) return const SizedBox.shrink();
                           String label;
                           if (value.abs() >= 10000) {
@@ -186,12 +203,21 @@ class ComboChartWidget extends StatelessWidget {
                           if (value == meta.max) {
                             return const SizedBox.shrink();
                           }
-                          // Map bar value to line value
-                          final frac = barRange > 0
-                              ? (value - barChartMin) / barRange
-                              : 0.0;
-                          final lineVal =
-                              lineChartMin + frac * lineRange;
+                          // Reverse piecewise mapping: bar value → line %
+                          double lineVal;
+                          if (value >= 0) {
+                            lineVal = posScale > 0
+                                ? value / posScale
+                                : 0;
+                          } else {
+                            lineVal = negScale > 0
+                                ? value / negScale
+                                : 0;
+                          }
+                          // Skip duplicate 0% labels above zero
+                          if (value > 0 && lineVal.abs() < 0.01) {
+                            return const SizedBox.shrink();
+                          }
                           return Padding(
                             padding: const EdgeInsets.only(left: 4),
                             child: Text('${lineVal.round()}%',
@@ -230,10 +256,10 @@ class ComboChartWidget extends StatelessWidget {
                     drawVerticalLine: false,
                     horizontalInterval: barInterval,
                     getDrawingHorizontalLine: (value) => FlLine(
-                      color: value == 0
-                          ? Colors.white24
+                      color: value.abs() < 0.01
+                          ? Colors.white30
                           : Colors.white10,
-                      strokeWidth: value == 0 ? 1 : 0.5,
+                      strokeWidth: value.abs() < 0.01 ? 1.0 : 0.5,
                     ),
                   ),
                   borderData: FlBorderData(
@@ -287,9 +313,7 @@ class ComboChartWidget extends StatelessWidget {
                       maxY: barChartMax,
                       lineBarsData: [
                         LineChartBarData(
-                          spots: _buildLineSpots(
-                              barChartMin, barChartMax,
-                              lineChartMin, lineChartMax),
+                          spots: _buildLineSpots(posScale, negScale),
                           isCurved: true,
                           curveSmoothness: 0.2,
                           color: lineColor,
@@ -353,19 +377,15 @@ class ComboChartWidget extends StatelessWidget {
     );
   }
 
-  /// Map line values into bar Y-space so both charts share the same coordinate system.
-  /// 0% on the line axis aligns with 0 on the bar axis.
-  List<FlSpot> _buildLineSpots(
-      double barMin, double barMax, double lineMin, double lineMax) {
-    final lineRange = lineMax - lineMin;
-    final barRange = barMax - barMin;
+  /// Map line values into bar Y-space using piecewise scaling anchored at zero.
+  ///   v ≥ 0 → mapped = v × posScale
+  ///   v < 0 → mapped = v × negScale
+  List<FlSpot> _buildLineSpots(double posScale, double negScale) {
     final spots = <FlSpot>[];
     for (var i = 0; i < entries.length; i++) {
       final v = entries[i].line1;
       if (v == null) continue;
-      final mapped = lineRange > 0
-          ? ((v - lineMin) / lineRange) * barRange + barMin
-          : 0.0;
+      final mapped = v >= 0 ? v * posScale : v * negScale;
       spots.add(FlSpot(i.toDouble(), mapped));
     }
     return spots;
