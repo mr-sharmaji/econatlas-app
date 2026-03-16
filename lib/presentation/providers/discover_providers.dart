@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/discover.dart';
 import '../../data/services/recently_viewed_service.dart';
+import '../../data/services/starred_stocks_service.dart';
 import '../../domain/repositories/discover_repository.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
@@ -1007,3 +1008,33 @@ final discoverMarketMoodProvider =
     return repo.getMarketMood();
   },
 );
+
+// ---------------------------------------------------------------------------
+// Starred Discover Items (stocks & MFs watchlist)
+// ---------------------------------------------------------------------------
+
+class StarredStocksNotifier extends StateNotifier<List<StarredItem>> {
+  late final StarredStocksService _service;
+
+  StarredStocksNotifier(StarredStocksService service)
+      : _service = service,
+        super(service.load());
+
+  Future<void> toggle({
+    required String type,
+    required String id,
+    required String name,
+  }) async {
+    state = await _service.toggle(type: type, id: id, name: name);
+  }
+
+  bool isStarred({required String type, required String id}) {
+    return state.any((e) => e.type == type && e.id == id);
+  }
+}
+
+final starredStocksProvider =
+    StateNotifierProvider<StarredStocksNotifier, List<StarredItem>>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  return StarredStocksNotifier(StarredStocksService(prefs));
+});

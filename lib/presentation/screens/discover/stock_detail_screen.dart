@@ -228,7 +228,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return Scaffold(
-      appBar: AppBar(title: Text(item.symbol)),
+      appBar: AppBar(
+        title: Text(item.symbol),
+        actions: [
+          _StarButton(symbol: item.symbol, displayName: item.displayName),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -2197,4 +2202,32 @@ class _RadarStat {
   final String? metricKey;
 
   const _RadarStat(this.label, this.value, this.color, [this.metricKey]);
+}
+
+class _StarButton extends ConsumerWidget {
+  final String symbol;
+  final String displayName;
+
+  const _StarButton({required this.symbol, required this.displayName});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final starred = ref.watch(starredStocksProvider);
+    final isStarred = starred.any((e) => e.type == 'stock' && e.id == symbol);
+
+    return IconButton(
+      icon: Icon(
+        isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+        color: isStarred ? AppTheme.accentOrange : Colors.white54,
+      ),
+      tooltip: isStarred ? 'Remove from watchlist' : 'Add to watchlist',
+      onPressed: () {
+        ref.read(starredStocksProvider.notifier).toggle(
+              type: 'stock',
+              id: symbol,
+              name: displayName,
+            );
+      },
+    );
+  }
 }

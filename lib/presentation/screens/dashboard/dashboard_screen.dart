@@ -6,6 +6,8 @@ import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/market_price.dart';
+import '../../../data/services/starred_stocks_service.dart';
+import '../../providers/discover_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
@@ -16,18 +18,22 @@ class DashboardScreen extends ConsumerStatefulWidget {
   ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+class _DashboardScreenState extends ConsumerState<DashboardScreen>
+    with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
+  late final TabController _tabController;
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -61,28 +67,214 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             onPressed: () => context.push('/settings'),
           ),
         ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await ref.read(watchlistProvider.notifier).load(silent: true);
-          await Future.wait([
-            ref.refresh(latestMarketPricesProvider.future),
-            ref.refresh(latestCommoditiesProvider.future),
-          ]);
-        },
-        child: ListView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.only(bottom: 112),
-          children: [
-            _MarketOverviewGrid(),
-            const SizedBox(height: 24),
+        bottom: TabBar(
+          controller: _tabController,
+          indicatorColor: AppTheme.accentBlue,
+          labelColor: AppTheme.accentBlue,
+          unselectedLabelColor: Colors.white54,
+          indicatorSize: TabBarIndicatorSize.label,
+          labelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: 14,
+          ),
+          unselectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
+          ),
+          tabs: const [
+            Tab(text: 'Markets'),
+            Tab(text: 'Stocks'),
           ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Markets tab — existing watchlist
+          RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(watchlistProvider.notifier).load(silent: true);
+              await Future.wait([
+                ref.refresh(latestMarketPricesProvider.future),
+                ref.refresh(latestCommoditiesProvider.future),
+              ]);
+            },
+            child: ListView(
+              controller: _scrollController,
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 112),
+              children: [
+                _MarketOverviewGrid(),
+                const SizedBox(height: 24),
+              ],
+            ),
+          ),
+          // Stocks tab — starred discover stocks
+          const _StarredStocksTab(),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Starred Stocks Tab
+// =============================================================================
+
+class _StarredStocksTab extends ConsumerWidget {
+  const _StarredStocksTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final starred = ref.watch(starredStocksProvider);
+    final theme = Theme.of(context);
+
+    if (starred.isEmpty) {
+      return ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          const SizedBox(height: 80),
+          Icon(Icons.star_border_rounded,
+              size: 48, color: Colors.white.withValues(alpha: 0.15)),
+          const SizedBox(height: 12),
+          Center(
+            child: Text(
+              'No starred stocks yet',
+              style: theme.textTheme.bodyMedium
+                  ?.copyWith(color: Colors.white38),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Star stocks from Discover to track them here',
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: Colors.white24),
+            ),
+          ),
+        ],
+      );
+    }
+
+    return ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
+      itemCount: starred.length,
+      itemBuilder: (context, index) {
+        final item = starred[index];
+        return _StarredItemTile(item: item);
+      },
+    );
+  }
+}
+
+class _StarredItemTile extends StatelessWidget {
+  final StarredItem item;
+
+  const _StarredItemTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isStock = item.type == 'stock';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: InkWell(
+        onTap: () {
+          if (isStock) {
+            context.push('/discover/stock/${item.id}');
+          } else {
+            context.push('/discover/mf/${item.id}');
+          }
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color:
+                      (isStock ? AppTheme.accentBlue : AppTheme.accentOrange)
+                          .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isStock
+                      ? Icons.bar_chart_rounded
+                      : Icons.account_balance_rounded,
+                  size: 16,
+                  color:
+                      isStock ? AppTheme.accentBlue : AppTheme.accentOrange,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isStock ? item.id : item.name,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    if (isStock)
+                      Text(
+                        item.name,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color:
+                      (isStock ? AppTheme.accentBlue : AppTheme.accentOrange)
+                          .withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  isStock ? 'Stock' : 'MF',
+                  style: TextStyle(
+                    color: isStock
+                        ? AppTheme.accentBlue
+                        : AppTheme.accentOrange,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: Colors.white.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+// =============================================================================
+// Market Overview Grid (existing)
+// =============================================================================
 
 class _MarketOverviewGrid extends ConsumerWidget {
   @override
@@ -337,7 +529,8 @@ class _WatchlistHealthCard extends StatelessWidget {
           (sum, p) => sum + (p.changePercent ?? 0),
         ) /
         total;
-    final avgColor = avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgColor =
+        avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     final avgSign = avgChange >= 0 ? '+' : '';
 
     return Card(
@@ -349,7 +542,7 @@ class _WatchlistHealthCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.monitor_heart_outlined,
+                const Icon(Icons.monitor_heart_outlined,
                     size: 18, color: AppTheme.accentBlue),
                 const SizedBox(width: 8),
                 Text(
@@ -364,7 +557,7 @@ class _WatchlistHealthCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: avgColor.withOpacity(0.15),
+                    color: avgColor.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
