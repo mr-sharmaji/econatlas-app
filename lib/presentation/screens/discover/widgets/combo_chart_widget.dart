@@ -269,19 +269,22 @@ class ComboChartWidget extends StatelessWidget {
                           const Color(0xFF1E1E2C),
                       getTooltipItem:
                           (group, groupIdx, rod, rodIdx) {
-                        final val =
-                            rod.fromY < 0 ? rod.fromY : rod.toY;
+                        // Use original entry values (not clamped bar values)
+                        if (groupIdx >= entries.length) return null;
+                        final e = entries[groupIdx];
+                        final raw = rodIdx == 0 ? e.bar1 : e.bar2;
+                        if (raw == null) return null;
                         String text;
-                        if (val.abs() >= 10000) {
+                        if (raw.abs() >= 10000) {
                           text =
-                              '${(val / 1000).toStringAsFixed(1)}K Cr';
+                              '${(raw / 1000).toStringAsFixed(1)}K Cr';
                         } else {
-                          text = '${val.toStringAsFixed(0)} Cr';
+                          text = '${raw.toStringAsFixed(0)} Cr';
                         }
                         // On the last rod, also append the margin % line value
                         final isLastRod = rodIdx == group.barRods.length - 1;
-                        if (isLastRod && hasLine && groupIdx < entries.length) {
-                          final margin = entries[groupIdx].line1;
+                        if (isLastRod && hasLine) {
+                          final margin = e.line1;
                           if (margin != null) {
                             text += '\n${margin.toStringAsFixed(1)}%';
                           }
@@ -392,8 +395,10 @@ class ComboChartWidget extends StatelessWidget {
   List<BarChartGroupData> _buildBarGroups() {
     return List.generate(entries.length, (i) {
       final e = entries[i];
-      final v1 = e.bar1 ?? 0;
-      final v2 = e.bar2 ?? 0;
+      // Clamp bars at 0 — negative space is reserved for the margin line.
+      // Negative values still appear in the tooltip.
+      final v1 = math.max(e.bar1 ?? 0, 0.0);
+      final v2 = math.max(e.bar2 ?? 0, 0.0);
       return BarChartGroupData(
         x: i,
         barsSpace: 4,
@@ -403,10 +408,8 @@ class ComboChartWidget extends StatelessWidget {
             toY: v1,
             color: barColors.isNotEmpty ? barColors[0] : Colors.blue,
             width: 12,
-            borderRadius: v1 >= 0
-                ? const BorderRadius.vertical(top: Radius.circular(3))
-                : const BorderRadius.vertical(
-                    bottom: Radius.circular(3)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(3)),
           ),
           BarChartRodData(
             fromY: 0,
@@ -414,10 +417,8 @@ class ComboChartWidget extends StatelessWidget {
             color:
                 barColors.length > 1 ? barColors[1] : Colors.green,
             width: 12,
-            borderRadius: v2 >= 0
-                ? const BorderRadius.vertical(top: Radius.circular(3))
-                : const BorderRadius.vertical(
-                    bottom: Radius.circular(3)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(3)),
           ),
         ],
       );
