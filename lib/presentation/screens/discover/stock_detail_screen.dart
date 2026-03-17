@@ -17,6 +17,7 @@ import 'widgets/stat_card.dart';
 import 'widgets/tag_utils.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
 import 'widgets/combo_chart_widget.dart';
+import 'widgets/sparkline_widget.dart';
 
 class StockDetailScreen extends ConsumerStatefulWidget {
   final String symbol;
@@ -1098,8 +1099,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 _subHeader('Returns'),
                 _metricRow(context, item,
                     label: 'ROE',
-                    value: _roeWithContext(item),
-                    metricKey: 'roe'),
+                    value: _pct(item.roe),
+                    metricKey: 'roe',
+                    sparkline: _growthSparkline(
+                        item.growthRanges?['return_on_equity'] as Map<String, dynamic>?)),
                 _metricRow(context, item,
                     label: 'ROCE',
                     value: _pct(item.roce),
@@ -1109,12 +1112,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 _subHeader('Margins'),
                 _metricRow(context, item,
                     label: 'Operating Margin',
-                    value: _opmWithContext(item),
-                    metricKey: 'operating_margins'),
+                    value: _marginPct(item.operatingMargins),
+                    metricKey: 'operating_margins',
+                    sparkline: _plPctSparkline(
+                        item.plAnnual?['opm_pct'] as List<dynamic>?)),
                 _metricRow(context, item,
                     label: 'Net Margin',
                     value: _marginPct(item.profitMargins),
-                    metricKey: 'profit_margins'),
+                    metricKey: 'profit_margins',
+                    sparkline: _netMarginSparkline(item.plAnnual)),
 
                 // ── Growth ──
                 _subHeader('Growth'),
@@ -1843,96 +1849,86 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  /// Build Revenue CAGR and Profit CAGR rows using the oldest available period.
-  /// Shows value from the oldest period and labels as "TTM/10Y", "TTM/5Y", etc.
+  /// Build Revenue CAGR and Profit CAGR rows with sparklines.
   List<Widget> _buildCagrRows(BuildContext context, DiscoverStockItem item) {
     final gr = item.growthRanges;
     final grSales = gr?['compounded_sales_growth'] as Map<String, dynamic>?;
     final grProfit = gr?['compounded_profit_growth'] as Map<String, dynamic>?;
 
-    // Returns (ttmValue?, oldestValue, periodLabel) e.g. (14.0, 11.0, "10Y")
-    (double?, double, String)? _bestRange(Map<String, dynamic>? data, double? fallback3y) {
-      if (data == null && fallback3y == null) return null;
-      final ttmVal = data?['ttm'] != null ? (data!['ttm'] as num).toDouble() : null;
+    // Pick TTM value if available, else 3Y fallback
+    double? _bestVal(Map<String, dynamic>? data, double? fallback) {
       if (data != null) {
-        for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
-          final v = data[key];
-          if (v != null) return (ttmVal, (v as num).toDouble(), label);
-        }
+        final ttm = data['ttm'];
+        if (ttm != null) return (ttm as num).toDouble();
+        final v3y = data['3y'];
+        if (v3y != null) return (v3y as num).toDouble();
       }
-      if (fallback3y != null) return (ttmVal, fallback3y, '3Y');
-      return null;
+      return fallback;
     }
 
-    // Format like ROE: "14% (10Y: 11%)" — TTM as main, oldest in parentheses
-    String _cagrValue((double?, double, String) r) {
-      final ttm = r.$1;
-      final oldest = r.$2;
-      if (ttm != null) {
-        return '${ttm.toStringAsFixed(0)}% (${r.$3}: ${oldest.toStringAsFixed(0)}%)';
-      }
-      return '${oldest.toStringAsFixed(0)}%';
-    }
-
-    final revCagr = _bestRange(grSales, item.compoundedSalesGrowth3y);
-    final profCagr = _bestRange(grProfit, item.compoundedProfitGrowth3y);
+    final revVal = _bestVal(grSales, item.compoundedSalesGrowth3y);
+    final profVal = _bestVal(grProfit, item.compoundedProfitGrowth3y);
     final rows = <Widget>[];
 
-    if (revCagr != null) {
+    if (revVal != null) {
       rows.add(_metricRow(context, item,
           label: 'Revenue CAGR',
-          value: _cagrValue(revCagr),
-          valueColor: _changeColor((revCagr.$1 ?? revCagr.$2) / 100),
-          metricKey: 'compounded_sales_growth_3y'));
+          value: '${revVal.toStringAsFixed(0)}%',
+          valueColor: _changeColor(revVal / 100),
+          metricKey: 'compounded_sales_growth_3y',
+          sparkline: _growthSparkline(grSales)));
     }
-    if (profCagr != null) {
+    if (profVal != null) {
       rows.add(_metricRow(context, item,
           label: 'Profit CAGR',
-          value: _cagrValue(profCagr),
-          valueColor: _changeColor((profCagr.$1 ?? profCagr.$2) / 100),
-          metricKey: 'compounded_profit_growth_3y'));
+          value: '${profVal.toStringAsFixed(0)}%',
+          valueColor: _changeColor(profVal / 100),
+          metricKey: 'compounded_profit_growth_3y',
+          sparkline: _growthSparkline(grProfit)));
     }
     return rows;
   }
 
-  /// ROE value with multi-period context from growth_ranges.
-  /// e.g. "35.7% (10Y avg: 30%)" or just "35.7%" if no history.
-  String _roeWithContext(DiscoverStockItem item) {
-    final base = _pct(item.roe);
-    if (base == '—') return base;
-    final grRoe = item.growthRanges?['return_on_equity'] as Map<String, dynamic>?;
-    if (grRoe == null || grRoe.isEmpty) return base;
-    // Pick longest-term average available
-    for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
-      final v = grRoe[key];
-      if (v != null) {
-        return '$base (${label}: ${(v as num).toInt()}%)';
-      }
+  /// Extract sparkline points from a growth_ranges map (keys: 10y, 5y, 3y, ttm/1y).
+  /// Returns chronological list of available values, or null if < 2 points.
+  static List<double>? _growthSparkline(Map<String, dynamic>? data) {
+    if (data == null) return null;
+    final points = <double>[];
+    for (final key in ['10y', '5y', '3y', 'ttm', '1y']) {
+      final v = data[key];
+      if (v != null) points.add((v as num).toDouble());
     }
-    return base;
+    return points.length >= 2 ? points : null;
   }
 
-  /// Operating margin with historical context from P&L opm_pct array.
-  /// e.g. "27.0% (10Y: 12%)" — picks 10Y, 5Y, or 3Y ago value.
-  String _opmWithContext(DiscoverStockItem item) {
-    final base = _marginPct(item.operatingMargins);
-    if (base == '—') return base;
-    final pl = item.plAnnual;
-    if (pl == null) return base;
-    final opmPct = pl['opm_pct'] as List<dynamic>?;
-    final years = pl['years'] as List<dynamic>?;
-    if (opmPct == null || opmPct.isEmpty || years == null || years.isEmpty) return base;
-    final nYears = years.length;
-    // Pick 10Y, 5Y, or 3Y ago index (standard periods)
-    for (final (period, label) in [(10, '10Y'), (5, '5Y'), (3, '3Y')]) {
-      if (nYears >= period) {
-        final idx = nYears - period;
-        if (idx < opmPct.length && opmPct[idx] != null) {
-          return '$base ($label: ${(opmPct[idx] as num).toInt()}%)';
-        }
+  /// Extract sparkline points from a P&L percentage array (e.g. opm_pct).
+  static List<double>? _plPctSparkline(List<dynamic>? pctList) {
+    if (pctList == null || pctList.length < 2) return null;
+    final points = <double>[];
+    for (final v in pctList) {
+      if (v != null) {
+        points.add((v as num).toDouble());
       }
     }
-    return base;
+    return points.length >= 2 ? points : null;
+  }
+
+  /// Compute net margin % sparkline from P&L net_profit and sales arrays.
+  static List<double>? _netMarginSparkline(Map<String, dynamic>? pl) {
+    if (pl == null) return null;
+    final sales = pl['sales'] as List<dynamic>?;
+    final np = pl['net_profit'] as List<dynamic>?;
+    if (sales == null || np == null || sales.length < 2) return null;
+    final n = sales.length < np.length ? sales.length : np.length;
+    final points = <double>[];
+    for (int i = 0; i < n; i++) {
+      final s = sales[i];
+      final p = np[i];
+      if (s != null && p != null && s != 0) {
+        points.add((p as num) / (s as num) * 100);
+      }
+    }
+    return points.length >= 2 ? points : null;
   }
 
   /// Build Price CAGR row from growth_ranges stock_price_cagr.
@@ -1940,37 +1936,19 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final grPrice = item.growthRanges?['stock_price_cagr'] as Map<String, dynamic>?;
     if (grPrice == null || grPrice.isEmpty) return const [];
 
+    // Pick 1Y value (most recent), else 3Y
     final v1y = grPrice['1y'] != null ? (grPrice['1y'] as num).toDouble() : null;
+    final v3y = grPrice['3y'] != null ? (grPrice['3y'] as num).toDouble() : null;
+    final displayVal = v1y ?? v3y;
+    if (displayVal == null) return const [];
 
-    // Find oldest period (10Y > 5Y > 3Y)
-    double? oldestVal;
-    String? oldestLabel;
-    for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
-      final v = grPrice[key];
-      if (v != null) {
-        oldestVal = (v as num).toDouble();
-        oldestLabel = label;
-        break;
-      }
-    }
-
-    if (oldestVal == null && v1y == null) return const [];
-
-    // Format like ROE: "1Y value (10Y: oldest value)"
-    final String value;
-    if (v1y != null && oldestVal != null) {
-      value = '${v1y.toStringAsFixed(0)}% ($oldestLabel: ${oldestVal.toStringAsFixed(0)}%)';
-    } else if (v1y != null) {
-      value = '${v1y.toStringAsFixed(0)}%';
-    } else {
-      value = '${oldestVal!.toStringAsFixed(0)}%';
-    }
     return [
       _metricRow(context, item,
           label: 'Price CAGR',
-          value: value,
-          valueColor: _changeColor((v1y ?? oldestVal)! / 100),
-          metricKey: 'stock_price_cagr'),
+          value: '${displayVal.toStringAsFixed(0)}%',
+          valueColor: _changeColor(displayVal / 100),
+          metricKey: 'stock_price_cagr',
+          sparkline: _growthSparkline(grPrice)),
     ];
   }
 
@@ -2020,10 +1998,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     Color? valueColor,
     String? metricKey,
     bool isLast = false,
+    List<double>? sparkline,
   }) {
     final explanation = _metricExplanation(item, metricKey);
     // Use backend sentiment color if available, otherwise keep explicit valueColor
     final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
+    final sparkColor = effectiveColor ?? Colors.white54;
     return InkWell(
       onTap: explanation != null
           ? () => _showMetricExplanation(context, label, explanation)
@@ -2058,6 +2038,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 ],
               ),
             ),
+            if (sparkline != null && sparkline.length >= 2) ...[
+              SparklineWidget(
+                values: sparkline,
+                color: sparkColor,
+                width: 40,
+                height: 20,
+              ),
+              const SizedBox(width: 8),
+            ],
             Text(value,
                 style: TextStyle(
                     color: effectiveColor ?? Colors.white,
