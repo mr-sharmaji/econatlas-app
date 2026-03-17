@@ -694,6 +694,56 @@ class DiscoverMutualFundScoreBreakdown {
 }
 
 @immutable
+class MfHolding {
+  final String name;
+  final double percentage;
+  final String? sector;
+
+  const MfHolding({required this.name, required this.percentage, this.sector});
+
+  factory MfHolding.fromJson(Map<String, dynamic> json) => MfHolding(
+    name: json['name'] as String,
+    percentage: (json['percentage'] as num).toDouble(),
+    sector: json['sector'] as String?,
+  );
+}
+
+@immutable
+class MfSectorAlloc {
+  final String sector;
+  final double percentage;
+
+  const MfSectorAlloc({required this.sector, required this.percentage});
+
+  factory MfSectorAlloc.fromJson(Map<String, dynamic> json) => MfSectorAlloc(
+    sector: json['sector'] as String,
+    percentage: (json['percentage'] as num).toDouble(),
+  );
+}
+
+@immutable
+class MfAssetAllocation {
+  final double equity;
+  final double debt;
+  final double cash;
+  final double other;
+
+  const MfAssetAllocation({
+    required this.equity,
+    required this.debt,
+    required this.cash,
+    required this.other,
+  });
+
+  factory MfAssetAllocation.fromJson(Map<String, dynamic> json) => MfAssetAllocation(
+    equity: (json['equity_pct'] as num?)?.toDouble() ?? 0,
+    debt: (json['debt_pct'] as num?)?.toDouble() ?? 0,
+    cash: (json['cash_pct'] as num?)?.toDouble() ?? 0,
+    other: (json['other_pct'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+@immutable
 class DiscoverMutualFundItem {
   final String schemeCode;
   final String schemeName;
@@ -748,6 +798,10 @@ class DiscoverMutualFundItem {
   final DateTime ingestedAt;
   final String? primarySource;
   final String? secondarySource;
+  final List<MfHolding>? topHoldings;
+  final List<MfSectorAlloc>? sectorAllocation;
+  final MfAssetAllocation? assetAllocation;
+  final String? holdingsAsOf;
 
   const DiscoverMutualFundItem({
     required this.schemeCode,
@@ -801,6 +855,10 @@ class DiscoverMutualFundItem {
     required this.ingestedAt,
     required this.primarySource,
     required this.secondarySource,
+    this.topHoldings,
+    this.sectorAllocation,
+    this.assetAllocation,
+    this.holdingsAsOf,
   });
 
   factory DiscoverMutualFundItem.fromJson(Map<String, dynamic> json) {
@@ -869,6 +927,16 @@ class DiscoverMutualFundItem {
       ingestedAt: DateTime.parse(json['ingested_at'] as String),
       primarySource: json['primary_source'] as String?,
       secondarySource: json['secondary_source'] as String?,
+      topHoldings: (json['top_holdings'] as List<dynamic>?)
+          ?.map((e) => MfHolding.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      sectorAllocation: (json['sector_allocation'] as List<dynamic>?)
+          ?.map((e) => MfSectorAlloc.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      assetAllocation: json['asset_allocation'] != null
+          ? MfAssetAllocation.fromJson(json['asset_allocation'] as Map<String, dynamic>)
+          : null,
+      holdingsAsOf: json['holdings_as_of'] as String?,
     );
   }
 }

@@ -84,7 +84,7 @@ class MfListTile extends StatelessWidget {
 
             const SizedBox(height: 6),
 
-            // Row 2: Category · Risk level
+            // Row 2: Category · Risk level · Expense ratio
             Row(
               children: [
                 if (item.category != null)
@@ -101,6 +101,14 @@ class MfListTile extends StatelessWidget {
                   const SizedBox(width: 8),
                   _riskBadge(context, item.riskLevel!),
                 ],
+                if (item.expenseRatio != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    '${item.expenseRatio!.toStringAsFixed(2)}%',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white38, fontSize: 11),
+                  ),
+                ],
               ],
             ),
 
@@ -111,7 +119,14 @@ class MfListTile extends StatelessWidget {
               children: [
                 _CompactScore(score: item.score),
                 const SizedBox(width: 10),
-                if (item.categoryRank != null &&
+                if (item.subCategoryRank != null &&
+                    item.subCategoryTotal != null &&
+                    item.subCategoryTotal! > 0)
+                  _CategoryRankText(
+                    rank: item.subCategoryRank!,
+                    total: item.subCategoryTotal!,
+                  )
+                else if (item.categoryRank != null &&
                     item.categoryTotal != null &&
                     item.categoryTotal! > 0)
                   _CategoryRankText(

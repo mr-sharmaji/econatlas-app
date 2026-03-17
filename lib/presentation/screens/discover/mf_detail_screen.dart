@@ -9,6 +9,7 @@ import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../providers/discover_providers.dart';
+import '../../providers/settings_providers.dart';
 import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
@@ -54,6 +55,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Watch expert mode to trigger rebuild when toggled
+    ref.watch(expertModeProvider);
 
     if (widget.initialItem != null) {
       item = widget.initialItem!;
@@ -152,17 +155,15 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // -- Quality Badges --
-            if (item.qualityBadges.isNotEmpty) ...[
-              _buildQualityBadges(theme),
-              const SizedBox(height: 8),
-            ],
+            // 1. Verdict Banner (C1)
+            _buildVerdictBanner(theme),
+            const SizedBox(height: 8),
 
-            // -- Header --
+            // 2. Header (C2)
             _buildHeader(theme),
             const SizedBox(height: 8),
 
-            // -- NAV Price + Period Change --
+            // 3. NAV Price + Period Change
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
@@ -193,7 +194,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // -- Period Selector + Chart --
+            // 4. Period Selector + Chart (C3)
             _buildPeriodSelector(theme),
             const SizedBox(height: 8),
             historyAsync.when(
@@ -212,12 +213,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   pricePrefix: '\u20B9 ',
                 );
               },
-              loading: () => const SizedBox(
-                height: 180,
-                child: Center(
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ),
+              loading: () => const ShimmerCard(height: 180),
               error: (e, _) => SizedBox(
                 height: 120,
                 child: Center(
@@ -231,48 +227,42 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // -- Score --
+            // 5. Score Card
             _buildScoreCard(theme),
             const SizedBox(height: 8),
 
-            // -- What Makes This Fund Stand Out --
-            if (_buildQualityReasons().length >= 2) ...[
-              _buildQualityReasonsInline(theme),
-              const SizedBox(height: 8),
-            ],
-
-            // -- Why Ranked --
-            if (item.whyRanked.isNotEmpty) ...[
-              _buildWhyRankedCard(theme),
-              const SizedBox(height: 8),
-            ],
-
-            // Tags grouped by category
+            // 6. Tags
             if (item.tags.isNotEmpty) ...[
               _buildGroupedTags(theme, item.tags),
               const SizedBox(height: 8),
             ],
 
-            // -- Category Rank --
+            // 7. Fund Ranking (C5)
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
               const SizedBox(height: 8),
             ],
 
-            // -- Returns (with XIRR/CAGR toggle) --
+            // 8. Returns (with XIRR/CAGR toggle)
             _buildReturnsCard(theme),
             const SizedBox(height: 8),
 
-            // -- Risk & Performance --
+            // 9. Risk & Performance
             _buildRiskPerformanceCard(theme),
             const SizedBox(height: 8),
 
-            // -- Key Metrics --
+            // 10. Portfolio / Holdings (C6)
+            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
+              _buildHoldingsSection(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 11. Key Metrics
             _buildMetricsCard(theme),
             const SizedBox(height: 8),
 
-            // -- Peer Comparison --
+            // 12. Peer Comparison
             _buildPeerComparison(theme),
             const SizedBox(height: 8),
 
@@ -283,31 +273,101 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Why Ranked --
+  // -- Verdict Banner (C1) --
 
-  Widget _buildWhyRankedCard(ThemeData theme) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.lightbulb_outline,
-                    size: 18, color: AppTheme.accentOrange),
-                const SizedBox(width: 8),
-                Text(
-                  'Why Ranked',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
+  Widget _buildVerdictBanner(ThemeData theme) {
+    final score = item.score;
+    final String tierLabel;
+    final Color tierColor;
+    final IconData tierIcon;
+
+    if (score >= 80) {
+      tierLabel = 'Top Pick';
+      tierColor = AppTheme.accentGreen;
+      tierIcon = Icons.rocket_launch_rounded;
+    } else if (score >= 65) {
+      tierLabel = 'Strong Fund';
+      tierColor = AppTheme.accentTeal;
+      tierIcon = Icons.trending_up_rounded;
+    } else if (score >= 50) {
+      tierLabel = 'Above Average';
+      tierColor = AppTheme.accentBlue;
+      tierIcon = Icons.check_circle_rounded;
+    } else if (score >= 35) {
+      tierLabel = 'Average';
+      tierColor = AppTheme.accentOrange;
+      tierIcon = Icons.pause_circle_rounded;
+    } else {
+      tierLabel = 'Below Average';
+      tierColor = AppTheme.accentRed;
+      tierIcon = Icons.trending_down_rounded;
+    }
+
+    final qualityReasons = _buildQualityReasons();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: tierColor.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: tierColor.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(tierIcon, size: 18, color: tierColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tierLabel,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: tierColor,
+                  ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          if (item.qualityBadges.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: item.qualityBadges.map((badge) {
+                final color = _badgeColor(badge);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: color.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_badgeIcon(badge), size: 12, color: color),
+                      const SizedBox(width: 4),
+                      Text(
+                        badge,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: color,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-            const SizedBox(height: 8),
+          ],
+          if (item.whyRanked.isNotEmpty) ...[
+            const SizedBox(height: 10),
             ...item.whyRanked.map((reason) => Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
+                  padding: const EdgeInsets.only(bottom: 4),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -328,7 +388,32 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   ),
                 )),
           ],
-        ),
+          if (qualityReasons.length >= 2) ...[
+            const SizedBox(height: 10),
+            ...qualityReasons.map((r) {
+              final (icon, color, text) = r;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(icon, size: 14, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white70,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ],
       ),
     );
   }
@@ -337,6 +422,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
   Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
     final grouped = groupTagsByCategory(tags);
+    final isExpert = ref.read(expertModeProvider);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -376,7 +462,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
-                      children: entry.value.map((tag) {
+                      children: (isExpert ? entry.value : entry.value.take(3))
+                          .map((tag) {
                         final td = getTagV2Display(tag);
                         return GestureDetector(
                           onTap: tag.explanation != null
@@ -477,39 +564,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return cagr.toDouble();
   }
 
-  // -- Quality Badges --
-
-  Widget _buildQualityBadges(ThemeData theme) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: item.qualityBadges.map((badge) {
-        final color = _badgeColor(badge);
-        return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(_badgeIcon(badge), size: 14, color: color),
-              const SizedBox(width: 5),
-              Text(
-                badge,
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
-  }
+  // -- Badge Helpers --
 
   Color _badgeColor(String badge) {
     final lower = badge.toLowerCase();
@@ -543,7 +598,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           item.displayName ?? item.schemeName,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleMedium
+          style: theme.textTheme.titleLarge
               ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
@@ -790,7 +845,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Category Rank Card --
+  // -- Category Rank Card (C5: renamed to Fund Ranking) --
 
   Widget _buildCategoryRankCard(ThemeData theme) {
     return Card(
@@ -800,7 +855,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Category Rank', style: theme.textTheme.titleSmall),
+            Text('Fund Ranking', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
 
             // Sub-category rank (more granular: e.g. Large Cap, Mid Cap)
@@ -1150,9 +1205,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Risk & Performance Card --
+  // -- Risk & Performance Card (C8: expert mode support) --
 
   Widget _buildRiskPerformanceCard(ThemeData theme) {
+    final isExpert = ref.read(expertModeProvider);
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -1162,102 +1219,130 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Text('Risk & Performance', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            // Row 1: Sharpe, Sortino, Max Drawdown
-            Row(
-              children: [
-                Expanded(
-                  child: StatCard(
-                    label: 'Sharpe',
-                    value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
-                    valueColor: _sharpeColor(item.sharpe),
-                    tooltip: metricExplanations['sharpe'],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: StatCard(
-                    label: 'Sortino',
-                    value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
-                    valueColor: _sharpeColor(item.sortino),
-                    tooltip: metricExplanations['sortino'],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: StatCard(
-                    label: 'Max DD',
-                    value: item.maxDrawdown != null
-                        ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
-                        : '\u2014',
-                    valueColor: _maxDrawdownColor(item.maxDrawdown),
-                    tooltip: metricExplanations['max_drawdown'],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            // Row 2: Alpha, Beta
-            Row(
-              children: [
-                Expanded(
-                  child: StatCard(
-                    label: 'Alpha',
-                    value: item.alpha != null
-                        ? '${item.alpha!.toStringAsFixed(1)}%'
-                        : '\u2014',
-                    valueColor: _alphaColor(item.alpha),
-                    tooltip: metricExplanations['alpha'],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: StatCard(
-                    label: 'Beta',
-                    value: item.beta?.toStringAsFixed(2) ?? '\u2014',
-                    valueColor: _betaColor(item.beta),
-                    tooltip: metricExplanations['beta'],
-                  ),
-                ),
-                const Spacer(),
-              ],
-            ),
-            if (item.rollingReturnConsistency != null) ...[
-              const SizedBox(height: 8),
+            if (isExpert) ...[
+              // Expert mode: show all metrics
+              // Row 1: Sharpe, Sortino, Max Drawdown
               Row(
                 children: [
-                  SizedBox(
-                    width: 48,
-                    height: 48,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: (item.rollingReturnConsistency! / 100).clamp(0.0, 1.0),
-                          strokeWidth: 5,
-                          backgroundColor: Colors.white.withValues(alpha: 0.1),
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            ScoreBar.scoreColor(item.rollingReturnConsistency!.toDouble()),
-                          ),
-                        ),
-                        Text(
-                          '${item.rollingReturnConsistency!.toStringAsFixed(0)}%',
-                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                        ),
-                      ],
+                  Expanded(
+                    child: StatCard(
+                      label: 'Sharpe',
+                      value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                      valueColor: _sharpeColor(item.sharpe),
+                      tooltip: metricExplanations['sharpe'],
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Rolling Return Consistency',
-                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                        Text(
-                          'How predictable the fund\'s returns have been over time',
-                          style: TextStyle(fontSize: 11, color: Colors.white54),
-                        ),
-                      ],
+                    child: StatCard(
+                      label: 'Sortino',
+                      value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
+                      valueColor: _sharpeColor(item.sortino),
+                      tooltip: metricExplanations['sortino'],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Max DD',
+                      value: item.maxDrawdown != null
+                          ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      valueColor: _maxDrawdownColor(item.maxDrawdown),
+                      tooltip: metricExplanations['max_drawdown'],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // Row 2: Alpha, Beta
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      label: 'Alpha',
+                      value: item.alpha != null
+                          ? '${item.alpha!.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      valueColor: _alphaColor(item.alpha),
+                      tooltip: metricExplanations['alpha'],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Beta',
+                      value: item.beta?.toStringAsFixed(2) ?? '\u2014',
+                      valueColor: _betaColor(item.beta),
+                      tooltip: metricExplanations['beta'],
+                    ),
+                  ),
+                  const Spacer(),
+                ],
+              ),
+              if (item.rollingReturnConsistency != null) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          CircularProgressIndicator(
+                            value: (item.rollingReturnConsistency! / 100).clamp(0.0, 1.0),
+                            strokeWidth: 5,
+                            backgroundColor: Colors.white.withValues(alpha: 0.1),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              ScoreBar.scoreColor(item.rollingReturnConsistency!.toDouble()),
+                            ),
+                          ),
+                          Text(
+                            '${item.rollingReturnConsistency!.toStringAsFixed(0)}%',
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text('Rolling Return Consistency',
+                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text(
+                            'How predictable the fund\'s returns have been over time',
+                            style: TextStyle(fontSize: 11, color: Colors.white54),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ] else ...[
+              // Non-expert mode: show only Sharpe and Max Drawdown
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      label: 'Sharpe',
+                      value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                      valueColor: _sharpeColor(item.sharpe),
+                      tooltip: metricExplanations['sharpe'],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Max DD',
+                      value: item.maxDrawdown != null
+                          ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      valueColor: _maxDrawdownColor(item.maxDrawdown),
+                      tooltip: metricExplanations['max_drawdown'],
                     ),
                   ),
                 ],
@@ -1391,9 +1476,9 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return reasons;
   }
 
-  Widget _buildQualityReasonsInline(ThemeData theme) {
-    final reasons = _buildQualityReasons();
+  // -- Holdings / Portfolio Section (C6) --
 
+  Widget _buildHoldingsSection(ThemeData theme) {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -1401,55 +1486,173 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    size: 18, color: AppTheme.accentOrange),
-                const SizedBox(width: 8),
-                Text(
-                  'Why This Fund Stands Out',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
+            Text('Portfolio / Holdings', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 10),
+
+            // Asset allocation horizontal bar
+            if (item.assetAllocation != null) ...[
+              Text(
+                'Asset Allocation',
+                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 14,
+                  child: Row(
+                    children: [
+                      if (item.assetAllocation!.equity > 0)
+                        Expanded(
+                          flex: (item.assetAllocation!.equity * 10).round(),
+                          child: Container(color: AppTheme.accentBlue),
+                        ),
+                      if (item.assetAllocation!.debt > 0)
+                        Expanded(
+                          flex: (item.assetAllocation!.debt * 10).round(),
+                          child: Container(color: AppTheme.accentTeal),
+                        ),
+                      if (item.assetAllocation!.cash > 0)
+                        Expanded(
+                          flex: (item.assetAllocation!.cash * 10).round(),
+                          child: Container(color: AppTheme.accentOrange),
+                        ),
+                      if (item.assetAllocation!.other > 0)
+                        Expanded(
+                          flex: (item.assetAllocation!.other * 10).round(),
+                          child: Container(color: AppTheme.accentGray),
+                        ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            ...reasons.map((r) {
-              final (icon, color, text) = r;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(icon, size: 18, color: color),
+              ),
+              const SizedBox(height: 6),
+              Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  if (item.assetAllocation!.equity > 0)
+                    _assetLegend('Equity', item.assetAllocation!.equity, AppTheme.accentBlue, theme),
+                  if (item.assetAllocation!.debt > 0)
+                    _assetLegend('Debt', item.assetAllocation!.debt, AppTheme.accentTeal, theme),
+                  if (item.assetAllocation!.cash > 0)
+                    _assetLegend('Cash', item.assetAllocation!.cash, AppTheme.accentOrange, theme),
+                  if (item.assetAllocation!.other > 0)
+                    _assetLegend('Other', item.assetAllocation!.other, AppTheme.accentGray, theme),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Top holdings list
+            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
+              Text(
+                'Top Holdings',
+                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
+              ),
+              const SizedBox(height: 6),
+              ...item.topHoldings!.map((holding) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                holding.name,
+                                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${holding.percentage.toStringAsFixed(2)}%',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white54,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        PositionBar(
+                          min: 0,
+                          max: 100,
+                          current: holding.percentage,
+                          color: AppTheme.accentBlue,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          text,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            height: 1.4,
+                  )),
+            ],
+
+            // Sector allocation
+            if (item.sectorAllocation != null && item.sectorAllocation!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Sector Allocation',
+                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
+              ),
+              const SizedBox(height: 6),
+              ...item.sectorAllocation!.map((sector) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            sector.sector,
+                            style: theme.textTheme.bodySmall,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${sector.percentage.toStringAsFixed(1)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-              );
-            }),
+                  )),
+            ],
+
+            // Holdings as-of date
+            if (item.holdingsAsOf != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Holdings as of ${item.holdingsAsOf}',
+                style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+              ),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Widget _assetLegend(String label, double pct, Color color, ThemeData theme) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(
+          '$label ${pct.toStringAsFixed(1)}%',
+          style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
+        ),
+      ],
     );
   }
 
@@ -1562,12 +1765,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       textAlign: TextAlign.right,
                     ),
                   ),
-                  // Rank
+                  // Rank (C9: prefer subCategoryRank)
                   SizedBox(
                     width: 32,
                     child: Text(
-                      fund.categoryRank != null
-                          ? '#${fund.categoryRank}'
+                      (fund.subCategoryRank ?? fund.categoryRank) != null
+                          ? '#${fund.subCategoryRank ?? fund.categoryRank}'
                           : '\u2014',
                       style: cellStyle,
                       textAlign: TextAlign.right,

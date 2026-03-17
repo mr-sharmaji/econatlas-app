@@ -269,41 +269,34 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
     final recentlyViewed = ref.watch(recentlyViewedProvider);
     final recentMfs = recentlyViewed.where((r) => r.type == 'mf').toList();
 
+    final sections = <Widget>[
+      Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: _buildQuickCategories(
+          data.quickCategories
+              .where((c) => c.segment == 'mutual_funds')
+              .toList(),
+        ),
+      ),
+      const SizedBox(height: 12),
+      if (recentMfs.isNotEmpty) _buildRecentlyViewed(recentMfs),
+      ...data.mfSections.map((section) => _HorizontalMfSection(
+            title: section.title,
+            subtitle: section.subtitle,
+            items: section.items,
+            onMfTap: _onMfTap,
+          )),
+      const SizedBox(height: _kBottomPadding),
+    ];
+
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(discoverHomeDataProvider);
         await ref.read(discoverHomeDataProvider.future);
       },
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: _buildQuickCategories(
-                data.quickCategories
-                    .where((c) => c.segment == 'mutual_funds')
-                    .toList(),
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 12)),
-
-          if (recentMfs.isNotEmpty)
-            SliverToBoxAdapter(child: _buildRecentlyViewed(recentMfs)),
-
-          for (final section in data.mfSections) ...[
-            SliverToBoxAdapter(
-              child: _HorizontalMfSection(
-                title: section.title,
-                subtitle: section.subtitle,
-                items: section.items,
-                onMfTap: _onMfTap,
-              ),
-            ),
-          ],
-
-          const SliverToBoxAdapter(child: SizedBox(height: _kBottomPadding)),
-        ],
+      child: ListView.builder(
+        itemCount: sections.length,
+        itemBuilder: (_, i) => sections[i],
       ),
     );
   }
@@ -790,7 +783,7 @@ class _HorizontalMfSection extends StatelessWidget {
             ),
           ),
           SizedBox(
-            height: 120,
+            height: 126,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -992,82 +985,91 @@ class _MfCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Row 1: fund name + quality tag
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    item.displayName ?? item.schemeName,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (firstBadge != null)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accentTeal.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      firstBadge,
+                      style: const TextStyle(
+                        color: AppTheme.accentTeal,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            // Row 2: category + risk
             Text(
-              item.displayName ?? item.schemeName,
-              style: theme.textTheme.labelMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
+              item.category ?? '',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white54,
+                fontSize: 10,
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            if (item.category != null)
-              Container(
-                margin: const EdgeInsets.only(top: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                decoration: BoxDecoration(
-                  color: AppTheme.accentBlue.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(4),
+            const Spacer(),
+            // Row 3: 1Y return (primary)
+            if (hasReturn)
+              Text(
+                '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  color: returnColor,
                 ),
-                child: Text(
-                  item.category!,
-                  style: const TextStyle(
-                    color: AppTheme.accentBlue,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+              )
+            else
+              Text(
+                '\u2014',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
                 ),
               ),
-            const Spacer(),
+            const SizedBox(height: 3),
+            // Row 4: score badge (right-aligned)
             Row(
               children: [
-                if (hasReturn)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: returnColor.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
-                      style: TextStyle(
-                        color: returnColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: ScoreBar.scoreColor(item.score)
+                        .withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    item.score.toStringAsFixed(0),
+                    style: TextStyle(
+                      color: ScoreBar.scoreColor(item.score),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                if (firstBadge != null) ...[
-                  const SizedBox(width: 4),
-                  Flexible(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accentTeal.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        firstBadge,
-                        style: const TextStyle(
-                          color: AppTheme.accentTeal,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w700,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            ScoreBar(score: item.score, height: 4, showLabel: false),
           ],
         ),
       ),
