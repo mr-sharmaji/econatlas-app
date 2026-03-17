@@ -59,6 +59,8 @@ const Map<String, String> metricExplanations = {
       'Revenue minus cost of goods sold, as a percentage of revenue. A gross margin of 40% means for every \u20B9100 of revenue, \u20B940 is left after direct production costs. Higher gross margins indicate better pricing power or lower production costs.',
   'operating_margin':
       'Profit from core business operations as a percentage of revenue, after deducting operating expenses but before interest and taxes. Higher operating margins (above 15%) indicate efficient operations and good cost control.',
+  'financial_margin':
+      'Financial margin (often NII margin) measures how much net interest income a lender generates relative to its earning assets. Higher financial margins generally indicate better lending spreads and pricing power, while falling margins can signal funding-cost pressure or weaker loan yields.',
   'profit_margin':
       'Net profit as a percentage of total revenue after ALL expenses (operations, interest, taxes). A profit margin of 10% means the company keeps \u20B910 as profit from every \u20B9100 of revenue. Higher margins mean more profitable and efficient operations.',
   'total_debt':

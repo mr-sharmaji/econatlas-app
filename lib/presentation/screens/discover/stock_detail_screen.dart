@@ -1116,16 +1116,60 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         item.growthRanges?['return_on_equity']
                             as Map<String, dynamic>?)),
                 _metricRow(context, item,
-                    label: 'ROCE', value: _pct(item.roce), metricKey: 'roce'),
+                    label: 'ROCE',
+                    value: _pct(item.roce),
+                    metricKey: 'roce',
+                    valueColor: item.roce != null
+                        ? (item.roce! >= 15
+                            ? AppTheme.accentGreen
+                            : item.roce! < 8
+                                ? AppTheme.accentRed
+                                : null)
+                        : null,
+                    sparkline: _roceSparkline(item)),
 
                 // ── Margins ──
                 _subHeader('Margins'),
-                _metricRow(context, item,
-                    label: 'Operating Margin',
-                    value: _marginPct(item.operatingMargins),
-                    metricKey: 'operating_margins',
-                    sparkline: _plPctSparkline(
-                        item.plAnnual?['opm_pct'] as List<dynamic>?)),
+                Builder(builder: (_) {
+                  final useFinancialMargin =
+                      _usesFinancialMargin(item.plAnnual);
+                  final marginLabel = useFinancialMargin
+                      ? 'Financial Margin'
+                      : 'Operating Margin';
+                  final marginValue = useFinancialMargin
+                      ? (_latestPlPct(item.plAnnual, 'financing_margin_pct') ??
+                          item.operatingMargins)
+                      : item.operatingMargins;
+                  final marginMetricKey = useFinancialMargin
+                      ? 'financial_margin'
+                      : 'operating_margins';
+                  final plAnnual = item.plAnnual;
+                  final marginPctSeries = useFinancialMargin
+                      ? (plAnnual != null &&
+                              plAnnual['financing_margin_pct'] is List<dynamic>
+                          ? plAnnual['financing_margin_pct']
+                          : null)
+                      : (plAnnual != null &&
+                              plAnnual['opm_pct'] is List<dynamic>
+                          ? plAnnual['opm_pct']
+                          : null);
+                  final marginSparkline = _plPctSparkline(
+                    marginPctSeries as List<dynamic>?,
+                  );
+                  return _metricRow(
+                    context,
+                    item,
+                    label: marginLabel,
+                    value: _marginPct(marginValue),
+                    valueColor: useFinancialMargin && marginValue != null
+                        ? (marginValue < 0
+                            ? AppTheme.accentRed
+                            : AppTheme.accentGreen)
+                        : null,
+                    metricKey: marginMetricKey,
+                    sparkline: marginSparkline,
+                  );
+                }),
                 _metricRow(context, item,
                     label: 'Net Margin',
                     value: _marginPct(item.profitMargins),
@@ -1136,11 +1180,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 _subHeader('Growth'),
                 ..._buildCagrRows(context, item),
                 ..._buildPriceCagrRow(context, item),
-                // Revenue, Profit & OPM% combo chart
+                // Revenue Profit combo chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
-                    final (comboEntries, marginLabel) =
-                        _buildComboEntries(item.plAnnual!);
+                    final comboEntries = _buildComboEntries(item.plAnnual!);
                     if (comboEntries.isEmpty) return const SizedBox.shrink();
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1149,19 +1192,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           final chartExplanation = _metricExplanation(
                                   item, 'revenue_profit_margins') ??
                               'Blue bars show annual revenue (total sales), '
-                                  'green bars show net profit, and the orange line '
-                                  'tracks $marginLabel — the '
-                                  'percentage of revenue retained after direct '
-                                  'operating costs.\n\n'
-                                  'Rising bars with a rising margin line is the best '
-                                  'signal — it means the company is growing revenue '
-                                  'while becoming more efficient. Falling margin '
-                                  'despite rising revenue suggests margin pressure '
-                                  'from competition or rising costs.';
+                                  'and green bars show annual net profit.\n\n'
+                                  'When both rise consistently, it signals healthy '
+                                  'business scaling. If revenue rises but profit '
+                                  'does not, costs may be growing too quickly.';
                           return InkWell(
                             onTap: () => _showMetricExplanation(
                               context,
-                              'Revenue, Profit & Margins',
+                              'Revenue Profit',
                               chartExplanation,
                             ),
                             child: Container(
@@ -1170,7 +1208,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                                   vertical: 10, horizontal: 4),
                               child: Row(
                                 children: [
-                                  Text('Revenue, Profit & Margins',
+                                  Text('Revenue Profit',
                                       style: theme.textTheme.bodySmall
                                           ?.copyWith(color: Colors.white54)),
                                   const SizedBox(width: 4),
@@ -1186,12 +1224,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                           height: 180,
                           child: ComboChartWidget(
                             entries: comboEntries,
-                            barColors: [
+                            barColors: const [
                               AppTheme.accentBlue,
                               AppTheme.accentGreen,
                             ],
-                            lineColor: const Color(0xFFFFAB40),
-                            legendLabels: ['Revenue', 'Profit', marginLabel],
+                            legendLabels: const ['Revenue', 'Profit'],
                           ),
                         ),
                       ],
@@ -1986,10 +2023,36 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return points.length >= 2 ? points : null;
   }
 
+  /// Financial businesses expose financing margin (NII margin) instead of OPM.
+  static bool _usesFinancialMargin(Map<String, dynamic>? pl) {
+    if (pl == null) return false;
+    final financing = pl['financing_margin_pct'];
+    final opm = pl['opm_pct'];
+    final hasFinancing =
+        financing is List<dynamic> && financing.any((v) => v != null);
+    final hasOpm = opm is List<dynamic> && opm.any((v) => v != null);
+    return hasFinancing && !hasOpm;
+  }
+
+  /// Read latest percentage array value (prefers TTM when present) as decimal ratio.
+  static double? _latestPlPct(Map<String, dynamic>? pl, String key) {
+    if (pl == null) return null;
+    final vals = pl[key] as List<dynamic>?;
+    if (vals == null || vals.isEmpty) return null;
+    final years = pl['years'] as List<dynamic>? ?? const [];
+    final yearsLen = years.length;
+    final hasTtm = vals.length > yearsLen;
+    final idx = hasTtm ? yearsLen : vals.length - 1;
+    if (idx < 0 || idx >= vals.length) return null;
+    final raw = vals[idx];
+    if (raw == null || raw is! num) return null;
+    return raw.toDouble() / 100.0;
+  }
+
   /// Compute net margin % sparkline from P&L net_profit and sales arrays.
   static List<double>? _netMarginSparkline(Map<String, dynamic>? pl) {
     if (pl == null) return null;
-    final sales = pl['sales'] as List<dynamic>?;
+    final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final np = pl['net_profit'] as List<dynamic>?;
     if (sales == null || np == null || sales.length < 2) return null;
     final n = sales.length < np.length ? sales.length : np.length;
@@ -2002,6 +2065,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       }
     }
     return points.length >= 2 ? points : null;
+  }
+
+  /// Compute ROCE % sparkline from backend-provided growth_ranges only.
+  static List<double>? _roceSparkline(DiscoverStockItem item) {
+    final grRoce = item.growthRanges?['return_on_capital_employed']
+        as Map<String, dynamic>?;
+    return _growthSparkline(grRoce);
   }
 
   /// Build Price CAGR row from growth_ranges stock_price_cagr.
@@ -2031,15 +2101,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   /// Resolve explanation: prefer backend contextual insight, fall back to static glossary.
   String? _metricExplanation(DiscoverStockItem item, String? metricKey) {
     if (metricKey == null) return null;
-    final insight = item.metricInsights[metricKey];
+    final insight = _metricInsight(item, metricKey);
     if (insight != null) return insight.explanation;
-    return metricExplanations[metricKey];
+    return metricExplanations[metricKey] ??
+        metricExplanations[_metricGlossaryAlias(metricKey)];
   }
 
   /// Resolve sentiment color from backend insight.
   Color? _sentimentColor(DiscoverStockItem item, String? metricKey) {
     if (metricKey == null) return null;
-    final insight = item.metricInsights[metricKey];
+    final insight = _metricInsight(item, metricKey);
     if (insight == null) return null;
     switch (insight.sentiment) {
       case 'positive':
@@ -2048,6 +2119,35 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         return AppTheme.accentRed;
       case 'warning':
         return AppTheme.accentOrange;
+      default:
+        return null;
+    }
+  }
+
+  /// Backward-compatible insight lookup across renamed metric keys.
+  MetricInsight? _metricInsight(DiscoverStockItem item, String metricKey) {
+    final direct = item.metricInsights[metricKey];
+    if (direct != null) return direct;
+    final alias = _metricInsightAlias(metricKey);
+    if (alias == null) return null;
+    return item.metricInsights[alias];
+  }
+
+  static String? _metricInsightAlias(String metricKey) {
+    switch (metricKey) {
+      case 'financial_margin':
+        return 'operating_margins';
+      default:
+        return null;
+    }
+  }
+
+  static String? _metricGlossaryAlias(String metricKey) {
+    switch (metricKey) {
+      case 'operating_margins':
+        return 'operating_margin';
+      case 'profit_margins':
+        return 'profit_margin';
       default:
         return null;
     }
@@ -2077,7 +2177,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     List<double>? sparkline,
   }) {
     final explanation = _metricExplanation(item, metricKey);
-    // Use backend sentiment color if available, otherwise keep explicit valueColor
+    // Keep explicit local override first; backend sentiment is fallback.
     final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
 
     return InkWell(
@@ -2175,20 +2275,13 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   // ── Chart Data Helpers ──────────────────────────────────────
 
-  /// Returns (entries, marginLabel) where marginLabel differs for banks/NBFCs.
-  (List<ComboChartEntry>, String) _buildComboEntries(Map<String, dynamic> pl) {
+  /// Returns entries for Revenue vs Profit combo chart.
+  List<ComboChartEntry> _buildComboEntries(Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
     final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
-    // Banks/NBFCs have financing_margin_pct; non-financials have opm_pct
-    final bool isFinancial =
-        pl.containsKey('financing_margin_pct') && !pl.containsKey('opm_pct');
-    final margin = isFinancial
-        ? pl['financing_margin_pct'] as List<dynamic>?
-        : pl['opm_pct'] as List<dynamic>?;
-    final marginLabel = isFinancial ? 'NII Margin' : 'Operating Margin';
     if (years.isEmpty || (sales == null && profit == null)) {
-      return (<ComboChartEntry>[], marginLabel);
+      return <ComboChartEntry>[];
     }
 
     // Screener P&L data arrays can have one extra trailing element
@@ -2210,7 +2303,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         label: _shortYear(years[i].toString()),
         bar1: _valAt(sales, i),
         bar2: _valAt(profit, i),
-        line1: _valAtNullable(margin, i),
       ));
     }
 
@@ -2221,11 +2313,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         label: 'TTM',
         bar1: _valAtNullable(sales, ttmIdx),
         bar2: _valAtNullable(profit, ttmIdx),
-        line1: _valAtNullable(margin, ttmIdx),
       ));
     }
 
-    return (entries, marginLabel);
+    return entries;
   }
 
   /// Compute YoY holding changes from shareholdingQuarterly JSONB.
