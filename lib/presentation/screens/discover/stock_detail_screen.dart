@@ -1971,7 +1971,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   // ── Chart Data Helpers ──────────────────────────────────────
 
   /// Returns (entries, marginLabel) where marginLabel differs for banks/NBFCs.
-  (List<ComboChartEntry>, String) _buildComboEntries(Map<String, dynamic> pl) {
+  (List<ComboChartEntry>, String) _buildComboEntries(
+      Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
     final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
@@ -1986,11 +1987,19 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       return (<ComboChartEntry>[], marginLabel);
     }
 
-    // Use min of years and data lengths to avoid index mismatch
-    int len = years.length;
+    // Screener P&L data arrays can have one extra trailing element
+    // for TTM (trailing twelve months). Detect this by comparing
+    // data length to years length.
+    final int yearsLen = years.length;
+    final bool hasTTM = (sales != null && sales.length > yearsLen) ||
+        (profit != null && profit.length > yearsLen);
+
+    // Build annual entries aligned by year index
+    int len = yearsLen;
     if (sales != null && sales.length < len) len = sales.length;
     if (profit != null && profit.length < len) len = profit.length;
-    final start = len > 5 ? len - 5 : 0;
+    // Show last 4 annual (+ TTM = 5 data points)
+    final start = len > 4 ? len - 4 : 0;
     final entries = <ComboChartEntry>[];
     for (var i = start; i < len; i++) {
       entries.add(ComboChartEntry(
@@ -2000,6 +2009,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         line1: _valAtNullable(margin, i),
       ));
     }
+
+    // Append TTM entry from Screener's extra trailing element
+    if (hasTTM) {
+      final ttmIdx = yearsLen; // the element after the last year
+      entries.add(ComboChartEntry(
+        label: 'TTM',
+        bar1: _valAtNullable(sales, ttmIdx),
+        bar2: _valAtNullable(profit, ttmIdx),
+        line1: _valAtNullable(margin, ttmIdx),
+      ));
+    }
+
     return (entries, marginLabel);
   }
 
