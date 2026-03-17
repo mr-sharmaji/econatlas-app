@@ -694,6 +694,22 @@ class DiscoverMutualFundScoreBreakdown {
 }
 
 @immutable
+class MfFundInsight {
+  final String text;
+  final String sentiment; // "positive", "negative", "neutral"
+
+  const MfFundInsight({required this.text, required this.sentiment});
+
+  factory MfFundInsight.fromJson(Map<String, dynamic> json) => MfFundInsight(
+        text: json['text'] as String? ?? '',
+        sentiment: json['sentiment'] as String? ?? 'neutral',
+      );
+
+  bool get isPositive => sentiment == 'positive';
+  bool get isNegative => sentiment == 'negative';
+}
+
+@immutable
 class MfHolding {
   final String name;
   final double percentage;
@@ -791,8 +807,8 @@ class DiscoverMutualFundItem {
   final double? subCategoryPercentile;
   final String? fundClassification;
   final DiscoverMutualFundScoreBreakdown scoreBreakdown;
-  final List<TagV2> tags;
   final List<String> whyRanked;
+  final List<MfFundInsight> fundInsights;
   final String sourceStatus;
   final DateTime sourceTimestamp;
   final DateTime ingestedAt;
@@ -848,8 +864,8 @@ class DiscoverMutualFundItem {
     this.subCategoryPercentile,
     this.fundClassification,
     required this.scoreBreakdown,
-    this.tags = const [],
     required this.whyRanked,
+    this.fundInsights = const [],
     required this.sourceStatus,
     required this.sourceTimestamp,
     required this.ingestedAt,
@@ -917,11 +933,11 @@ class DiscoverMutualFundItem {
       scoreBreakdown: DiscoverMutualFundScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
-      tags: (json['tags'] as List<dynamic>? ?? const [])
-          .map((e) => TagV2.fromJson(e as Map<String, dynamic>))
-          .toList(),
       whyRanked:
           (json['why_ranked'] as List<dynamic>? ?? const []).map((e) => '$e').toList(),
+      fundInsights: (json['fund_insights'] as List<dynamic>? ?? const [])
+          .map((e) => MfFundInsight.fromJson(e as Map<String, dynamic>))
+          .toList(),
       sourceStatus: json['source_status'] as String? ?? 'limited',
       sourceTimestamp: DateTime.parse(json['source_timestamp'] as String),
       ingestedAt: DateTime.parse(json['ingested_at'] as String),

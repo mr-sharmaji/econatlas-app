@@ -18,7 +18,6 @@ import 'widgets/position_bar.dart';
 import 'widgets/radar_chart_widget.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
 import 'widgets/stat_card.dart';
-import 'widgets/tag_utils.dart';
 
 enum _ReturnMode { xirr, cagr }
 
@@ -233,19 +232,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildScoreCard(theme),
             const SizedBox(height: 8),
 
-            // 6. Why This Fund Stands Out
-            if (_buildQualityReasons().length >= 2) ...[
-              _buildQualityReasonsInline(theme),
+            // 6. Fund Insights (from backend)
+            if (item.fundInsights.length >= 2) ...[
+              _buildFundInsightsCard(theme),
               const SizedBox(height: 8),
             ],
 
-            // 7. Tags
-            if (item.tags.isNotEmpty) ...[
-              _buildGroupedTags(theme, item.tags),
-              const SizedBox(height: 8),
-            ],
-
-            // 8. Fund Ranking
+            // 7. Fund Ranking
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
@@ -312,139 +305,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  // -- Grouped Tags --
-
-  Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
-    final grouped = groupTagsByCategory(tags);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Tags',
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 10),
-            ...grouped.entries.map((entry) {
-              final catLabel = categoryLabel(entry.key);
-              final catIcon = categoryIcon(entry.key);
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(catIcon, size: 14, color: Colors.white38),
-                        const SizedBox(width: 6),
-                        Text(
-                          catLabel,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white38,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 6,
-                      children: entry.value.map((tag) {
-                        final td = getTagV2Display(tag);
-                        return GestureDetector(
-                          onTap: tag.explanation != null
-                              ? () => _showTagExplanation(theme, tag)
-                              : null,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 5),
-                            decoration: BoxDecoration(
-                              color: td.color.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: td.color.withValues(alpha: 0.3)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(td.icon, size: 14, color: td.color),
-                                const SizedBox(width: 4),
-                                Text(
-                                  td.label,
-                                  style: theme.textTheme.labelSmall?.copyWith(
-                                    color: td.color,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                if (tag.explanation != null) ...[
-                                  const SizedBox(width: 4),
-                                  Icon(Icons.info_outline,
-                                      size: 12,
-                                      color: td.color.withValues(alpha: 0.6)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showTagExplanation(ThemeData theme, TagV2 tag) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: AppTheme.cardDark,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              tag.tag,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: severityColor(tag.severity),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              tag.explanation!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white70),
-            ),
-            if (tag.confidence != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Confidence: ${(tag.confidence! * 100).toStringAsFixed(0)}%',
-                style: theme.textTheme.labelSmall
-                    ?.copyWith(color: Colors.white38),
-              ),
-            ],
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
     );
   }
 
@@ -1346,64 +1206,24 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- What Makes This Fund Stand Out --
+  // -- Fund Insights (backend-driven, adaptive positive/negative) --
 
-  List<(IconData, Color, String)> _buildQualityReasons() {
-    final reasons = <(IconData, Color, String)>[];
+  Widget _buildFundInsightsCard(ThemeData theme) {
+    final insights = item.fundInsights;
+    final isWeak = item.score < 50;
 
-    if (item.returns3y != null &&
-        item.categoryAvgReturns3y != null &&
-        item.returns3y! > item.categoryAvgReturns3y!) {
-      reasons.add((
-        Icons.trending_up_rounded,
-        AppTheme.accentGreen,
-        'Outperforms category average over 3 years',
-      ));
+    final String title;
+    final IconData titleIcon;
+    final Color titleColor;
+    if (isWeak) {
+      title = 'Areas of Concern';
+      titleIcon = Icons.warning_amber_rounded;
+      titleColor = AppTheme.accentRed;
+    } else {
+      title = 'Why This Fund Stands Out';
+      titleIcon = Icons.auto_awesome_rounded;
+      titleColor = AppTheme.accentOrange;
     }
-
-    if (item.expenseRatio != null && item.expenseRatio! < 1.0) {
-      reasons.add((
-        Icons.savings_rounded,
-        AppTheme.accentTeal,
-        'Low cost with expense ratio under 1%',
-      ));
-    }
-
-    if (item.fundAgeYears != null && item.fundAgeYears! >= 5) {
-      reasons.add((
-        Icons.verified_rounded,
-        AppTheme.accentBlue,
-        'Established fund with ${item.fundAgeYears!.toStringAsFixed(1)} years of track record',
-      ));
-    }
-
-    if (item.subCategoryRank != null &&
-        item.subCategoryTotal != null &&
-        item.subCategoryTotal! > 0 &&
-        item.subCategoryRank! <= (item.subCategoryTotal! * 0.2).ceil()) {
-      final catName = item.subCategory ?? item.category ?? 'its category';
-      reasons.add((
-        Icons.emoji_events_rounded,
-        AppTheme.accentOrange,
-        'Ranked in top 20% of $catName',
-      ));
-    } else if (item.categoryRank != null &&
-        item.categoryTotal != null &&
-        item.categoryTotal! > 0 &&
-        item.categoryRank! <= (item.categoryTotal! * 0.2).ceil()) {
-      final catName = item.category ?? 'its category';
-      reasons.add((
-        Icons.emoji_events_rounded,
-        AppTheme.accentOrange,
-        'Ranked in top 20% of $catName',
-      ));
-    }
-
-    return reasons;
-  }
-
-  Widget _buildQualityReasonsInline(ThemeData theme) {
-    final reasons = _buildQualityReasons();
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1414,11 +1234,10 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    size: 18, color: AppTheme.accentOrange),
+                Icon(titleIcon, size: 18, color: titleColor),
                 const SizedBox(width: 8),
                 Text(
-                  'Why This Fund Stands Out',
+                  title,
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -1426,8 +1245,18 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               ],
             ),
             const SizedBox(height: 8),
-            ...reasons.map((r) {
-              final (icon, color, text) = r;
+            ...insights.map((insight) {
+              final color = insight.isPositive
+                  ? AppTheme.accentGreen
+                  : insight.isNegative
+                      ? AppTheme.accentRed
+                      : AppTheme.accentOrange;
+              final icon = insight.isPositive
+                  ? Icons.check_circle_rounded
+                  : insight.isNegative
+                      ? Icons.warning_amber_rounded
+                      : Icons.info_outline_rounded;
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Row(
@@ -1446,7 +1275,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       child: Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(
-                          text,
+                          insight.text,
                           style: theme.textTheme.bodySmall?.copyWith(
                             fontWeight: FontWeight.w600,
                             height: 1.4,
