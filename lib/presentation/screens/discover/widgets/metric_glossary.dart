@@ -49,6 +49,8 @@ const Map<String, String> metricExplanations = {
       'The compound annual growth rate of revenue over the last 3 years. This smooths out year-to-year fluctuations and shows the company\'s underlying revenue trajectory. Above 15% indicates strong top-line expansion.',
   'compounded_profit_growth_3y':
       'The compound annual growth rate of net profit over the last 3 years. Profit growing faster than revenue signals improving margins and efficiency. Negative profit CAGR despite positive revenue CAGR is a warning sign.',
+  'stock_price_cagr':
+      'The compound annual growth rate of the stock price. Compares actual investor returns across time horizons. A stock with strong fundamentals but low price CAGR may be undervalued; high price CAGR with weak fundamentals may be overvalued.',
   'total_cash':
       'Total cash and cash equivalents on the company\'s balance sheet. Companies with large cash reserves have a safety cushion for downturns and can fund growth without taking on debt. Compare with total debt for a complete picture.',
   'rolling_return_consistency':

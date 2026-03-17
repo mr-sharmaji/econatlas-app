@@ -1092,34 +1092,34 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 Text('Profitability',
                     style: theme.textTheme.titleSmall
                         ?.copyWith(fontWeight: FontWeight.w700)),
-                const SizedBox(height: 4),
+                const SizedBox(height: 2),
+
+                // ── Returns ──
+                _subHeader('Returns'),
                 _metricRow(context, item,
                     label: 'ROE',
-                    value: _pct(item.roe),
+                    value: _roeWithContext(item),
                     metricKey: 'roe'),
                 _metricRow(context, item,
                     label: 'ROCE',
                     value: _pct(item.roce),
                     metricKey: 'roce'),
+
+                // ── Margins ──
+                _subHeader('Margins'),
                 _metricRow(context, item,
                     label: 'Operating Margin',
-                    value: _marginPct(item.operatingMargins),
-                    metricKey: 'operating_margin'),
+                    value: _opmWithContext(item),
+                    metricKey: 'operating_margins'),
                 _metricRow(context, item,
                     label: 'Net Margin',
                     value: _marginPct(item.profitMargins),
-                    metricKey: 'profit_margin'),
-                _metricRow(context, item,
-                    label: 'Revenue Growth',
-                    value: _marginPct(item.revenueGrowth),
-                    valueColor: _changeColor(item.revenueGrowth),
-                    metricKey: 'revenue_growth'),
-                _metricRow(context, item,
-                    label: 'Earnings Growth',
-                    value: _marginPct(item.earningsGrowth),
-                    valueColor: _changeColor(item.earningsGrowth),
-                    metricKey: 'earnings_growth'),
+                    metricKey: 'profit_margins'),
+
+                // ── Growth ──
+                _subHeader('Growth'),
                 ..._buildCagrRows(context, item),
+                ..._buildPriceCagrRow(context, item),
                 // Revenue, Profit & OPM% combo chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
@@ -1129,20 +1129,23 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        InkWell(
+                        Builder(builder: (_) {
+                          final chartExplanation = _metricExplanation(item, 'revenue_profit_margins')
+                              ?? 'Blue bars show annual revenue (total sales), '
+                                 'green bars show net profit, and the orange line '
+                                 'tracks $marginLabel — the '
+                                 'percentage of revenue retained after direct '
+                                 'operating costs.\n\n'
+                                 'Rising bars with a rising margin line is the best '
+                                 'signal — it means the company is growing revenue '
+                                 'while becoming more efficient. Falling margin '
+                                 'despite rising revenue suggests margin pressure '
+                                 'from competition or rising costs.';
+                          return InkWell(
                           onTap: () => _showMetricExplanation(
                             context,
                             'Revenue, Profit & Margins',
-                            'Blue bars show annual revenue (total sales), '
-                            'green bars show net profit, and the orange line '
-                            'tracks $marginLabel — the '
-                            'percentage of revenue retained after direct '
-                            'operating costs.\n\n'
-                            'Rising bars with a rising margin line is the best '
-                            'signal — it means the company is growing revenue '
-                            'while becoming more efficient. Falling margin '
-                            'despite rising revenue suggests margin pressure '
-                            'from competition or rising costs.',
+                            chartExplanation,
                           ),
                           child: Container(
                             width: double.infinity,
@@ -1159,7 +1162,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                               ],
                             ),
                           ),
-                        ),
+                        );
+                        }),
                         const SizedBox(height: 8),
                         SizedBox(
                           height: 180,
@@ -1180,10 +1184,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ),
-        // ── Growth Ranges Table (10Y/5Y/3Y/TTM) ──
-        if (item.growthRanges != null && item.growthRanges!.isNotEmpty)
-          _buildGrowthRangesCard(context, item.growthRanges!, theme),
-
         const SizedBox(height: 8),
 
         // ── Balance Sheet ──
@@ -1850,31 +1850,28 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final grSales = gr?['compounded_sales_growth'] as Map<String, dynamic>?;
     final grProfit = gr?['compounded_profit_growth'] as Map<String, dynamic>?;
 
-    // Find oldest available period and whether TTM exists
-    // Returns (value, rangeLabel) e.g. (15.0, "TTM/10Y")
-    (double, String)? _bestRange(Map<String, dynamic>? data, double? fallback3y) {
+    // Returns (ttmValue?, oldestValue, periodLabel) e.g. (14.0, 11.0, "10Y")
+    (double?, double, String)? _bestRange(Map<String, dynamic>? data, double? fallback3y) {
       if (data == null && fallback3y == null) return null;
-      // Find oldest long-term period
-      String? oldestKey;
-      double? oldestVal;
+      final ttmVal = data?['ttm'] != null ? (data!['ttm'] as num).toDouble() : null;
       if (data != null) {
-        for (final p in ['10y', '5y', '3y']) {
-          final v = data[p];
-          if (v != null) {
-            oldestKey = p;
-            oldestVal = (v as num).toDouble();
-            break;
-          }
+        for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
+          final v = data[key];
+          if (v != null) return (ttmVal, (v as num).toDouble(), label);
         }
       }
-      oldestKey ??= '3y';
-      oldestVal ??= fallback3y;
-      if (oldestVal == null) return null;
+      if (fallback3y != null) return (ttmVal, fallback3y, '3Y');
+      return null;
+    }
 
-      final hasTtm = data?['ttm'] != null;
-      final periodLabel = oldestKey == '10y' ? '10Y' : oldestKey == '5y' ? '5Y' : '3Y';
-      final label = hasTtm ? 'TTM/$periodLabel' : periodLabel;
-      return (oldestVal, label);
+    // Format like ROE: "14% (10Y: 11%)" — TTM as main, oldest in parentheses
+    String _cagrValue((double?, double, String) r) {
+      final ttm = r.$1;
+      final oldest = r.$2;
+      if (ttm != null) {
+        return '${ttm.toStringAsFixed(0)}% (${r.$3}: ${oldest.toStringAsFixed(0)}%)';
+      }
+      return '${oldest.toStringAsFixed(0)}%';
     }
 
     final revCagr = _bestRange(grSales, item.compoundedSalesGrowth3y);
@@ -1883,20 +1880,98 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
     if (revCagr != null) {
       rows.add(_metricRow(context, item,
-          label: 'Revenue CAGR (${revCagr.$2})',
-          value: '${revCagr.$1.toStringAsFixed(0)}%',
-          valueColor: _changeColor(revCagr.$1 / 100),
+          label: 'Revenue CAGR',
+          value: _cagrValue(revCagr),
+          valueColor: _changeColor((revCagr.$1 ?? revCagr.$2) / 100),
           metricKey: 'compounded_sales_growth_3y'));
     }
     if (profCagr != null) {
       rows.add(_metricRow(context, item,
-          label: 'Profit CAGR (${profCagr.$2})',
-          value: '${profCagr.$1.toStringAsFixed(0)}%',
-          valueColor: _changeColor(profCagr.$1 / 100),
-          metricKey: 'compounded_profit_growth_3y',
-          isLast: item.plAnnual == null || item.plAnnual!.isEmpty));
+          label: 'Profit CAGR',
+          value: _cagrValue(profCagr),
+          valueColor: _changeColor((profCagr.$1 ?? profCagr.$2) / 100),
+          metricKey: 'compounded_profit_growth_3y'));
     }
     return rows;
+  }
+
+  /// ROE value with multi-period context from growth_ranges.
+  /// e.g. "35.7% (10Y avg: 30%)" or just "35.7%" if no history.
+  String _roeWithContext(DiscoverStockItem item) {
+    final base = _pct(item.roe);
+    if (base == '—') return base;
+    final grRoe = item.growthRanges?['return_on_equity'] as Map<String, dynamic>?;
+    if (grRoe == null || grRoe.isEmpty) return base;
+    // Pick longest-term average available
+    for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
+      final v = grRoe[key];
+      if (v != null) {
+        return '$base (${label}: ${(v as num).toInt()}%)';
+      }
+    }
+    return base;
+  }
+
+  /// Operating margin with historical context from P&L opm_pct array.
+  /// e.g. "27.0% (10Y: 12%)" — picks 10Y, 5Y, or 3Y ago value.
+  String _opmWithContext(DiscoverStockItem item) {
+    final base = _marginPct(item.operatingMargins);
+    if (base == '—') return base;
+    final pl = item.plAnnual;
+    if (pl == null) return base;
+    final opmPct = pl['opm_pct'] as List<dynamic>?;
+    final years = pl['years'] as List<dynamic>?;
+    if (opmPct == null || opmPct.isEmpty || years == null || years.isEmpty) return base;
+    final nYears = years.length;
+    // Pick 10Y, 5Y, or 3Y ago index (standard periods)
+    for (final (period, label) in [(10, '10Y'), (5, '5Y'), (3, '3Y')]) {
+      if (nYears >= period) {
+        final idx = nYears - period;
+        if (idx < opmPct.length && opmPct[idx] != null) {
+          return '$base ($label: ${(opmPct[idx] as num).toInt()}%)';
+        }
+      }
+    }
+    return base;
+  }
+
+  /// Build Price CAGR row from growth_ranges stock_price_cagr.
+  List<Widget> _buildPriceCagrRow(BuildContext context, DiscoverStockItem item) {
+    final grPrice = item.growthRanges?['stock_price_cagr'] as Map<String, dynamic>?;
+    if (grPrice == null || grPrice.isEmpty) return const [];
+
+    final v1y = grPrice['1y'] != null ? (grPrice['1y'] as num).toDouble() : null;
+
+    // Find oldest period (10Y > 5Y > 3Y)
+    double? oldestVal;
+    String? oldestLabel;
+    for (final (key, label) in [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y')]) {
+      final v = grPrice[key];
+      if (v != null) {
+        oldestVal = (v as num).toDouble();
+        oldestLabel = label;
+        break;
+      }
+    }
+
+    if (oldestVal == null && v1y == null) return const [];
+
+    // Format like ROE: "1Y value (10Y: oldest value)"
+    final String value;
+    if (v1y != null && oldestVal != null) {
+      value = '${v1y.toStringAsFixed(0)}% ($oldestLabel: ${oldestVal.toStringAsFixed(0)}%)';
+    } else if (v1y != null) {
+      value = '${v1y.toStringAsFixed(0)}%';
+    } else {
+      value = '${oldestVal!.toStringAsFixed(0)}%';
+    }
+    return [
+      _metricRow(context, item,
+          label: 'Price CAGR',
+          value: value,
+          valueColor: _changeColor((v1y ?? oldestVal)! / 100),
+          metricKey: 'stock_price_cagr'),
+    ];
   }
 
   /// Resolve explanation: prefer backend contextual insight, fall back to static glossary.
@@ -1924,6 +1999,19 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     }
   }
 
+  /// Sub-section header within a card (e.g. "Returns", "Margins", "Growth").
+  Widget _subHeader(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10, bottom: 2, left: 4),
+      child: Text(title,
+          style: const TextStyle(
+              color: Colors.white38,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.8)),
+    );
+  }
+
   Widget _metricRow(
     BuildContext context,
     DiscoverStockItem item, {
@@ -1941,7 +2029,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           ? () => _showMetricExplanation(context, label, explanation)
           : null,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        padding: const EdgeInsets.symmetric(vertical: 9, horizontal: 4),
         decoration: isLast
             ? null
             : BoxDecoration(
@@ -1957,9 +2045,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label,
-                      style:
-                          const TextStyle(color: Colors.white54, fontSize: 13)),
+                  Flexible(
+                    child: Text(label,
+                        style: const TextStyle(
+                            color: Colors.white54, fontSize: 13)),
+                  ),
                   if (explanation != null) ...[
                     const SizedBox(width: 4),
                     const Icon(Icons.info_outline,
@@ -2014,144 +2104,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
-  }
-
-  // ── Growth Ranges Table ────────────────────────────────────
-
-  Widget _buildGrowthRangesCard(
-      BuildContext context, Map<String, dynamic> gr, ThemeData theme) {
-    // Each section: key → (display label, period keys with display names)
-    // Sales/Profit use 'ttm'; Price CAGR/ROE use '1y' as last period.
-    const sections = <(String, String, List<(String, String)>)>[
-      ('compounded_sales_growth', 'Sales Growth', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('ttm', 'TTM')]),
-      ('compounded_profit_growth', 'Profit Growth', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('ttm', 'TTM')]),
-      ('stock_price_cagr', 'Stock Price CAGR', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('1y', '1Y')]),
-      ('return_on_equity', 'Return on Equity', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('1y', '1Y')]),
-    ];
-
-    // Collect available sections
-    final available = <(String, Map<String, double>)>[];
-    for (final (key, _, _) in sections) {
-      final data = gr[key];
-      if (data is Map<String, dynamic> && data.isNotEmpty) {
-        final mapped = <String, double>{};
-        for (final kv in data.entries) {
-          mapped[kv.key] = (kv.value as num).toDouble();
-        }
-        available.add((key, mapped));
-      }
-    }
-    if (available.isEmpty) return const SizedBox(height: 8);
-
-    // Determine which period columns actually have data across all sections
-    // Use a unified order: 10y, 5y, 3y, then ttm or 1y (whichever exists)
-    const periodOrder = ['10y', '5y', '3y', 'ttm', '1y'];
-    final usedPeriods = <String>[];
-    for (final p in periodOrder) {
-      if (available.any((e) => e.$2.containsKey(p))) {
-        usedPeriods.add(p);
-      }
-    }
-    if (usedPeriods.isEmpty) return const SizedBox(height: 8);
-
-    // Map period key → display label
-    String periodLabel(String key) {
-      switch (key) {
-        case '10y': return '10Y';
-        case '5y': return '5Y';
-        case '3y': return '3Y';
-        case 'ttm': return 'TTM';
-        case '1y': return '1Y';
-        default: return key.toUpperCase();
-      }
-    }
-
-    Color growthColor(double val) {
-      if (val > 15) return AppTheme.accentGreen;
-      if (val > 0) return AppTheme.accentGreen.withValues(alpha: 0.7);
-      if (val == 0) return Colors.white54;
-      if (val > -10) return AppTheme.accentRed.withValues(alpha: 0.7);
-      return AppTheme.accentRed;
-    }
-
-    // Lookup label for a section key
-    String sectionLabel(String key) {
-      for (final (k, l, _) in sections) {
-        if (k == key) return l;
-      }
-      return key;
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Growth & Returns',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              // Header row
-              Row(
-                children: [
-                  const Expanded(flex: 3, child: SizedBox()),
-                  ...usedPeriods.map((p) => Expanded(
-                        flex: 2,
-                        child: Text(
-                          periodLabel(p),
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white54,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )),
-                ],
-              ),
-              const Divider(height: 12, thickness: 0.3),
-              // Data rows
-              ...available.map((entry) {
-                final data = entry.$2;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          sectionLabel(entry.$1),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                      ...usedPeriods.map((p) {
-                        final val = data[p];
-                        return Expanded(
-                          flex: 2,
-                          child: Text(
-                            val != null ? '${val.toStringAsFixed(0)}%' : '—',
-                            textAlign: TextAlign.right,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: val != null ? growthColor(val) : Colors.white24,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                );
-              }),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   // ── Chart Data Helpers ──────────────────────────────────────
