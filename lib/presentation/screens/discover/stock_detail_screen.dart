@@ -1192,6 +1192,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
           ),
         ),
+        // ── Growth Ranges Table (10Y/5Y/3Y/TTM) ──
+        if (item.growthRanges != null && item.growthRanges!.isNotEmpty)
+          _buildGrowthRangesCard(context, item.growthRanges!, theme),
+
         const SizedBox(height: 8),
 
         // ── Balance Sheet ──
@@ -1966,6 +1970,133 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     if (v is num) return v.toDouble();
     if (v is String) return double.tryParse(v);
     return null;
+  }
+
+  // ── Growth Ranges Table ────────────────────────────────────
+
+  Widget _buildGrowthRangesCard(
+      BuildContext context, Map<String, dynamic> gr, ThemeData theme) {
+    // Each section: key in gr → display label
+    const sections = <String, String>{
+      'compounded_sales_growth': 'Sales Growth',
+      'compounded_profit_growth': 'Profit Growth',
+      'stock_price_cagr': 'Stock Price CAGR',
+      'return_on_equity': 'Return on Equity',
+    };
+
+    // Period columns in display order.
+    // Screener uses "ttm" for sales/profit growth, "1y" for price CAGR & ROE.
+    // We merge both into a single "TTM" column for cleaner display.
+    const periods = <String, String>{
+      '10y': '10Y',
+      '5y': '5Y',
+      '3y': '3Y',
+      'ttm': 'TTM',  // also covers '1y'
+    };
+
+    // Collect available sections, merging '1y' into 'ttm' key
+    final available = <String, Map<String, double>>{};
+    for (final entry in sections.entries) {
+      final data = gr[entry.key];
+      if (data is Map<String, dynamic> && data.isNotEmpty) {
+        final mapped = <String, double>{};
+        for (final kv in data.entries) {
+          final key = kv.key == '1y' ? 'ttm' : kv.key;
+          mapped[key] = (kv.value as num).toDouble();
+        }
+        available[entry.key] = mapped;
+      }
+    }
+    if (available.isEmpty) return const SizedBox(height: 8);
+
+    // Determine which period columns actually have data
+    final usedPeriods = <String>[];
+    for (final pKey in periods.keys) {
+      if (available.values.any((m) => m.containsKey(pKey))) {
+        usedPeriods.add(pKey);
+      }
+    }
+    if (usedPeriods.isEmpty) return const SizedBox(height: 8);
+
+    Color growthColor(double val) {
+      if (val > 15) return AppTheme.accentGreen;
+      if (val > 0) return AppTheme.accentGreen.withValues(alpha: 0.7);
+      if (val == 0) return Colors.white54;
+      if (val > -10) return AppTheme.accentRed.withValues(alpha: 0.7);
+      return AppTheme.accentRed;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Growth & Returns',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              // Header row
+              Row(
+                children: [
+                  const Expanded(flex: 3, child: SizedBox()),
+                  ...usedPeriods.map((p) => Expanded(
+                        flex: 2,
+                        child: Text(
+                          periods[p]!,
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )),
+                ],
+              ),
+              const Divider(height: 12, thickness: 0.3),
+              // Data rows
+              ...available.entries.map((entry) {
+                final label = sections[entry.key]!;
+                final data = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          label,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                      ...usedPeriods.map((p) {
+                        final val = data[p];
+                        return Expanded(
+                          flex: 2,
+                          child: Text(
+                            val != null ? '${val.toStringAsFixed(0)}%' : '—',
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: val != null ? growthColor(val) : Colors.white24,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   // ── Chart Data Helpers ──────────────────────────────────────

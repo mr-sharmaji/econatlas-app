@@ -387,6 +387,7 @@ class DiscoverStockItem {
   final Map<String, dynamic>? bsAnnual;
   final Map<String, dynamic>? cfAnnual;
   final Map<String, dynamic>? shareholdingQuarterly;
+  final Map<String, dynamic>? growthRanges;
 
   final DiscoverStockScoreBreakdown scoreBreakdown;
   final List<TagV2> tags;
@@ -491,6 +492,7 @@ class DiscoverStockItem {
     this.bsAnnual,
     this.cfAnnual,
     this.shareholdingQuarterly,
+    this.growthRanges,
     required this.scoreBreakdown,
     this.tags = const [],
     required this.whyRanked,
@@ -601,6 +603,7 @@ class DiscoverStockItem {
       bsAnnual: json['bs_annual'] as Map<String, dynamic>?,
       cfAnnual: json['cf_annual'] as Map<String, dynamic>?,
       shareholdingQuarterly: json['shareholding_quarterly'] as Map<String, dynamic>?,
+      growthRanges: json['growth_ranges'] as Map<String, dynamic>?,
       scoreBreakdown: DiscoverStockScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
