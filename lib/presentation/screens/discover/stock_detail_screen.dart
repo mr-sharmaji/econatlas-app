@@ -2002,7 +2002,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }) {
     final explanation = _metricExplanation(item, metricKey);
     // Use backend sentiment color if available, otherwise keep explicit valueColor
-    final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
+    var effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
+
+    // If sparkline shows a decline but value is positive → amber/warning
+    if (sparkline != null && sparkline.length >= 2 && sparkline.last < sparkline.first) {
+      if (effectiveColor == AppTheme.accentGreen) {
+        effectiveColor = AppTheme.accentOrange;
+      }
+    }
+
     return InkWell(
       onTap: explanation != null
           ? () => _showMetricExplanation(context, label, explanation)
