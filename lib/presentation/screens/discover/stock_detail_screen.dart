@@ -2003,7 +2003,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final explanation = _metricExplanation(item, metricKey);
     // Use backend sentiment color if available, otherwise keep explicit valueColor
     final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
-    final sparkColor = effectiveColor ?? Colors.white54;
     return InkWell(
       onTap: explanation != null
           ? () => _showMetricExplanation(context, label, explanation)
@@ -2041,9 +2040,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             if (sparkline != null && sparkline.length >= 2) ...[
               SparklineWidget(
                 values: sparkline,
-                color: sparkColor,
-                width: 40,
-                height: 20,
+                color: sparkline.last >= sparkline.first
+                    ? AppTheme.accentGreen
+                    : AppTheme.accentRed,
+                width: 44,
+                height: 18,
               ),
               const SizedBox(width: 8),
             ],

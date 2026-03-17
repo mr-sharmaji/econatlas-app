@@ -35,7 +35,7 @@ class SparklineWidget extends StatelessWidget {
               isCurved: true,
               curveSmoothness: 0.35,
               color: color,
-              barWidth: 1.5,
+              barWidth: 1.8,
               isStrokeCapRound: true,
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
