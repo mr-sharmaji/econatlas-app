@@ -90,14 +90,17 @@ class ComboChartWidget extends StatelessWidget {
     double barChartMin = 0.0;
     if (lineChartMin < 0) {
       if (lineChartMax > 0) {
-        // Proportional: e.g. line -20..+15 → bar -barMax..+barMax * 15/20?
-        // Cap so negative space doesn't dominate
         final ratio = math.min(lineChartMin.abs() / lineChartMax, 1.0);
         barChartMin = -barChartMax * ratio;
       } else {
-        // All negative margins — give equal space below
         barChartMin = -barChartMax;
       }
+    }
+    // Ensure enough space for negative profit bars
+    if (hasNegProfit) {
+      final lossRatio = math.min(bar2Min.abs() / math.max(barDataMax, 1), 1.0);
+      final minNeg = -barChartMax * math.max(lossRatio, 0.3);
+      barChartMin = math.min(barChartMin, minNeg);
     }
     // Cap: negative space ≤ positive space
     barChartMin = math.max(barChartMin, -barChartMax);
@@ -157,7 +160,7 @@ class ComboChartWidget extends StatelessWidget {
                 BarChartData(
                   minY: barChartMin,
                   maxY: barChartMax,
-                  barGroups: _buildBarGroups(barChartMax, bar2Min),
+                  barGroups: _buildBarGroups(barChartMax, barChartMin, bar2Min),
                   titlesData: FlTitlesData(
                     leftTitles: AxisTitles(
                       axisNameWidget: const Text('\u20B9 Cr',
@@ -172,15 +175,31 @@ class ComboChartWidget extends StatelessWidget {
                           if (value == meta.max || value == meta.min) {
                             return const SizedBox.shrink();
                           }
-                          // Hide left-axis labels below 0 (negative space
-                          // is for the line overlay, labelled on the right)
-                          if (value < 0) return const SizedBox.shrink();
                           String label;
-                          if (value.abs() >= 10000) {
-                            label =
-                                '${(value / 1000).toStringAsFixed(0)}K';
+                          if (value < 0) {
+                            if (!hasNegProfit || bar2Min >= 0) {
+                              return const SizedBox.shrink();
+                            }
+                            // Denormalize: chart position → actual ₹ Cr
+                            final actual = barChartMin != 0
+                                ? value * bar2Min / barChartMin
+                                : value;
+                            if (actual.abs() >= 10000) {
+                              label =
+                                  '-${(actual.abs() / 1000).round()}K';
+                            } else if (actual.abs() >= 1000) {
+                              label =
+                                  '-${(actual.abs() / 1000).toStringAsFixed(1)}K';
+                            } else {
+                              label = actual.round().toString();
+                            }
                           } else {
-                            label = value.toInt().toString();
+                            if (value.abs() >= 10000) {
+                              label =
+                                  '${(value / 1000).toStringAsFixed(0)}K';
+                            } else {
+                              label = value.toInt().toString();
+                            }
                           }
                           return Padding(
                             padding: const EdgeInsets.only(right: 4),
@@ -400,20 +419,20 @@ class ComboChartWidget extends StatelessWidget {
     return spots;
   }
 
-  List<BarChartGroupData> _buildBarGroups(double barChartMax, double bar2Min) {
-    // Negative bars are normalized proportionally within 20% of chart height.
-    // The most negative value maps to the full cap; others scale relative to it.
-    final negCap = -barChartMax * 0.2;
+  List<BarChartGroupData> _buildBarGroups(
+      double barChartMax, double barChartMin, double bar2Min) {
+    // Negative bars fill the available negative space proportionally.
+    // The most negative value maps to barChartMin; others scale relative to it.
     return List.generate(entries.length, (i) {
       final e = entries[i];
       final v1 = e.bar1 ?? 0;
       final v2 = e.bar2 ?? 0;
-      // Normalize: (v / mostNegative) * cap → preserves relative magnitude
+      // Normalize: (v / mostNegative) * barChartMin → preserves relative magnitude
       final c1 = v1 < 0 && bar2Min < 0
-          ? negCap * (v1 / bar2Min)
+          ? barChartMin * (v1 / bar2Min)
           : v1;
       final c2 = v2 < 0 && bar2Min < 0
-          ? negCap * (v2 / bar2Min)
+          ? barChartMin * (v2 / bar2Min)
           : v2;
       return BarChartGroupData(
         x: i,
