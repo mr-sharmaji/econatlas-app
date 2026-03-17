@@ -1119,19 +1119,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     value: _marginPct(item.earningsGrowth),
                     valueColor: _changeColor(item.earningsGrowth),
                     metricKey: 'earnings_growth'),
-                if (item.compoundedSalesGrowth3y != null)
-                  _metricRow(context, item,
-                      label: 'Revenue CAGR (3Y)',
-                      value: '${item.compoundedSalesGrowth3y!.toStringAsFixed(0)}%',
-                      valueColor: _changeColor(item.compoundedSalesGrowth3y! / 100),
-                      metricKey: 'compounded_sales_growth_3y'),
-                if (item.compoundedProfitGrowth3y != null)
-                  _metricRow(context, item,
-                      label: 'Profit CAGR (3Y)',
-                      value: '${item.compoundedProfitGrowth3y!.toStringAsFixed(0)}%',
-                      valueColor: _changeColor(item.compoundedProfitGrowth3y! / 100),
-                      metricKey: 'compounded_profit_growth_3y',
-                      isLast: item.plAnnual == null || item.plAnnual!.isEmpty),
+                ..._buildCagrRows(context, item),
                 // Revenue, Profit & OPM% combo chart
                 if (item.plAnnual != null && item.plAnnual!.isNotEmpty)
                   Builder(builder: (_) {
@@ -1855,6 +1843,47 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
+  /// Build Revenue CAGR and Profit CAGR rows using the oldest available period.
+  /// Prefers 10Y > 5Y > 3Y from growth_ranges, falling back to the flat 3Y fields.
+  List<Widget> _buildCagrRows(BuildContext context, DiscoverStockItem item) {
+    final gr = item.growthRanges;
+    final grSales = gr?['compounded_sales_growth'] as Map<String, dynamic>?;
+    final grProfit = gr?['compounded_profit_growth'] as Map<String, dynamic>?;
+
+    // Pick oldest available period
+    (double, String)? _oldest(Map<String, dynamic>? data, double? fallback3y) {
+      if (data != null) {
+        for (final p in ['10y', '5y', '3y']) {
+          final v = data[p];
+          if (v != null) return ((v as num).toDouble(), p == '10y' ? '10Y' : p == '5y' ? '5Y' : '3Y');
+        }
+      }
+      if (fallback3y != null) return (fallback3y, '3Y');
+      return null;
+    }
+
+    final revCagr = _oldest(grSales, item.compoundedSalesGrowth3y);
+    final profCagr = _oldest(grProfit, item.compoundedProfitGrowth3y);
+    final rows = <Widget>[];
+
+    if (revCagr != null) {
+      rows.add(_metricRow(context, item,
+          label: 'Revenue CAGR (${revCagr.$2})',
+          value: '${revCagr.$1.toStringAsFixed(0)}%',
+          valueColor: _changeColor(revCagr.$1 / 100),
+          metricKey: 'compounded_sales_growth_3y'));
+    }
+    if (profCagr != null) {
+      rows.add(_metricRow(context, item,
+          label: 'Profit CAGR (${profCagr.$2})',
+          value: '${profCagr.$1.toStringAsFixed(0)}%',
+          valueColor: _changeColor(profCagr.$1 / 100),
+          metricKey: 'compounded_profit_growth_3y',
+          isLast: item.plAnnual == null || item.plAnnual!.isEmpty));
+    }
+    return rows;
+  }
+
   /// Resolve explanation: prefer backend contextual insight, fall back to static glossary.
   String? _metricExplanation(DiscoverStockItem item, String? metricKey) {
     if (metricKey == null) return null;
@@ -1976,49 +2005,67 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   Widget _buildGrowthRangesCard(
       BuildContext context, Map<String, dynamic> gr, ThemeData theme) {
-    // Metric definitions: key → (display label, period keys in order)
+    // Each section: key → (display label, period keys with display names)
     // Sales/Profit use 'ttm'; Price CAGR/ROE use '1y' as last period.
-    const metricDefs = <(String, String, List<String>)>[
-      ('compounded_sales_growth', 'Sales\nGrowth', ['10y', '5y', '3y', 'ttm']),
-      ('compounded_profit_growth', 'Profit\nGrowth', ['10y', '5y', '3y', 'ttm']),
-      ('stock_price_cagr', 'Price\nCAGR', ['10y', '5y', '3y', '1y']),
-      ('return_on_equity', 'ROE', ['10y', '5y', '3y', '1y']),
+    const sections = <(String, String, List<(String, String)>)>[
+      ('compounded_sales_growth', 'Sales Growth', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('ttm', 'TTM')]),
+      ('compounded_profit_growth', 'Profit Growth', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('ttm', 'TTM')]),
+      ('stock_price_cagr', 'Stock Price CAGR', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('1y', '1Y')]),
+      ('return_on_equity', 'Return on Equity', [('10y', '10Y'), ('5y', '5Y'), ('3y', '3Y'), ('1y', '1Y')]),
     ];
 
-    // Period bar colors
-    const periodColors = <Color>[
-      AppTheme.accentBlue,   // 10Y
-      AppTheme.accentTeal,   // 5Y
-      AppTheme.accentGreen,  // 3Y
-      AppTheme.accentOrange, // TTM / 1Y
-    ];
-
-    // Build BarGroups from available data
-    final barGroups = <BarGroup>[];
-    for (final (key, label, periodKeys) in metricDefs) {
+    // Collect available sections
+    final available = <(String, Map<String, double>)>[];
+    for (final (key, _, _) in sections) {
       final data = gr[key];
-      if (data is! Map<String, dynamic> || data.isEmpty) continue;
-
-      final values = <double>[];
-      final colors = <Color>[];
-      bool hasAny = false;
-      for (var i = 0; i < periodKeys.length; i++) {
-        final raw = data[periodKeys[i]];
-        if (raw != null) {
-          values.add((raw as num).toDouble());
-          colors.add(periodColors[i]);
-          hasAny = true;
-        } else {
-          values.add(0);
-          colors.add(Colors.transparent);
+      if (data is Map<String, dynamic> && data.isNotEmpty) {
+        final mapped = <String, double>{};
+        for (final kv in data.entries) {
+          mapped[kv.key] = (kv.value as num).toDouble();
         }
+        available.add((key, mapped));
       }
-      if (hasAny) {
-        barGroups.add(BarGroup(label: label, values: values, colors: colors));
+    }
+    if (available.isEmpty) return const SizedBox(height: 8);
+
+    // Determine which period columns actually have data across all sections
+    // Use a unified order: 10y, 5y, 3y, then ttm or 1y (whichever exists)
+    const periodOrder = ['10y', '5y', '3y', 'ttm', '1y'];
+    final usedPeriods = <String>[];
+    for (final p in periodOrder) {
+      if (available.any((e) => e.$2.containsKey(p))) {
+        usedPeriods.add(p);
+      }
+    }
+    if (usedPeriods.isEmpty) return const SizedBox(height: 8);
+
+    // Map period key → display label
+    String periodLabel(String key) {
+      switch (key) {
+        case '10y': return '10Y';
+        case '5y': return '5Y';
+        case '3y': return '3Y';
+        case 'ttm': return 'TTM';
+        case '1y': return '1Y';
+        default: return key.toUpperCase();
       }
     }
 
-    if (barGroups.isEmpty) return const SizedBox(height: 8);
+    Color growthColor(double val) {
+      if (val > 15) return AppTheme.accentGreen;
+      if (val > 0) return AppTheme.accentGreen.withValues(alpha: 0.7);
+      if (val == 0) return Colors.white54;
+      if (val > -10) return AppTheme.accentRed.withValues(alpha: 0.7);
+      return AppTheme.accentRed;
+    }
+
+    // Lookup label for a section key
+    String sectionLabel(String key) {
+      for (final (k, l, _) in sections) {
+        if (k == key) return l;
+      }
+      return key;
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -2032,16 +2079,59 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               Text('Growth & Returns',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 4),
-              SizedBox(
-                height: 220,
-                child: GroupedBarChartWidget(
-                  groups: barGroups,
-                  barColors: periodColors,
-                  legendLabels: const ['10Y', '5Y', '3Y', 'TTM / 1Y'],
-                  yAxisLabel: '%',
-                ),
+              const SizedBox(height: 8),
+              // Header row
+              Row(
+                children: [
+                  const Expanded(flex: 3, child: SizedBox()),
+                  ...usedPeriods.map((p) => Expanded(
+                        flex: 2,
+                        child: Text(
+                          periodLabel(p),
+                          textAlign: TextAlign.right,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white54,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )),
+                ],
               ),
+              const Divider(height: 12, thickness: 0.3),
+              // Data rows
+              ...available.map((entry) {
+                final data = entry.$2;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          sectionLabel(entry.$1),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ),
+                      ...usedPeriods.map((p) {
+                        final val = data[p];
+                        return Expanded(
+                          flex: 2,
+                          child: Text(
+                            val != null ? '${val.toStringAsFixed(0)}%' : '—',
+                            textAlign: TextAlign.right,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: val != null ? growthColor(val) : Colors.white24,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),
