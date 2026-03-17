@@ -155,11 +155,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Verdict Banner (C1)
-            _buildVerdictBanner(theme),
-            const SizedBox(height: 8),
+            // 1. Quality Badges
+            if (item.qualityBadges.isNotEmpty) ...[
+              _buildQualityBadges(theme),
+              const SizedBox(height: 8),
+            ],
 
-            // 2. Header (C2)
+            // 2. Header
             _buildHeader(theme),
             const SizedBox(height: 8),
 
@@ -231,13 +233,19 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildScoreCard(theme),
             const SizedBox(height: 8),
 
-            // 6. Tags
+            // 6. Why This Fund Stands Out
+            if (_buildQualityReasons().length >= 2) ...[
+              _buildQualityReasonsInline(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 7. Tags
             if (item.tags.isNotEmpty) ...[
               _buildGroupedTags(theme, item.tags),
               const SizedBox(height: 8),
             ],
 
-            // 7. Fund Ranking (C5)
+            // 8. Fund Ranking
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
@@ -273,148 +281,37 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Verdict Banner (C1) --
+  // -- Quality Badges --
 
-  Widget _buildVerdictBanner(ThemeData theme) {
-    final score = item.score;
-    final String tierLabel;
-    final Color tierColor;
-    final IconData tierIcon;
-
-    if (score >= 80) {
-      tierLabel = 'Top Pick';
-      tierColor = AppTheme.accentGreen;
-      tierIcon = Icons.rocket_launch_rounded;
-    } else if (score >= 65) {
-      tierLabel = 'Strong Fund';
-      tierColor = AppTheme.accentTeal;
-      tierIcon = Icons.trending_up_rounded;
-    } else if (score >= 50) {
-      tierLabel = 'Above Average';
-      tierColor = AppTheme.accentBlue;
-      tierIcon = Icons.check_circle_rounded;
-    } else if (score >= 35) {
-      tierLabel = 'Average';
-      tierColor = AppTheme.accentOrange;
-      tierIcon = Icons.pause_circle_rounded;
-    } else {
-      tierLabel = 'Below Average';
-      tierColor = AppTheme.accentRed;
-      tierIcon = Icons.trending_down_rounded;
-    }
-
-    final qualityReasons = _buildQualityReasons();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: tierColor.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: tierColor.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+  Widget _buildQualityBadges(ThemeData theme) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: item.qualityBadges.map((badge) {
+        final color = _badgeColor(badge);
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(tierIcon, size: 18, color: tierColor),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  tierLabel,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: tierColor,
-                  ),
+              Icon(_badgeIcon(badge), size: 14, color: color),
+              const SizedBox(width: 5),
+              Text(
+                badge,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
-          if (item.qualityBadges.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: item.qualityBadges.map((badge) {
-                final color = _badgeColor(badge);
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: color.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_badgeIcon(badge), size: 12, color: color),
-                      const SizedBox(width: 4),
-                      Text(
-                        badge,
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: color,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ],
-          if (item.whyRanked.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            ...item.whyRanked.map((reason) => Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6),
-                        child: Icon(Icons.circle,
-                            size: 5, color: Colors.white38),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          reason,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white70),
-                        ),
-                      ),
-                    ],
-                  ),
-                )),
-          ],
-          if (qualityReasons.length >= 2) ...[
-            const SizedBox(height: 10),
-            ...qualityReasons.map((r) {
-              final (icon, color, text) = r;
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Icon(icon, size: 14, color: color),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        text,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white70,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            }),
-          ],
-        ],
-      ),
+        );
+      }).toList(),
     );
   }
 
@@ -422,7 +319,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
   Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
     final grouped = groupTagsByCategory(tags);
-    final isExpert = ref.read(expertModeProvider);
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -462,8 +358,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
-                      children: (isExpert ? entry.value : entry.value.take(3))
-                          .map((tag) {
+                      children: entry.value.map((tag) {
                         final td = getTagV2Display(tag);
                         return GestureDetector(
                           onTap: tag.explanation != null
@@ -728,9 +623,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
             // Radar chart
             if (hasRadarData) ...[
-              SizedBox(
-                height: 180,
-                child: RadarChartWidget(
+              Center(
+                child: SizedBox(
+                  height: 180,
+                  width: 180,
+                  child: RadarChartWidget(
                   dimensions: [
                     RadarDimension(
                       label: 'Returns vs Peers',
@@ -760,6 +657,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       ),
                   ],
                   fillColor: AppTheme.accentBlue,
+                ),
                 ),
               ),
               const SizedBox(height: 8),
@@ -1095,6 +993,10 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   double? _getReturnValue(double? xirrValue, int days, double years) {
     if (_returnMode == _ReturnMode.xirr) return xirrValue;
 
+    // If XIRR is null for this period, the fund doesn't have enough history
+    // — don't show a CAGR value either
+    if (xirrValue == null) return null;
+
     // CAGR mode: compute from chart history
     // If the currently selected period matches, use cached chart data
     if (_selectedDays == days && _chartPrices.length >= 2) {
@@ -1323,7 +1225,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ),
               ],
             ] else ...[
-              // Non-expert mode: show only Sharpe and Max Drawdown
+              // Non-expert mode: Sharpe, Max Drawdown, Alpha, Beta
               Row(
                 children: [
                   Expanded(
@@ -1343,6 +1245,30 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                           : '\u2014',
                       valueColor: _maxDrawdownColor(item.maxDrawdown),
                       tooltip: metricExplanations['max_drawdown'],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: StatCard(
+                      label: 'Alpha',
+                      value: item.alpha != null
+                          ? '${item.alpha!.toStringAsFixed(1)}%'
+                          : '\u2014',
+                      valueColor: _alphaColor(item.alpha),
+                      tooltip: metricExplanations['alpha'],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Beta',
+                      value: item.beta?.toStringAsFixed(2) ?? '\u2014',
+                      valueColor: _betaColor(item.beta),
+                      tooltip: metricExplanations['beta'],
                     ),
                   ),
                 ],
@@ -1476,7 +1402,69 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return reasons;
   }
 
-  // -- Holdings / Portfolio Section (C6) --
+  Widget _buildQualityReasonsInline(ThemeData theme) {
+    final reasons = _buildQualityReasons();
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome_rounded,
+                    size: 18, color: AppTheme.accentOrange),
+                const SizedBox(width: 8),
+                Text(
+                  'Why This Fund Stands Out',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ...reasons.map((r) {
+              final (icon, color, text) = r;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(icon, size: 18, color: color),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          text,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Holdings / Portfolio Section --
 
   Widget _buildHoldingsSection(ThemeData theme) {
     return Card(
