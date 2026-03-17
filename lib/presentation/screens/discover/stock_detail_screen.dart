@@ -1844,26 +1844,41 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }
 
   /// Build Revenue CAGR and Profit CAGR rows using the oldest available period.
-  /// Prefers 10Y > 5Y > 3Y from growth_ranges, falling back to the flat 3Y fields.
+  /// Shows value from the oldest period and labels as "TTM/10Y", "TTM/5Y", etc.
   List<Widget> _buildCagrRows(BuildContext context, DiscoverStockItem item) {
     final gr = item.growthRanges;
     final grSales = gr?['compounded_sales_growth'] as Map<String, dynamic>?;
     final grProfit = gr?['compounded_profit_growth'] as Map<String, dynamic>?;
 
-    // Pick oldest available period
-    (double, String)? _oldest(Map<String, dynamic>? data, double? fallback3y) {
+    // Find oldest available period and whether TTM exists
+    // Returns (value, rangeLabel) e.g. (15.0, "TTM/10Y")
+    (double, String)? _bestRange(Map<String, dynamic>? data, double? fallback3y) {
+      if (data == null && fallback3y == null) return null;
+      // Find oldest long-term period
+      String? oldestKey;
+      double? oldestVal;
       if (data != null) {
         for (final p in ['10y', '5y', '3y']) {
           final v = data[p];
-          if (v != null) return ((v as num).toDouble(), p == '10y' ? '10Y' : p == '5y' ? '5Y' : '3Y');
+          if (v != null) {
+            oldestKey = p;
+            oldestVal = (v as num).toDouble();
+            break;
+          }
         }
       }
-      if (fallback3y != null) return (fallback3y, '3Y');
-      return null;
+      oldestKey ??= '3y';
+      oldestVal ??= fallback3y;
+      if (oldestVal == null) return null;
+
+      final hasTtm = data?['ttm'] != null;
+      final periodLabel = oldestKey == '10y' ? '10Y' : oldestKey == '5y' ? '5Y' : '3Y';
+      final label = hasTtm ? 'TTM/$periodLabel' : periodLabel;
+      return (oldestVal, label);
     }
 
-    final revCagr = _oldest(grSales, item.compoundedSalesGrowth3y);
-    final profCagr = _oldest(grProfit, item.compoundedProfitGrowth3y);
+    final revCagr = _bestRange(grSales, item.compoundedSalesGrowth3y);
+    final profCagr = _bestRange(grProfit, item.compoundedProfitGrowth3y);
     final rows = <Widget>[];
 
     if (revCagr != null) {
