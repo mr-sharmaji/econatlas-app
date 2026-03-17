@@ -2040,9 +2040,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             if (sparkline != null && sparkline.length >= 2) ...[
               SparklineWidget(
                 values: sparkline,
-                color: sparkline.last >= sparkline.first
-                    ? AppTheme.accentGreen
-                    : AppTheme.accentRed,
+                color: effectiveColor ?? Colors.white54,
                 width: 44,
                 height: 18,
               ),
