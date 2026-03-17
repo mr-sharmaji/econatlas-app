@@ -33,6 +33,13 @@ class GroupedBarChartWidget extends StatelessWidget {
     this.smartMinY = false,
   });
 
+  /// Bottom axis height: taller when labels contain newlines.
+  double get _bottomReservedSize {
+    final maxLines = groups.fold<int>(
+        1, (prev, g) => math.max(prev, '\n'.allMatches(g.label).length + 1));
+    return maxLines > 1 ? 36 : 24;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (groups.isEmpty) return const SizedBox.shrink();
@@ -159,7 +166,7 @@ class GroupedBarChartWidget extends StatelessWidget {
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
-                reservedSize: 24,
+                reservedSize: _bottomReservedSize,
                 getTitlesWidget: (value, meta) {
                   final idx = value.toInt();
                   if (idx < 0 || idx >= groups.length) {
@@ -169,11 +176,11 @@ class GroupedBarChartWidget extends StatelessWidget {
                     axisSide: meta.axisSide,
                     child: Text(
                       groups[idx].label,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
                         color: Colors.white60,
                         fontSize: 10,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
                   );
                 },

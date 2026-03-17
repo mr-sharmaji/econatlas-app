@@ -1976,55 +1976,49 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   Widget _buildGrowthRangesCard(
       BuildContext context, Map<String, dynamic> gr, ThemeData theme) {
-    // Each section: key in gr → display label
-    const sections = <String, String>{
-      'compounded_sales_growth': 'Sales Growth',
-      'compounded_profit_growth': 'Profit Growth',
-      'stock_price_cagr': 'Stock Price CAGR',
-      'return_on_equity': 'Return on Equity',
-    };
+    // Metric definitions: key → (display label, period keys in order)
+    // Sales/Profit use 'ttm'; Price CAGR/ROE use '1y' as last period.
+    const metricDefs = <(String, String, List<String>)>[
+      ('compounded_sales_growth', 'Sales\nGrowth', ['10y', '5y', '3y', 'ttm']),
+      ('compounded_profit_growth', 'Profit\nGrowth', ['10y', '5y', '3y', 'ttm']),
+      ('stock_price_cagr', 'Price\nCAGR', ['10y', '5y', '3y', '1y']),
+      ('return_on_equity', 'ROE', ['10y', '5y', '3y', '1y']),
+    ];
 
-    // Period columns in display order.
-    // Screener uses "ttm" for sales/profit growth, "1y" for price CAGR & ROE.
-    // We merge both into a single "TTM" column for cleaner display.
-    const periods = <String, String>{
-      '10y': '10Y',
-      '5y': '5Y',
-      '3y': '3Y',
-      'ttm': 'TTM',  // also covers '1y'
-    };
+    // Period bar colors
+    const periodColors = <Color>[
+      AppTheme.accentBlue,   // 10Y
+      AppTheme.accentTeal,   // 5Y
+      AppTheme.accentGreen,  // 3Y
+      AppTheme.accentOrange, // TTM / 1Y
+    ];
 
-    // Collect available sections, merging '1y' into 'ttm' key
-    final available = <String, Map<String, double>>{};
-    for (final entry in sections.entries) {
-      final data = gr[entry.key];
-      if (data is Map<String, dynamic> && data.isNotEmpty) {
-        final mapped = <String, double>{};
-        for (final kv in data.entries) {
-          final key = kv.key == '1y' ? 'ttm' : kv.key;
-          mapped[key] = (kv.value as num).toDouble();
+    // Build BarGroups from available data
+    final barGroups = <BarGroup>[];
+    for (final (key, label, periodKeys) in metricDefs) {
+      final data = gr[key];
+      if (data is! Map<String, dynamic> || data.isEmpty) continue;
+
+      final values = <double>[];
+      final colors = <Color>[];
+      bool hasAny = false;
+      for (var i = 0; i < periodKeys.length; i++) {
+        final raw = data[periodKeys[i]];
+        if (raw != null) {
+          values.add((raw as num).toDouble());
+          colors.add(periodColors[i]);
+          hasAny = true;
+        } else {
+          values.add(0);
+          colors.add(Colors.transparent);
         }
-        available[entry.key] = mapped;
+      }
+      if (hasAny) {
+        barGroups.add(BarGroup(label: label, values: values, colors: colors));
       }
     }
-    if (available.isEmpty) return const SizedBox(height: 8);
 
-    // Determine which period columns actually have data
-    final usedPeriods = <String>[];
-    for (final pKey in periods.keys) {
-      if (available.values.any((m) => m.containsKey(pKey))) {
-        usedPeriods.add(pKey);
-      }
-    }
-    if (usedPeriods.isEmpty) return const SizedBox(height: 8);
-
-    Color growthColor(double val) {
-      if (val > 15) return AppTheme.accentGreen;
-      if (val > 0) return AppTheme.accentGreen.withValues(alpha: 0.7);
-      if (val == 0) return Colors.white54;
-      if (val > -10) return AppTheme.accentRed.withValues(alpha: 0.7);
-      return AppTheme.accentRed;
-    }
+    if (barGroups.isEmpty) return const SizedBox(height: 8);
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -2038,60 +2032,16 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               Text('Growth & Returns',
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              // Header row
-              Row(
-                children: [
-                  const Expanded(flex: 3, child: SizedBox()),
-                  ...usedPeriods.map((p) => Expanded(
-                        flex: 2,
-                        child: Text(
-                          periods[p]!,
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white54,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      )),
-                ],
+              const SizedBox(height: 4),
+              SizedBox(
+                height: 220,
+                child: GroupedBarChartWidget(
+                  groups: barGroups,
+                  barColors: periodColors,
+                  legendLabels: const ['10Y', '5Y', '3Y', 'TTM / 1Y'],
+                  yAxisLabel: '%',
+                ),
               ),
-              const Divider(height: 12, thickness: 0.3),
-              // Data rows
-              ...available.entries.map((entry) {
-                final label = sections[entry.key]!;
-                final data = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          label,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white70,
-                          ),
-                        ),
-                      ),
-                      ...usedPeriods.map((p) {
-                        final val = data[p];
-                        return Expanded(
-                          flex: 2,
-                          child: Text(
-                            val != null ? '${val.toStringAsFixed(0)}%' : '—',
-                            textAlign: TextAlign.right,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: val != null ? growthColor(val) : Colors.white24,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                );
-              }),
             ],
           ),
         ),
