@@ -155,10 +155,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return value.toStringAsFixed(decimals);
   }
 
-  static Color _changeColor(double? value) {
-    if (value == null) return Colors.white38;
-    return value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-  }
+
 
   // ── Build ─────────────────────────────────────────────────────
 
@@ -1874,7 +1871,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       rows.add(_metricRow(context, item,
           label: 'Revenue CAGR',
           value: '${revVal.toStringAsFixed(0)}%',
-          valueColor: _changeColor(revVal / 100),
           metricKey: 'compounded_sales_growth_3y',
           sparkline: _growthSparkline(grSales)));
     }
@@ -1882,7 +1878,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       rows.add(_metricRow(context, item,
           label: 'Profit CAGR',
           value: '${profVal.toStringAsFixed(0)}%',
-          valueColor: _changeColor(profVal / 100),
           metricKey: 'compounded_profit_growth_3y',
           sparkline: _growthSparkline(grProfit)));
     }
@@ -1946,7 +1941,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       _metricRow(context, item,
           label: 'Price CAGR',
           value: '${displayVal.toStringAsFixed(0)}%',
-          valueColor: _changeColor(displayVal / 100),
           metricKey: 'stock_price_cagr',
           sparkline: _growthSparkline(grPrice)),
     ];
@@ -2002,14 +1996,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }) {
     final explanation = _metricExplanation(item, metricKey);
     // Use backend sentiment color if available, otherwise keep explicit valueColor
-    var effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
-
-    // If sparkline shows a decline but value is positive → amber/warning
-    if (sparkline != null && sparkline.length >= 2 && sparkline.last < sparkline.first) {
-      if (effectiveColor == AppTheme.accentGreen) {
-        effectiveColor = AppTheme.accentOrange;
-      }
-    }
+    final effectiveColor = valueColor ?? _sentimentColor(item, metricKey);
 
     return InkWell(
       onTap: explanation != null
