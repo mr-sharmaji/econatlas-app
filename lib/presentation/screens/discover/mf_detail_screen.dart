@@ -622,7 +622,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 theme,
                 rank: item.subCategoryRank!,
                 total: item.subCategoryTotal!,
-                label: item.subCategory ?? item.category ?? 'Sub-Category',
+                label: item.fundClassification ?? item.subCategory ?? item.category ?? 'Sub-Category',
               ),
 
             // Category rank (broader: e.g. Equity, Debt)
@@ -1210,20 +1210,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
   Widget _buildFundInsightsCard(ThemeData theme) {
     final insights = item.fundInsights;
-    final isWeak = item.score < 50;
-
-    final String title;
-    final IconData titleIcon;
-    final Color titleColor;
-    if (isWeak) {
-      title = 'Areas of Concern';
-      titleIcon = Icons.warning_amber_rounded;
-      titleColor = AppTheme.accentRed;
-    } else {
-      title = 'Why This Fund Stands Out';
-      titleIcon = Icons.auto_awesome_rounded;
-      titleColor = AppTheme.accentOrange;
-    }
 
     return Card(
       margin: EdgeInsets.zero,
@@ -1234,10 +1220,10 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Row(
               children: [
-                Icon(titleIcon, size: 18, color: titleColor),
+                const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppTheme.accentOrange),
                 const SizedBox(width: 8),
                 Text(
-                  title,
+                  'Key Insights',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
