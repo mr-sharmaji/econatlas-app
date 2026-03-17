@@ -872,14 +872,14 @@ class _StockCard extends StatelessWidget {
                   ),
               ],
             ),
-            // Row 2: display name
+            // Row 2: display name (strip common suffixes for space)
             Text(
-              item.displayName,
+              _shortName(item.displayName),
               style: theme.textTheme.labelSmall?.copyWith(
                 color: Colors.white54,
                 fontSize: 10,
               ),
-              maxLines: 1,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
@@ -936,6 +936,13 @@ class _StockCard extends StatelessWidget {
       ),
     );
   }
+
+  static final _suffixPattern = RegExp(
+    r'\s+(Limited|Ltd\.?|Co\.?\s*Ltd\.?|Corporation|Corp\.?|Inc\.?|Incorporated|PLC|N\.?V\.?|S\.?A\.?|Industries|Enterprises)$',
+    caseSensitive: false,
+  );
+
+  static String _shortName(String name) => name.replaceAll(_suffixPattern, '');
 
   static Color _actionTagColor(String tag) {
     final lower = tag.toLowerCase();
