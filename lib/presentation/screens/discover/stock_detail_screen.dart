@@ -155,8 +155,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return value.toStringAsFixed(decimals);
   }
 
-
-
   // ── Build ─────────────────────────────────────────────────────
 
   @override
@@ -355,10 +353,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         min: item.low52w!,
                         max: item.high52w!,
                         current: item.lastPrice,
-                        minLabel:
-                            '\u20B9${Formatters.price(item.low52w!)}',
-                        maxLabel:
-                            '\u20B9${Formatters.price(item.high52w!)}',
+                        minLabel: '\u20B9${Formatters.price(item.low52w!)}',
+                        maxLabel: '\u20B9${Formatters.price(item.high52w!)}',
                       ),
                       Builder(builder: (context) {
                         final range = item.high52w! - item.low52w!;
@@ -367,12 +363,20 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         if (pct >= 0.95) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('Near 52W High', style: TextStyle(color: AppTheme.accentGreen, fontSize: 11, fontWeight: FontWeight.w600)),
+                            child: Text('Near 52W High',
+                                style: TextStyle(
+                                    color: AppTheme.accentGreen,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600)),
                           );
                         } else if (pct <= 0.05) {
                           return Padding(
                             padding: const EdgeInsets.only(top: 4),
-                            child: Text('Near 52W Low', style: TextStyle(color: AppTheme.accentRed, fontSize: 11, fontWeight: FontWeight.w600)),
+                            child: Text('Near 52W Low',
+                                style: TextStyle(
+                                    color: AppTheme.accentRed,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600)),
                           );
                         }
                         return const SizedBox.shrink();
@@ -587,8 +591,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 // Data quality badge
                 if (item.scoreBreakdown.dataQuality != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: item.scoreBreakdown.dataQuality == 'full'
                           ? Colors.green.withValues(alpha: 0.15)
@@ -644,12 +648,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     ];
 
     final statEntries = [
-      _RadarStat('Financial Health', sb.quality ?? 0, AppTheme.accentGreen, 'score_financial_health'),
-      _RadarStat('Valuation', sb.valuation ?? 0, AppTheme.accentOrange, 'score_valuation'),
+      _RadarStat('Financial Health', sb.quality ?? 0, AppTheme.accentGreen,
+          'score_financial_health'),
+      _RadarStat('Valuation', sb.valuation ?? 0, AppTheme.accentOrange,
+          'score_valuation'),
       _RadarStat('Growth', sb.growth, AppTheme.accentTeal, 'score_growth'),
-      _RadarStat('Momentum', sb.momentum, AppTheme.accentBlue, 'score_momentum'),
-      _RadarStat('Smart Money', sb.institutional ?? 0, const Color(0xFF7986CB), 'score_smart_money'),
-      _RadarStat('Risk Shield', sb.risk ?? 0, const Color(0xFFAB47BC), 'score_risk_shield'),
+      _RadarStat(
+          'Momentum', sb.momentum, AppTheme.accentBlue, 'score_momentum'),
+      _RadarStat('Smart Money', sb.institutional ?? 0, const Color(0xFF7986CB),
+          'score_smart_money'),
+      _RadarStat('Risk Shield', sb.risk ?? 0, const Color(0xFFAB47BC),
+          'score_risk_shield'),
     ];
 
     return Column(
@@ -766,9 +775,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final narrative = item.scoreBreakdown.whyNarrative;
     if (actionTag == null && narrative == null) return const SizedBox.shrink();
 
-    final color = actionTag != null
-        ? _actionTagColor(actionTag)
-        : Colors.white54;
+    final color =
+        actionTag != null ? _actionTagColor(actionTag) : Colors.white54;
 
     final bannerTags = _bannerContextTags(item.tags);
 
@@ -799,7 +807,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 ),
               ),
               if (item.scoreConfidence != null)
-                _miniIndicator(theme,
+                _miniIndicator(
+                    theme,
                     item.scoreConfidence == 'high'
                         ? Icons.verified_rounded
                         : item.scoreConfidence == 'medium'
@@ -850,9 +859,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       return const SizedBox.shrink();
     }
 
-    final color = actionTag != null
-        ? _actionTagColor(actionTag)
-        : Colors.white54;
+    final color =
+        actionTag != null ? _actionTagColor(actionTag) : Colors.white54;
 
     final bannerTags = _bannerContextTags(item.tags);
 
@@ -884,7 +892,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 ),
               ),
               if (item.scoreConfidence != null)
-                _miniIndicator(theme,
+                _miniIndicator(
+                    theme,
                     item.scoreConfidence == 'high'
                         ? Icons.verified_rounded
                         : item.scoreConfidence == 'medium'
@@ -945,8 +954,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     const bannerCategories = {'conviction', 'context'};
     // Also include specific risk tags from context generation (not the general risk tags)
     const contextRiskTags = {
-      'Oversold Quality', 'Low Risk Setup', 'High Risk Momentum',
-      'Overbought Warning', 'Near 52W Low', 'Near 52W High',
+      'Oversold Quality',
+      'Low Risk Setup',
+      'High Risk Momentum',
+      'Overbought Warning',
+      'Near 52W Low',
+      'Near 52W High',
     };
     return tags.where((t) {
       if (t.isExpired) return false;
@@ -972,8 +985,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           Icon(td.icon, size: 14, color: td.color),
           const SizedBox(width: 4),
           Text(td.label,
-              style: theme.textTheme.labelSmall?.copyWith(
-                  color: td.color, fontWeight: FontWeight.w600)),
+              style: theme.textTheme.labelSmall
+                  ?.copyWith(color: td.color, fontWeight: FontWeight.w600)),
           if (tag.explanation != null) ...[
             const SizedBox(width: 4),
             Icon(Icons.info_outline,
@@ -1003,7 +1016,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       ],
     );
   }
-
 
   // ── FINANCIALS TAB ──────────────────────────────────────────
 
@@ -1047,8 +1059,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   _metricRow(context, item,
                       label: 'Forward PE',
                       value: item.forwardPe!.toStringAsFixed(1),
-                      valueColor: item.peRatio != null && item.forwardPe! < item.peRatio!
-                          ? AppTheme.accentGreen : null,
+                      valueColor: item.peRatio != null &&
+                              item.forwardPe! < item.peRatio!
+                          ? AppTheme.accentGreen
+                          : null,
                       metricKey: 'forward_pe'),
                 if (item.pegRatio != null)
                   _metricRow(context, item,
@@ -1099,11 +1113,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     value: _pct(item.roe),
                     metricKey: 'roe',
                     sparkline: _growthSparkline(
-                        item.growthRanges?['return_on_equity'] as Map<String, dynamic>?)),
+                        item.growthRanges?['return_on_equity']
+                            as Map<String, dynamic>?)),
                 _metricRow(context, item,
-                    label: 'ROCE',
-                    value: _pct(item.roce),
-                    metricKey: 'roce'),
+                    label: 'ROCE', value: _pct(item.roce), metricKey: 'roce'),
 
                 // ── Margins ──
                 _subHeader('Margins'),
@@ -1133,39 +1146,40 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Builder(builder: (_) {
-                          final chartExplanation = _metricExplanation(item, 'revenue_profit_margins')
-                              ?? 'Blue bars show annual revenue (total sales), '
-                                 'green bars show net profit, and the orange line '
-                                 'tracks $marginLabel — the '
-                                 'percentage of revenue retained after direct '
-                                 'operating costs.\n\n'
-                                 'Rising bars with a rising margin line is the best '
-                                 'signal — it means the company is growing revenue '
-                                 'while becoming more efficient. Falling margin '
-                                 'despite rising revenue suggests margin pressure '
-                                 'from competition or rising costs.';
+                          final chartExplanation = _metricExplanation(
+                                  item, 'revenue_profit_margins') ??
+                              'Blue bars show annual revenue (total sales), '
+                                  'green bars show net profit, and the orange line '
+                                  'tracks $marginLabel — the '
+                                  'percentage of revenue retained after direct '
+                                  'operating costs.\n\n'
+                                  'Rising bars with a rising margin line is the best '
+                                  'signal — it means the company is growing revenue '
+                                  'while becoming more efficient. Falling margin '
+                                  'despite rising revenue suggests margin pressure '
+                                  'from competition or rising costs.';
                           return InkWell(
-                          onTap: () => _showMetricExplanation(
-                            context,
-                            'Revenue, Profit & Margins',
-                            chartExplanation,
-                          ),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.symmetric(
-                                vertical: 10, horizontal: 4),
-                            child: Row(
-                              children: [
-                                Text('Revenue, Profit & Margins',
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(color: Colors.white54)),
-                                const SizedBox(width: 4),
-                                const Icon(Icons.info_outline,
-                                    size: 13, color: Colors.white30),
-                              ],
+                            onTap: () => _showMetricExplanation(
+                              context,
+                              'Revenue, Profit & Margins',
+                              chartExplanation,
                             ),
-                          ),
-                        );
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 10, horizontal: 4),
+                              child: Row(
+                                children: [
+                                  Text('Revenue, Profit & Margins',
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(color: Colors.white54)),
+                                  const SizedBox(width: 4),
+                                  const Icon(Icons.info_outline,
+                                      size: 13, color: Colors.white30),
+                                ],
+                              ),
+                            ),
+                          );
                         }),
                         const SizedBox(height: 8),
                         SizedBox(
@@ -1208,8 +1222,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                 if (item.interestCoverage != null)
                   _metricRow(context, item,
                       label: 'Interest Coverage',
-                      value:
-                          '${item.interestCoverage!.toStringAsFixed(1)}x',
+                      value: '${item.interestCoverage!.toStringAsFixed(1)}x',
                       valueColor: item.interestCoverage! < 1.5
                           ? AppTheme.accentRed
                           : (item.interestCoverage! > 3
@@ -1228,10 +1241,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   _metricRow(context, item,
                       label: 'Free Cash Flow',
                       value: _formatLargeNumber(item.freeCashFlow),
-                      valueColor: item.freeCashFlow != null &&
-                              item.freeCashFlow! < 0
-                          ? AppTheme.accentRed
-                          : AppTheme.accentGreen,
+                      valueColor:
+                          item.freeCashFlow != null && item.freeCashFlow! < 0
+                              ? AppTheme.accentRed
+                              : AppTheme.accentGreen,
                       metricKey: 'free_cash_flow'),
                 _metricRow(context, item,
                     label: 'Payout Ratio',
@@ -1251,8 +1264,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1347,14 +1359,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
     final holders = <_OwnershipRow>[
       if (_showHolder(item.promoterHolding, promQoq, promYoy))
-        _OwnershipRow('Promoters', item.promoterHolding!, const Color(0xFF448AFF),
-            promQoq, promYoy),
+        _OwnershipRow('Promoters', item.promoterHolding!,
+            const Color(0xFF448AFF), promQoq, promYoy),
       if (_showHolder(item.fiiHolding, fiiQoq, fiiYoy))
-        _OwnershipRow('FII', item.fiiHolding!, const Color(0xFF64FFDA),
-            fiiQoq, fiiYoy),
+        _OwnershipRow(
+            'FII', item.fiiHolding!, const Color(0xFF64FFDA), fiiQoq, fiiYoy),
       if (_showHolder(item.diiHolding, diiQoq, diiYoy))
-        _OwnershipRow('DII', item.diiHolding!, const Color(0xFFFFAB40),
-            diiQoq, diiYoy),
+        _OwnershipRow(
+            'DII', item.diiHolding!, const Color(0xFFFFAB40), diiQoq, diiYoy),
       if (_showHolder(item.governmentHolding, govtQoq, govtYoy))
         _OwnershipRow('Government', item.governmentHolding!,
             const Color(0xFFAB47BC), govtQoq, govtYoy),
@@ -1385,7 +1397,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           ),
         ),
 
-
         // Pledged shares warning
         if (item.pledgedPromoterPct != null &&
             item.pledgedPromoterPct! > 0) ...[
@@ -1405,15 +1416,18 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded, size: 16,
+                Icon(Icons.warning_amber_rounded,
+                    size: 16,
                     color: item.pledgedPromoterPct! > 20
-                        ? Colors.red : Colors.orange),
+                        ? Colors.red
+                        : Colors.orange),
                 const SizedBox(width: 8),
                 Text(
                   'Promoter Pledge: ${item.pledgedPromoterPct!.toStringAsFixed(1)}%',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: item.pledgedPromoterPct! > 20
-                        ? Colors.red : Colors.orange,
+                        ? Colors.red
+                        : Colors.orange,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -1466,7 +1480,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             ],
           );
         }),
-
       ],
     );
   }
@@ -1478,14 +1491,15 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       child: Row(
         children: [
           Container(
-            width: 10, height: 10,
+            width: 10,
+            height: 10,
             decoration: BoxDecoration(color: h.color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(h.label,
-                style: theme.textTheme.bodySmall
-                    ?.copyWith(color: Colors.white70)),
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: Colors.white70)),
           ),
           Text('${h.value.toStringAsFixed(1)}%',
               style: theme.textTheme.bodyMedium
@@ -1519,12 +1533,14 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
         children: [
           Icon(
             isPos ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-            size: 10, color: color,
+            size: 10,
+            color: color,
           ),
           const SizedBox(width: 2),
           Text(
             '$period $sign${change.toStringAsFixed(2)}%',
-            style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: color, fontSize: 10, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1543,16 +1559,31 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
     // All holder series — same colors as Shareholding Pattern card
     final allHolders = <(String, List<dynamic>?, Color)>[
-      ('Promoter', (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?,
-          const Color(0xFF448AFF)),   // blue
-      ('FII', (sh['fii_dii'] ?? sh['fiis'] ?? sh['fii']) as List<dynamic>?,
-          const Color(0xFF64FFDA)),   // cyan
-      ('DII', (sh['diis'] ?? sh['dii']) as List<dynamic>?,
-          const Color(0xFFFFAB40)),   // orange
-      ('Govt', sh['government'] as List<dynamic>?,
-          const Color(0xFFAB47BC)),   // purple
-      ('Public', sh['public'] as List<dynamic>?,
-          const Color(0xFF78909C)),   // grey
+      (
+        'Promoter',
+        (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?,
+        const Color(0xFF448AFF)
+      ), // blue
+      (
+        'FII',
+        (sh['fii_dii'] ?? sh['fiis'] ?? sh['fii']) as List<dynamic>?,
+        const Color(0xFF64FFDA)
+      ), // cyan
+      (
+        'DII',
+        (sh['diis'] ?? sh['dii']) as List<dynamic>?,
+        const Color(0xFFFFAB40)
+      ), // orange
+      (
+        'Govt',
+        sh['government'] as List<dynamic>?,
+        const Color(0xFFAB47BC)
+      ), // purple
+      (
+        'Public',
+        sh['public'] as List<dynamic>?,
+        const Color(0xFF78909C)
+      ), // grey
     ];
 
     // Group indices by year: prefer March for past years, latest quarter
@@ -1572,9 +1603,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     final lastYear = sortedYears.isNotEmpty ? sortedYears.last : '';
     final yearIndices = <String, int>{};
     for (final yr in sortedYears) {
-      yearIndices[yr] = yr == lastYear
-          ? latestMap[yr]!
-          : (marchMap[yr] ?? latestMap[yr]!);
+      yearIndices[yr] =
+          yr == lastYear ? latestMap[yr]! : (marchMap[yr] ?? latestMap[yr]!);
     }
 
     final display = sortedYears.length > 4
@@ -1609,207 +1639,253 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return (groups, activeColors, activeLabels);
   }
 
-
   static String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
   // ── Peer Comparison ───────────────────────────────────────────
 
   Widget _buildPeerComparison(ThemeData theme, DiscoverStockItem item) {
-    final peersAsync = ref.watch(discoverStockPeersProvider(item.symbol));
+    final symbolKey = item.symbol.trim();
+    final peersAsync = ref.watch(discoverStockPeersProvider(symbolKey));
+    const headerStyle = TextStyle(
+      color: Colors.white38,
+      fontSize: 10,
+      fontWeight: FontWeight.w600,
+    );
+    const cellStyle = TextStyle(fontSize: 12, color: Colors.white);
 
-    return peersAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (peers) {
-        if (peers.isEmpty) return const SizedBox.shrink();
-        const headerStyle = TextStyle(
-          color: Colors.white38,
-          fontSize: 10,
-          fontWeight: FontWeight.w600,
-        );
-        const cellStyle = TextStyle(fontSize: 12, color: Colors.white);
+    Widget buildScoreBadge(double score) {
+      final color = score >= 70
+          ? AppTheme.accentGreen
+          : score >= 40
+              ? AppTheme.accentOrange
+              : AppTheme.accentRed;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(
+          ScoreBar.formatMinified(score),
+          style: TextStyle(
+            color: color,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      );
+    }
 
-        Widget buildScoreBadge(double score) {
-          final color = score >= 70
-              ? AppTheme.accentGreen
-              : score >= 40
-                  ? AppTheme.accentOrange
-                  : AppTheme.accentRed;
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(
-              ScoreBar.formatMinified(score),
-              style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          );
-        }
+    String fmtChange(double? v) {
+      if (v == null) return '\u2014';
+      return '${v >= 0 ? "+" : ""}${v.toStringAsFixed(1)}%';
+    }
 
-        String fmtChange(double? v) {
-          if (v == null) return '\u2014';
-          return '${v >= 0 ? "+" : ""}${v.toStringAsFixed(1)}%';
-        }
+    Color changeColor(double? v) {
+      if (v == null) return Colors.white38;
+      return v >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    }
 
-        Color changeColor(double? v) {
-          if (v == null) return Colors.white38;
-          return v >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-        }
+    Widget buildActionIcon(String? actionTag) {
+      if (actionTag == null) return const SizedBox(width: 18);
+      final color = _actionTagColor(actionTag);
+      final icon = _actionTagIcon(actionTag);
+      return Icon(icon, size: 14, color: color);
+    }
 
-        Widget buildActionIcon(String? actionTag) {
-          if (actionTag == null) return const SizedBox(width: 18);
-          final color = _actionTagColor(actionTag);
-          final icon = _actionTagIcon(actionTag);
-          return Icon(icon, size: 14, color: color);
-        }
+    String fmtMcap(double? v) {
+      if (v == null) return '\u2014';
+      final cr = _mcapInCr(v);
+      if (cr >= 1e5) return '${(cr / 1e5).toStringAsFixed(1)}L Cr';
+      if (cr >= 1e3) return '${(cr / 1e3).toStringAsFixed(0)}K Cr';
+      return '${cr.toStringAsFixed(0)} Cr';
+    }
 
-        String fmtMcap(double? v) {
-          if (v == null) return '\u2014';
-          final cr = _mcapInCr(v);
-          if (cr >= 1e5) return '${(cr / 1e5).toStringAsFixed(1)}L Cr';
-          if (cr >= 1e3) return '${(cr / 1e3).toStringAsFixed(0)}K Cr';
-          return '${cr.toStringAsFixed(0)} Cr';
-        }
-
-        Widget buildRow(DiscoverStockItem stock, {bool highlight = false}) {
-          return InkWell(
-            onTap: highlight
-                ? null
-                : () => context.push(
-                      '/discover/stock/${Uri.encodeComponent(stock.symbol)}',
-                      extra: stock,
-                    ),
-            child: Container(
-              height: 40,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: highlight
-                    ? Colors.white.withValues(alpha: 0.04)
-                    : Colors.transparent,
-                border: Border(
-                  bottom: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.06),
-                  ),
+    Widget buildRow(DiscoverStockItem stock, {bool highlight = false}) {
+      return InkWell(
+        onTap: highlight
+            ? null
+            : () => context.push(
+                  '/discover/stock/${Uri.encodeComponent(stock.symbol)}',
+                  extra: stock,
                 ),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: highlight
+                ? Colors.white.withValues(alpha: 0.04)
+                : Colors.transparent,
+            border: Border(
+              bottom: BorderSide(
+                color: Colors.white.withValues(alpha: 0.06),
               ),
-              child: Row(
-                children: [
-                  SizedBox(width: 18, child: buildActionIcon(stock.actionTag)),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      stock.symbol,
-                      style: cellStyle.copyWith(
-                        fontWeight:
-                            highlight ? FontWeight.w700 : FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 42,
-                    child: buildScoreBadge(stock.score),
-                  ),
-                  SizedBox(
-                    width: 42,
-                    child: Text(
-                      stock.peRatio?.toStringAsFixed(1) ?? '\u2014',
-                      style: cellStyle,
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      fmtMcap(stock.marketCap),
-                      style: cellStyle,
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                  SizedBox(
-                    width: 52,
-                    child: Text(
-                      fmtChange(stock.percentChange3m ?? stock.percentChange),
-                      style: cellStyle.copyWith(
-                        color: changeColor(stock.percentChange3m ?? stock.percentChange),
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.right,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }
-
-        return Card(
-          margin: EdgeInsets.zero,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Peers in ${item.industry ?? item.sector ?? "Sector"}',
-                  style: theme.textTheme.titleSmall
-                      ?.copyWith(fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 10),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Row(
-                    children: const [
-                      SizedBox(width: 22),
-                      Expanded(
-                          flex: 3,
-                          child: Text('Stock', style: headerStyle)),
-                      SizedBox(
-                          width: 42,
-                          child: Text('Score',
-                              style: headerStyle,
-                              textAlign: TextAlign.center)),
-                      SizedBox(
-                          width: 42,
-                          child: Text('P/E',
-                              style: headerStyle,
-                              textAlign: TextAlign.right)),
-                      SizedBox(
-                          width: 48,
-                          child: Text('Mkt Cap',
-                              style: headerStyle,
-                              textAlign: TextAlign.right)),
-                      SizedBox(
-                          width: 52,
-                          child: Text('3M %',
-                              style: headerStyle,
-                              textAlign: TextAlign.right)),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                buildRow(item, highlight: true),
-                ...peers.take(5).map((peer) => buildRow(peer)),
-              ],
             ),
           ),
-        );
+          child: Row(
+            children: [
+              SizedBox(width: 18, child: buildActionIcon(stock.actionTag)),
+              const SizedBox(width: 4),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  stock.symbol,
+                  style: cellStyle.copyWith(
+                    fontWeight: highlight ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              SizedBox(
+                width: 42,
+                child: buildScoreBadge(stock.score),
+              ),
+              SizedBox(
+                width: 42,
+                child: Text(
+                  stock.peRatio?.toStringAsFixed(1) ?? '\u2014',
+                  style: cellStyle,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              SizedBox(
+                width: 48,
+                child: Text(
+                  fmtMcap(stock.marketCap),
+                  style: cellStyle,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+              SizedBox(
+                width: 52,
+                child: Text(
+                  fmtChange(stock.percentChange3m ?? stock.percentChange),
+                  style: cellStyle.copyWith(
+                    color: changeColor(
+                        stock.percentChange3m ?? stock.percentChange),
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget buildHeader() {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: const [
+            SizedBox(width: 22),
+            Expanded(flex: 3, child: Text('Stock', style: headerStyle)),
+            SizedBox(
+                width: 42,
+                child: Text('Score',
+                    style: headerStyle, textAlign: TextAlign.center)),
+            SizedBox(
+                width: 42,
+                child: Text('P/E',
+                    style: headerStyle, textAlign: TextAlign.right)),
+            SizedBox(
+                width: 48,
+                child: Text('Mkt Cap',
+                    style: headerStyle, textAlign: TextAlign.right)),
+            SizedBox(
+                width: 52,
+                child: Text('3M %',
+                    style: headerStyle, textAlign: TextAlign.right)),
+          ],
+        ),
+      );
+    }
+
+    Widget buildCardBody(List<Widget> children) {
+      return Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Peers in ${item.industry ?? item.sector ?? "Sector"}',
+                style: theme.textTheme.titleSmall
+                    ?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 10),
+              ...children,
+            ],
+          ),
+        ),
+      );
+    }
+
+    return peersAsync.when(
+      loading: () => buildCardBody([
+        const SizedBox(height: 6),
+        const Center(
+          child: SizedBox(
+            width: 18,
+            height: 18,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        ),
+        const SizedBox(height: 10),
+      ]),
+      error: (_, __) => buildCardBody([
+        buildHeader(),
+        const SizedBox(height: 4),
+        buildRow(item, highlight: true),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(8, 10, 8, 10),
+          child: Text(
+            'Peer comparison data is temporarily unavailable.',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () =>
+                ref.invalidate(discoverStockPeersProvider(symbolKey)),
+            child: const Text('Retry'),
+          ),
+        ),
+      ]),
+      data: (peers) {
+        final peersSansSelf = peers
+            .where(
+                (p) => p.symbol.trim().toUpperCase() != symbolKey.toUpperCase())
+            .take(5)
+            .toList(growable: false);
+
+        return buildCardBody([
+          buildHeader(),
+          const SizedBox(height: 4),
+          buildRow(item, highlight: true),
+          if (peersSansSelf.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(8, 10, 8, 10),
+              child: Text(
+                'No peer data available for this stock yet.',
+                style: TextStyle(color: Colors.white54, fontSize: 12),
+              ),
+            ),
+          ...peersSansSelf.map((peer) => buildRow(peer)),
+        ]);
       },
     );
   }
 
   // ── Metric Row Helper ──────────────────────────────────────
 
-  void _showMetricExplanation(BuildContext context, String label, String explanation) {
+  void _showMetricExplanation(
+      BuildContext context, String label, String explanation) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.cardDark,
@@ -1835,7 +1911,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
             const SizedBox(height: 16),
             Text(label,
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
             Text(explanation,
                 style: const TextStyle(
@@ -1927,13 +2005,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }
 
   /// Build Price CAGR row from growth_ranges stock_price_cagr.
-  List<Widget> _buildPriceCagrRow(BuildContext context, DiscoverStockItem item) {
-    final grPrice = item.growthRanges?['stock_price_cagr'] as Map<String, dynamic>?;
+  List<Widget> _buildPriceCagrRow(
+      BuildContext context, DiscoverStockItem item) {
+    final grPrice =
+        item.growthRanges?['stock_price_cagr'] as Map<String, dynamic>?;
     if (grPrice == null || grPrice.isEmpty) return const [];
 
     // Pick 1Y value (most recent), else 3Y
-    final v1y = grPrice['1y'] != null ? (grPrice['1y'] as num).toDouble() : null;
-    final v3y = grPrice['3y'] != null ? (grPrice['3y'] as num).toDouble() : null;
+    final v1y =
+        grPrice['1y'] != null ? (grPrice['1y'] as num).toDouble() : null;
+    final v3y =
+        grPrice['3y'] != null ? (grPrice['3y'] as num).toDouble() : null;
     final displayVal = v1y ?? v3y;
     if (displayVal == null) return const [];
 
@@ -2070,7 +2152,9 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   static String _shortYear(String yearLabel) {
     final match = RegExp(r'(\d{4})').firstMatch(yearLabel);
     if (match != null) return "'${match.group(1)!.substring(2)}";
-    return yearLabel.length > 6 ? yearLabel.substring(yearLabel.length - 4) : yearLabel;
+    return yearLabel.length > 6
+        ? yearLabel.substring(yearLabel.length - 4)
+        : yearLabel;
   }
 
   /// Safely read a value from a List<dynamic> at index.
@@ -2092,8 +2176,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   // ── Chart Data Helpers ──────────────────────────────────────
 
   /// Returns (entries, marginLabel) where marginLabel differs for banks/NBFCs.
-  (List<ComboChartEntry>, String) _buildComboEntries(
-      Map<String, dynamic> pl) {
+  (List<ComboChartEntry>, String) _buildComboEntries(Map<String, dynamic> pl) {
     final years = pl['years'] as List<dynamic>? ?? [];
     final sales = (pl['sales'] ?? pl['revenue']) as List<dynamic>?;
     final profit = pl['net_profit'] as List<dynamic>?;
@@ -2145,12 +2228,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     return (entries, marginLabel);
   }
 
-
   /// Compute YoY holding changes from shareholdingQuarterly JSONB.
   /// Compares the latest quarter with the quarter 4 entries ago.
   /// Compute QoQ and YoY holding changes from shareholdingQuarterly JSONB.
   /// Returns {'promoter': {qoq, yoy}, 'fii': {qoq, yoy}, ...}
-  Map<String, Map<String, double?>> _computeHoldingChanges(Map<String, dynamic>? sh) {
+  Map<String, Map<String, double?>> _computeHoldingChanges(
+      Map<String, dynamic>? sh) {
     if (sh == null || sh.isEmpty) return {};
 
     Map<String, double?> _changes(List<dynamic>? arr) {
@@ -2171,7 +2254,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       return {'qoq': qoq, 'yoy': yoy};
     }
 
-    final promoter = (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?;
+    final promoter =
+        (sh['promoter_holding'] ?? sh['promoters']) as List<dynamic>?;
     final fii = (sh['fii_dii'] ?? sh['fiis'] ?? sh['fii']) as List<dynamic>?;
     final dii = (sh['diis'] ?? sh['dii']) as List<dynamic>?;
     final govt = sh['government'] as List<dynamic>?;
@@ -2184,7 +2268,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       'public': _changes(pub),
     };
   }
-
 
   /// Margins from Yahoo come as decimals (0.25 = 25%). Format as percentage.
   static String _marginPct(double? value) {
@@ -2250,7 +2333,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
-                      children: (isExpert ? entry.value : entry.value.take(3)).map((tag) {
+                      children: (isExpert ? entry.value : entry.value.take(3))
+                          .map((tag) {
                         final td = getTagV2Display(tag);
                         return GestureDetector(
                           onTap: tag.explanation != null
@@ -2345,7 +2429,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       ),
     );
   }
-
 }
 
 // ── Private data holders ─────────────────────────────────────────
@@ -2357,7 +2440,8 @@ class _OwnershipRow {
   final double? qoqChange;
   final double? yoyChange;
 
-  const _OwnershipRow(this.label, this.value, this.color, this.qoqChange, [this.yoyChange]);
+  const _OwnershipRow(this.label, this.value, this.color, this.qoqChange,
+      [this.yoyChange]);
 }
 
 class _RadarStat {

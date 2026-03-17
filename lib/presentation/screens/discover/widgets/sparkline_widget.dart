@@ -19,21 +19,38 @@ class SparklineWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     if (values.length < 2) return SizedBox(height: height, width: width);
 
+    final safeValues = values.where((v) => v.isFinite).toList(growable: false);
+    if (safeValues.length < 2) return SizedBox(height: height, width: width);
+
     final spots = List.generate(
-      values.length,
-      (i) => FlSpot(i.toDouble(), values[i]),
+      safeValues.length,
+      (i) => FlSpot(i.toDouble(), safeValues[i]),
     );
+    final minVal = safeValues.reduce((a, b) => a < b ? a : b);
+    final maxVal = safeValues.reduce((a, b) => a > b ? a : b);
+    final range = maxVal - minVal;
+    final yPad =
+        range == 0 ? (minVal.abs() * 0.08).clamp(0.2, 2.0) : range * 0.22;
+    final minY = minVal - yPad;
+    final maxY = maxVal + yPad;
+    const xPad = 0.2;
 
     return SizedBox(
       height: height,
       width: width,
       child: LineChart(
         LineChartData(
+          minX: -xPad,
+          maxX: (safeValues.length - 1).toDouble() + xPad,
+          minY: minY,
+          maxY: maxY,
           lineBarsData: [
             LineChartBarData(
               spots: spots,
-              isCurved: true,
-              curveSmoothness: 0.35,
+              isCurved: safeValues.length > 2,
+              curveSmoothness: 0.25,
+              preventCurveOverShooting: true,
+              preventCurveOvershootingThreshold: 6,
               color: color,
               barWidth: 1.8,
               isStrokeCapRound: true,

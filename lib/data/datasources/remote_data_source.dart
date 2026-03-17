@@ -477,7 +477,10 @@ class RemoteDataSource {
       '/screener/stocks/${Uri.encodeComponent(symbol)}/peers',
       queryParameters: {'limit': limit},
     );
-    final list = response.data as List<dynamic>;
+    final raw = response.data;
+    final list = raw is List<dynamic>
+        ? raw
+        : (raw is Map<String, dynamic> ? (raw['items'] as List<dynamic>? ?? const []) : const <dynamic>[]);
     return list
         .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -491,7 +494,10 @@ class RemoteDataSource {
       '/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/peers',
       queryParameters: {'limit': limit},
     );
-    final list = response.data as List<dynamic>;
+    final raw = response.data;
+    final list = raw is List<dynamic>
+        ? raw
+        : (raw is Map<String, dynamic> ? (raw['items'] as List<dynamic>? ?? const []) : const <dynamic>[]);
     return list
         .map((e) => DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
         .toList();
