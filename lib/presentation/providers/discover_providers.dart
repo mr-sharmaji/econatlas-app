@@ -164,6 +164,10 @@ enum DiscoverMutualFundPreset {
   aggressiveHybrid,
   balancedHybrid,
   conservativeHybrid,
+  arbitrage,
+  dynamicAssetAllocation,
+  multiAsset,
+  equitySavings,
   // Legacy
   lowRisk,
 }
@@ -223,6 +227,14 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'balanced-hybrid';
       case DiscoverMutualFundPreset.conservativeHybrid:
         return 'conservative-hybrid';
+      case DiscoverMutualFundPreset.arbitrage:
+        return 'arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation:
+        return 'dynamic-asset-allocation';
+      case DiscoverMutualFundPreset.multiAsset:
+        return 'multi-asset';
+      case DiscoverMutualFundPreset.equitySavings:
+        return 'equity-savings';
       case DiscoverMutualFundPreset.lowRisk:
         return 'low-risk';
     }
@@ -282,6 +294,14 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Balanced Hybrid';
       case DiscoverMutualFundPreset.conservativeHybrid:
         return 'Conservative Hybrid';
+      case DiscoverMutualFundPreset.arbitrage:
+        return 'Arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation:
+        return 'Dynamic Asset Allocation';
+      case DiscoverMutualFundPreset.multiAsset:
+        return 'Multi Asset';
+      case DiscoverMutualFundPreset.equitySavings:
+        return 'Equity Savings';
       case DiscoverMutualFundPreset.lowRisk:
         return 'Low Risk';
     }
@@ -295,6 +315,7 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
       ];
 
   static List<DiscoverMutualFundPreset> get equitySubCategories => [
+        DiscoverMutualFundPreset.indexFund,
         DiscoverMutualFundPreset.largeCap,
         DiscoverMutualFundPreset.largeMidCap,
         DiscoverMutualFundPreset.midCap,
@@ -305,7 +326,6 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.valueMf,
         DiscoverMutualFundPreset.focused,
         DiscoverMutualFundPreset.sectoral,
-        DiscoverMutualFundPreset.indexFund,
       ];
 
   static List<DiscoverMutualFundPreset> get debtSubCategories => [
@@ -323,6 +343,10 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.aggressiveHybrid,
         DiscoverMutualFundPreset.balancedHybrid,
         DiscoverMutualFundPreset.conservativeHybrid,
+        DiscoverMutualFundPreset.arbitrage,
+        DiscoverMutualFundPreset.dynamicAssetAllocation,
+        DiscoverMutualFundPreset.multiAsset,
+        DiscoverMutualFundPreset.equitySavings,
       ];
 
   static DiscoverMutualFundPreset fromApi(String? value) {
@@ -377,6 +401,14 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return DiscoverMutualFundPreset.balancedHybrid;
       case 'conservative-hybrid':
         return DiscoverMutualFundPreset.conservativeHybrid;
+      case 'arbitrage':
+        return DiscoverMutualFundPreset.arbitrage;
+      case 'dynamic-asset-allocation':
+        return DiscoverMutualFundPreset.dynamicAssetAllocation;
+      case 'multi-asset':
+        return DiscoverMutualFundPreset.multiAsset;
+      case 'equity-savings':
+        return DiscoverMutualFundPreset.equitySavings;
       case 'low-risk':
         return DiscoverMutualFundPreset.lowRisk;
       case 'all':

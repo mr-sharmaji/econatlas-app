@@ -40,6 +40,10 @@ const _presetIcons = <DiscoverMutualFundPreset, IconData>{
   DiscoverMutualFundPreset.aggressiveHybrid: Icons.speed,
   DiscoverMutualFundPreset.balancedHybrid: Icons.balance,
   DiscoverMutualFundPreset.conservativeHybrid: Icons.shield_outlined,
+  DiscoverMutualFundPreset.arbitrage: Icons.swap_horiz,
+  DiscoverMutualFundPreset.dynamicAssetAllocation: Icons.auto_graph,
+  DiscoverMutualFundPreset.multiAsset: Icons.pie_chart,
+  DiscoverMutualFundPreset.equitySavings: Icons.savings,
   DiscoverMutualFundPreset.lowRisk: Icons.verified_user,
 };
 

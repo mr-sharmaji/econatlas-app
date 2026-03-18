@@ -94,7 +94,7 @@ class MfListTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white54),
+                          ?.copyWith(color: Colors.white),
                     ),
                   ),
                 if (item.riskLevel != null) ...[
@@ -104,9 +104,9 @@ class MfListTile extends StatelessWidget {
                 if (item.expenseRatio != null) ...[
                   const SizedBox(width: 8),
                   Text(
-                    '${item.expenseRatio!.toStringAsFixed(2)}%',
+                    'ER: ${item.expenseRatio!.toStringAsFixed(2)}%',
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white38, fontSize: 11),
+                        ?.copyWith(color: Colors.white, fontSize: 11),
                   ),
                 ],
               ],
