@@ -812,6 +812,7 @@ class DiscoverMutualFundItem {
   final List<String> qualityBadges;
   final List<MfTag> mfTags;
   final Map<String, dynamic>? metricInsights;
+  final List<Map<String, dynamic>>? fundManagers;
   final double? categoryAvgReturns1y;
   final double? categoryAvgReturns3y;
   final double? categoryAvgReturns5y;
@@ -873,6 +874,7 @@ class DiscoverMutualFundItem {
     this.qualityBadges = const [],
     this.mfTags = const [],
     this.metricInsights,
+    this.fundManagers,
     this.categoryAvgReturns1y,
     this.categoryAvgReturns3y,
     this.categoryAvgReturns5y,
@@ -941,6 +943,9 @@ class DiscoverMutualFundItem {
           .map((e) => MfTag.fromJson(e))
           .toList(),
       metricInsights: json['metric_insights'] as Map<String, dynamic>?,
+      fundManagers: (json['fund_managers'] as List<dynamic>?)
+          ?.whereType<Map<String, dynamic>>()
+          .toList(),
       categoryAvgReturns1y:
           (json['category_avg_returns_1y'] as num?)?.toDouble(),
       categoryAvgReturns3y:

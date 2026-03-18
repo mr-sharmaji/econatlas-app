@@ -255,7 +255,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildMetricsCard(theme),
             const SizedBox(height: 8),
 
-            // 12. Peer Comparison
+            // 12. Fund Manager
+            if (item.fundManagers != null && item.fundManagers!.isNotEmpty) ...[
+              _buildFundManagerCard(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 13. Peer Comparison
             _buildPeerComparison(theme),
             const SizedBox(height: 8),
 
@@ -1322,6 +1328,72 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
         ),
       ],
+    );
+  }
+
+  // -- Fund Manager Card --
+
+  Widget _buildFundManagerCard(ThemeData theme) {
+    final managers = item.fundManagers!;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Fund Manager', style: theme.textTheme.titleSmall),
+            const SizedBox(height: 8),
+            ...managers.take(2).map((fm) {
+              final name = fm['name'] as String? ?? '';
+              final experience = fm['experience'] as String? ?? '';
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 18,
+                      backgroundColor: AppTheme.accentBlue.withValues(alpha: 0.15),
+                      child: Text(
+                        name.isNotEmpty ? name[0].toUpperCase() : '?',
+                        style: TextStyle(
+                          color: AppTheme.accentBlue,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          if (experience.isNotEmpty)
+                            Text(
+                              experience,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white54,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
+      ),
     );
   }
 
