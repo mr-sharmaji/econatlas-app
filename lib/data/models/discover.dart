@@ -671,6 +671,7 @@ class DiscoverMutualFundScoreBreakdown {
   final double consistencyScore;
   final double? alphaScore;
   final double? betaScore;
+  final double? categoryFitScore;
 
   const DiscoverMutualFundScoreBreakdown({
     required this.returnScore,
@@ -679,16 +680,18 @@ class DiscoverMutualFundScoreBreakdown {
     required this.consistencyScore,
     this.alphaScore,
     this.betaScore,
+    this.categoryFitScore,
   });
 
   factory DiscoverMutualFundScoreBreakdown.fromJson(Map<String, dynamic> json) {
     return DiscoverMutualFundScoreBreakdown(
-      returnScore: (json['return_score'] as num?)?.toDouble() ?? 0,
+      returnScore: (json['performance_score'] as num?)?.toDouble() ?? (json['return_score'] as num?)?.toDouble() ?? 0,
       riskScore: (json['risk_score'] as num?)?.toDouble() ?? 0,
       costScore: (json['cost_score'] as num?)?.toDouble() ?? 0,
       consistencyScore: (json['consistency_score'] as num?)?.toDouble() ?? 0,
       alphaScore: (json['alpha_score'] as num?)?.toDouble(),
       betaScore: (json['beta_score'] as num?)?.toDouble(),
+      categoryFitScore: (json['category_fit_score'] as num?)?.toDouble(),
     );
   }
 }

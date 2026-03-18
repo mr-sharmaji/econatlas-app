@@ -337,14 +337,32 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         const SizedBox(height: 6),
         Row(
           children: [
-            if (item.category != null) ...[
+            if (item.fundClassification != null || item.subCategory != null) ...[
               Flexible(
                 child: Text(
-                  item.category!,
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.white54),
+                  item.fundClassification ?? item.subCategory ?? '',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white70,
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              if (item.category != null) ...[
+                Text(
+                  ' \u00B7 ',
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+                ),
+                Text(
+                  item.category!,
+                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                ),
+              ],
+              const SizedBox(width: 8),
+            ] else if (item.category != null) ...[
+              Text(
+                item.category!,
+                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
               ),
               const SizedBox(width: 8),
             ],
@@ -433,6 +451,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         breakdown.riskScore > 0 ||
         breakdown.costScore > 0 ||
         breakdown.consistencyScore > 0;
+    final isDebt = (item.category ?? '').toLowerCase() == 'debt';
+    final catFit = breakdown.categoryFitScore ?? item.scoreCategoryFit?.toDouble();
 
     return Card(
       margin: EdgeInsets.zero,
@@ -459,126 +479,109 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Radar chart
+            // Radar chart — 5 dimensions (hide beta for debt)
             if (hasRadarData) ...[
               Center(
                 child: SizedBox(
                   height: 180,
                   width: 180,
                   child: RadarChartWidget(
-                  dimensions: [
-                    RadarDimension(
-                      label: 'Returns vs Peers',
-                      value: breakdown.returnScore,
-                    ),
-                    RadarDimension(
-                      label: 'Return Predictability',
-                      value: breakdown.consistencyScore,
-                    ),
-                    RadarDimension(
-                      label: 'Downside Protection',
-                      value: breakdown.riskScore,
-                    ),
-                    RadarDimension(
-                      label: 'Expense Efficiency',
-                      value: breakdown.costScore,
-                    ),
-                    if (item.scoreCategoryFit != null)
-                      RadarDimension(
-                        label: 'Category Fit',
-                        value: item.scoreCategoryFit!.toDouble(),
-                      ),
-                    if (breakdown.betaScore != null)
-                      RadarDimension(
-                        label: 'Market Shield',
-                        value: breakdown.betaScore!,
-                      ),
-                  ],
-                  fillColor: AppTheme.accentBlue,
-                ),
+                    dimensions: [
+                      RadarDimension(label: 'Performance', value: breakdown.returnScore),
+                      RadarDimension(label: 'Consistency', value: breakdown.consistencyScore),
+                      RadarDimension(label: 'Risk', value: breakdown.riskScore),
+                      RadarDimension(label: 'Cost', value: breakdown.costScore),
+                      if (catFit != null)
+                        RadarDimension(label: 'Category Fit', value: catFit),
+                    ],
+                    fillColor: AppTheme.accentBlue,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),
 
-              // Stat cards for each score dimension
+              // Row 1: Performance, Consistency, Risk
               Row(
                 children: [
                   Expanded(
                     child: StatCard(
-                      label: 'Returns vs Peers',
+                      label: 'Performance',
                       value: breakdown.returnScore.toStringAsFixed(1),
-                      valueColor: AppTheme.accentGreen,
-                      tooltip: 'How well this fund performs compared to peers in the same category.',
+                      valueColor: _scoreColor(breakdown.returnScore),
+                      tooltip: 'How well the fund performs compared to peers. Based on blended 1Y, 3Y, and 5Y returns ranked within the same category.',
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: StatCard(
-                      label: 'Predictability',
+                      label: 'Consistency',
                       value: breakdown.consistencyScore.toStringAsFixed(1),
-                      valueColor: AppTheme.accentOrange,
-                      tooltip: 'How consistent and predictable the returns are over rolling periods.',
+                      valueColor: _scoreColor(breakdown.consistencyScore),
+                      tooltip: 'How predictable and stable the returns are. Based on Sortino ratio and rolling return consistency — higher means more reliable outcomes.',
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: StatCard(
+                      label: 'Risk',
+                      value: breakdown.riskScore.toStringAsFixed(1),
+                      valueColor: _scoreColor(breakdown.riskScore),
+                      tooltip: 'How well the fund manages downside risk. Based on maximum drawdown and risk level — higher score means better capital protection.',
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
+              // Row 2: Cost, Category Fit (+ Beta for equity)
               Row(
                 children: [
                   Expanded(
                     child: StatCard(
-                      label: 'Downside Protection',
-                      value: breakdown.riskScore.toStringAsFixed(1),
-                      valueColor: AppTheme.accentBlue,
-                      tooltip: 'How well this fund protects against drawdowns and volatility.',
+                      label: 'Cost',
+                      value: breakdown.costScore.toStringAsFixed(1),
+                      valueColor: _scoreColor(breakdown.costScore),
+                      tooltip: 'How cost-efficient the fund is. Lower expense ratio relative to category peers earns a higher score.',
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Expense Efficiency',
-                      value: breakdown.costScore.toStringAsFixed(1),
-                      valueColor: AppTheme.accentTeal,
-                      tooltip: 'How cost-efficient the fund is relative to its category peers.',
+                  if (catFit != null)
+                    Expanded(
+                      child: StatCard(
+                        label: 'Category Fit',
+                        value: catFit.toStringAsFixed(1),
+                        valueColor: _scoreColor(catFit),
+                        tooltip: 'How well the fund fits its stated mandate. Measures category-specific quality factors like tracking error for index funds or alpha generation for active funds.',
+                      ),
+                    )
+                  else
+                    const Spacer(),
+                  if (!isDebt && breakdown.betaScore != null) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: StatCard(
+                        label: 'Beta',
+                        value: breakdown.betaScore!.toStringAsFixed(1),
+                        valueColor: _scoreColor(breakdown.betaScore!),
+                        tooltip: 'Market sensitivity score. Higher means the fund is more defensive — it moves less than the market during downturns.',
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    const SizedBox(width: 8),
+                    const Spacer(),
+                  ],
                 ],
               ),
-              if (breakdown.alphaScore != null || item.scoreCategoryFit != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    if (breakdown.alphaScore != null)
-                      Expanded(
-                        child: StatCard(
-                          label: 'Alpha Edge',
-                          value: breakdown.alphaScore!.toStringAsFixed(1),
-                          valueColor: AppTheme.accentGreen,
-                          tooltip: 'Score based on the fund\'s excess return (alpha) over benchmark.',
-                        ),
-                      ),
-                    if (breakdown.alphaScore != null && item.scoreCategoryFit != null)
-                      const SizedBox(width: 8),
-                    if (item.scoreCategoryFit != null)
-                      Expanded(
-                        child: StatCard(
-                          value: item.scoreCategoryFit?.toStringAsFixed(0) ?? '-',
-                          label: 'Category Mandate Fit',
-                          tooltip: 'How well the fund sticks to its stated investment mandate and category objectives',
-                        ),
-                      ),
-                    if (breakdown.alphaScore == null && item.scoreCategoryFit != null)
-                      const Spacer(),
-                    if (breakdown.alphaScore != null && item.scoreCategoryFit == null)
-                      const Spacer(),
-                  ],
-                ),
-              ],
             ],
           ],
         ),
       ),
     );
+  }
+
+  static Color _scoreColor(double score) {
+    if (score >= 70) return AppTheme.accentGreen;
+    if (score >= 40) return AppTheme.accentOrange;
+    return AppTheme.accentRed;
   }
 
   // -- Category Rank Card (C5: renamed to Fund Ranking) --
