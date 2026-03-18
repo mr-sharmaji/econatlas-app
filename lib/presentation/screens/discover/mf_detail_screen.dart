@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,8 +18,6 @@ import 'widgets/radar_chart_widget.dart';
 import 'widgets/grouped_bar_chart_widget.dart';
 import 'widgets/stat_card.dart';
 
-enum _ReturnMode { xirr, cagr }
-
 class MfDetailScreen extends ConsumerStatefulWidget {
   final String schemeCode;
   final DiscoverMutualFundItem? initialItem;
@@ -34,10 +31,6 @@ class MfDetailScreen extends ConsumerStatefulWidget {
 class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   int _selectedDays = 365;
   double? _periodChange; // persists across rebuilds to avoid flash
-  _ReturnMode _returnMode = _ReturnMode.xirr;
-
-  // Cached chart data for CAGR computation
-  List<double> _chartPrices = [];
 
   static const _periodOptions = [
     (label: '1W', days: 7),
@@ -110,9 +103,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
-
-        // Cache for CAGR computation
-        _chartPrices = List.of(chartPrices);
 
         // Prefer API return values for known periods
         double? apiReturn;
@@ -306,17 +296,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         );
       }).toList(),
     );
-  }
-
-  // -- CAGR Helpers --
-
-  static double? _computeCagrFromPrices(List<double> prices, double years) {
-    if (prices.length < 2) return null;
-    final startNAV = prices.first;
-    final endNAV = prices.last;
-    if (startNAV <= 0) return null;
-    final cagr = (math.pow(endNAV / startNAV, 1.0 / years) - 1) * 100;
-    return cagr.toDouble();
   }
 
   // -- Badge Helpers --
@@ -710,7 +689,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  // -- Returns Card (with XIRR/CAGR toggle) --
+  // -- Returns Card (CAGR only) --
 
   Widget _buildReturnsCard(ThemeData theme) {
     return Card(
@@ -720,54 +699,18 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header row with title + segmented toggle
-            Row(
-              children: [
-                Text('Returns', style: theme.textTheme.titleSmall),
-                const Spacer(),
-                SizedBox(
-                  height: 32,
-                  child: SegmentedButton<_ReturnMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: _ReturnMode.xirr,
-                        label: Text('XIRR', style: TextStyle(fontSize: 11)),
-                      ),
-                      ButtonSegment(
-                        value: _ReturnMode.cagr,
-                        label: Text('CAGR', style: TextStyle(fontSize: 11)),
-                      ),
-                    ],
-                    selected: {_returnMode},
-                    onSelectionChanged: (newSelection) {
-                      setState(() => _returnMode = newSelection.first);
-                    },
-                    showSelectedIcon: false,
-                    style: const ButtonStyle(
-                      visualDensity: VisualDensity.compact,
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      padding: WidgetStatePropertyAll(
-                        EdgeInsets.symmetric(horizontal: 10),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            Text('Returns (CAGR)', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Row(
               children: [
                 Expanded(
-                  child: _returnColumn(theme, '1Y',
-                      _getReturnValue(item.returns1y, 365, 1)),
+                  child: _returnColumn(theme, '1Y', item.returns1y),
                 ),
                 Expanded(
-                  child: _returnColumn(theme, '3Y',
-                      _getReturnValue(item.returns3y, 1095, 3)),
+                  child: _returnColumn(theme, '3Y', item.returns3y),
                 ),
                 Expanded(
-                  child: _returnColumn(theme, '5Y',
-                      _getReturnValue(item.returns5y, 1825, 5)),
+                  child: _returnColumn(theme, '5Y', item.returns5y),
                 ),
               ],
             ),
@@ -846,40 +789,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     );
   }
 
-  /// Returns the display value for a return period based on the current mode.
-  /// For XIRR: uses the API-provided value.
-  /// For CAGR: computes from chart history if the current chart period matches,
-  /// otherwise fetches the relevant period via provider.
-  double? _getReturnValue(double? xirrValue, int days, double years) {
-    if (_returnMode == _ReturnMode.xirr) return xirrValue;
-
-    // If XIRR is null for this period, the fund doesn't have enough history
-    // — don't show a CAGR value either
-    if (xirrValue == null) return null;
-
-    // CAGR mode: compute from chart history
-    // If the currently selected period matches, use cached chart data
-    if (_selectedDays == days && _chartPrices.length >= 2) {
-      return _computeCagrFromPrices(_chartPrices, years);
-    }
-
-    // For periods not currently selected, try to use a separate provider watch.
-    // We watch the history for each period needed.
-    final historyAsync = ref.watch(
-      discoverMfHistoryProvider(
-        (schemeCode: item.schemeCode, days: days),
-      ),
-    );
-
-    double? cagr;
-    historyAsync.whenData((history) {
-      if (history.points.length >= 2) {
-        final prices = history.points.map((p) => p.value).toList();
-        cagr = _computeCagrFromPrices(prices, years);
-      }
-    });
-    return cagr;
-  }
 
   bool _hasAnyCategoryAvg() {
     return (item.returns1y != null && item.categoryAvgReturns1y != null) ||
@@ -938,7 +847,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   }
 
   Widget _returnColumn(ThemeData theme, String label, double? value) {
-    final modeLabel = _returnMode == _ReturnMode.xirr ? 'XIRR' : 'CAGR';
     final String display;
     final Color color;
     if (value != null) {
@@ -952,7 +860,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     return Column(
       children: [
         Text(
-          '$label $modeLabel',
+          label,
           style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54),
         ),
         const SizedBox(height: 4),
