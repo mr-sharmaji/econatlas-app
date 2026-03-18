@@ -484,15 +484,15 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       label: 'Expense Efficiency',
                       value: breakdown.costScore,
                     ),
-                    if (breakdown.alphaScore != null)
-                      RadarDimension(
-                        label: 'Alpha Edge',
-                        value: breakdown.alphaScore!,
-                      ),
                     if (item.scoreCategoryFit != null)
                       RadarDimension(
                         label: 'Category Fit',
                         value: item.scoreCategoryFit!.toDouble(),
+                      ),
+                    if (breakdown.betaScore != null)
+                      RadarDimension(
+                        label: 'Market Shield',
+                        value: breakdown.betaScore!,
                       ),
                   ],
                   fillColor: AppTheme.accentBlue,
