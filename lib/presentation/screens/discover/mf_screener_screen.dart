@@ -127,7 +127,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
 
   int _activeFilterCount(DiscoverMutualFundFilters filters) {
     int count = 0;
-    if (filters.minScore != 40) count++;
+    if (filters.minScore != 0) count++;
     if (filters.riskLevel != 'All') count++;
     if (filters.maxExpenseRatio != null) count++;
     if (filters.minReturn1y != null) count++;
@@ -532,11 +532,11 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
       ThemeData theme, DiscoverMutualFundFilters filters) {
     final chips = <Widget>[];
 
-    if (filters.minScore != 40) {
+    if (filters.minScore != 0) {
       chips.add(_filterChip('Score \u2265${filters.minScore.round()}', () {
         ref
             .read(discoverMutualFundFiltersProvider.notifier)
-            .setFilters(filters.copyWith(minScore: 40));
+            .setFilters(filters.copyWith(minScore: 0));
       }));
     }
     if (filters.riskLevel != 'All') {

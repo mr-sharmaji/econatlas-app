@@ -599,7 +599,7 @@ class DiscoverMutualFundFilters {
     this.category = 'All',
     this.riskLevel = 'All',
     this.directOnly = true,
-    this.minScore = 40,
+    this.minScore = 0,
     this.minAumCr,
     this.maxExpenseRatio,
     this.minReturn1y,
