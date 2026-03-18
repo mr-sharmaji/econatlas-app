@@ -205,23 +205,6 @@ class StockListTile extends StatelessWidget {
               ],
             ),
 
-            // Row 4 (optional): action tag reasoning
-            if (item.actionTag != null &&
-                item.actionTagReasoning != null &&
-                item.actionTagReasoning!.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  item.actionTagReasoning!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white38,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
           ],
         ),
       ),

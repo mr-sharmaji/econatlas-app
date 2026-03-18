@@ -913,20 +913,24 @@ final discoverMfPeersProvider = FutureProvider.autoDispose
 // Sparklines
 // ---------------------------------------------------------------------------
 
+/// Key uses a CSV string (not List) so Riverpod family equality works correctly.
 final discoverStockSparklinesProvider = FutureProvider.autoDispose
-    .family<Map<String, List<PriceHistoryPoint>>, ({List<String> symbols, int days})>(
+    .family<Map<String, List<PriceHistoryPoint>>, ({String symbolsCsv, int days})>(
         (ref, params) {
+  final symbols = params.symbolsCsv.split(',').where((s) => s.isNotEmpty).toList();
   return ref
       .watch(discoverRepoProvider)
-      .getStockSparklines(symbols: params.symbols, days: params.days);
+      .getStockSparklines(symbols: symbols, days: params.days);
 });
 
+/// Key uses a CSV string (not List) so Riverpod family equality works correctly.
 final discoverMfSparklinesProvider = FutureProvider.autoDispose
-    .family<Map<String, List<PriceHistoryPoint>>, ({List<String> schemeCodes, int days})>(
+    .family<Map<String, List<PriceHistoryPoint>>, ({String codesCsv, int days})>(
         (ref, params) {
+  final codes = params.codesCsv.split(',').where((s) => s.isNotEmpty).toList();
   return ref
       .watch(discoverRepoProvider)
-      .getMfSparklines(schemeCodes: params.schemeCodes, days: params.days);
+      .getMfSparklines(schemeCodes: codes, days: params.days);
 });
 
 // ---------------------------------------------------------------------------

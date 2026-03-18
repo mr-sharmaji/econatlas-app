@@ -280,6 +280,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                     ),
                     label: Text(option.label),
                     selected: isSelected,
+                    showCheckmark: false,
                     onSelected: (_) {
                       ref
                           .read(discoverStockPresetProvider.notifier)
@@ -367,10 +368,10 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                 }
 
                 // Fetch sparklines for visible items
-                final symbols = items.map((e) => e.symbol).toList();
+                final symbolsCsv = items.map((e) => e.symbol).join(',');
                 final sparkAsync = ref.watch(
                   discoverStockSparklinesProvider(
-                    (symbols: symbols, days: 7),
+                    (symbolsCsv: symbolsCsv, days: 90),
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};

@@ -288,6 +288,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                     ),
                     label: Text(segment.label),
                     selected: selected,
+                    showCheckmark: false,
                     onSelected: (_) {
                       setState(() {
                         if (isAll) {
@@ -385,10 +386,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   );
                 }
                 // Fetch sparklines for visible items
-                final schemeCodes = items.map((e) => e.schemeCode).toList();
+                final codesCsv = items.map((e) => e.schemeCode).join(',');
                 final sparkAsync = ref.watch(
                   discoverMfSparklinesProvider(
-                    (schemeCodes: schemeCodes, days: 30),
+                    (codesCsv: codesCsv, days: 365),
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
@@ -466,6 +467,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                 ),
                 label: Text(sub.label),
                 selected: selectedPreset == sub,
+                showCheckmark: false,
                 onSelected: (_) {
                   ref
                       .read(discoverMutualFundPresetProvider.notifier)

@@ -103,14 +103,18 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
     if (cat.segment == 'mutual_funds') {
       context.push('/discover/mutual-funds', extra: {
         if (cat.preset != null) 'preset': cat.preset,
-        if (cat.filterKey != null && cat.filterValue != null)
-          cat.filterKey!: cat.filterValue,
+        if (cat.filterKey != null && cat.filterValue != null) ...{
+          'filterKey': cat.filterKey,
+          'filterValue': cat.filterValue,
+        },
       });
     } else {
       context.push('/discover/stocks', extra: {
         if (cat.preset != null) 'preset': cat.preset,
-        if (cat.filterKey != null && cat.filterValue != null)
-          cat.filterKey!: cat.filterValue,
+        if (cat.filterKey != null && cat.filterValue != null) ...{
+          'filterKey': cat.filterKey,
+          'filterValue': cat.filterValue,
+        },
       });
     }
   }
@@ -312,11 +316,11 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         items.where((r) => r.type == 'mf').map((r) => r.id).toList();
     final recentStockSparklines = recentStockSymbols.isNotEmpty
         ? ref.watch(discoverStockSparklinesProvider(
-            (symbols: recentStockSymbols, days: 7)))
+            (symbolsCsv: recentStockSymbols.join(','), days: 7)))
         : null;
     final recentMfSparklines = recentMfCodes.isNotEmpty
-        ? ref.watch(
-            discoverMfSparklinesProvider((schemeCodes: recentMfCodes, days: 7)))
+        ? ref.watch(discoverMfSparklinesProvider(
+            (codesCsv: recentMfCodes.join(','), days: 7)))
         : null;
     final recentStockSparkMap = recentStockSparklines?.valueOrNull ?? {};
     final recentMfSparkMap = recentMfSparklines?.valueOrNull ?? {};
