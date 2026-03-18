@@ -1003,6 +1003,7 @@ class SearchStockResult {
   final String? sector;
   final double lastPrice;
   final double? percentChange;
+  final double? percentChange3m;
   final double score;
 
   const SearchStockResult({
@@ -1011,6 +1012,7 @@ class SearchStockResult {
     this.sector,
     required this.lastPrice,
     this.percentChange,
+    this.percentChange3m,
     required this.score,
   });
 
@@ -1021,6 +1023,7 @@ class SearchStockResult {
       sector: json['sector'] as String?,
       lastPrice: (json['last_price'] as num).toDouble(),
       percentChange: (json['percent_change'] as num?)?.toDouble(),
+      percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
     );
   }
@@ -1032,7 +1035,7 @@ class SearchMfResult {
   final String schemeName;
   final String? category;
   final double nav;
-  final double? returns3y;
+  final double? returns1y;
   final double score;
 
   const SearchMfResult({
@@ -1040,7 +1043,7 @@ class SearchMfResult {
     required this.schemeName,
     this.category,
     required this.nav,
-    this.returns3y,
+    this.returns1y,
     required this.score,
   });
 
@@ -1050,7 +1053,7 @@ class SearchMfResult {
       schemeName: json['scheme_name'] as String,
       category: json['category'] as String?,
       nav: (json['nav'] as num).toDouble(),
-      returns3y: (json['returns_3y'] as num?)?.toDouble(),
+      returns1y: (json['returns_1y'] as num?)?.toDouble(),
       score: (json['score'] as num?)?.toDouble() ?? 0,
     );
   }

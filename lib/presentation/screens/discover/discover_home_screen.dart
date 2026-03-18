@@ -587,7 +587,8 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   Widget _buildStockSearchTile(SearchStockResult item) {
     final theme = Theme.of(context);
-    final changeColor = (item.percentChange ?? 0) >= 0
+    final change3m = item.percentChange3m;
+    final changeColor = (change3m ?? 0) >= 0
         ? AppTheme.accentGreen
         : AppTheme.accentRed;
 
@@ -615,7 +616,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
-            Formatters.changeTag(item.percentChange),
+            Formatters.changeTag(change3m),
             style: theme.textTheme.labelSmall?.copyWith(
               color: changeColor,
               fontWeight: FontWeight.w600,
@@ -636,6 +637,10 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   Widget _buildMfSearchTile(SearchMfResult item) {
     final theme = Theme.of(context);
+    final ret1y = item.returns1y;
+    final changeColor = (ret1y ?? 0) >= 0
+        ? AppTheme.accentGreen
+        : AppTheme.accentRed;
 
     return ListTile(
       dense: true,
@@ -654,8 +659,11 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
       ),
       trailing: Text(
-        'NAV ${Formatters.price(item.nav)}',
-        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        Formatters.changeTag(ret1y),
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: changeColor,
+          fontWeight: FontWeight.w600,
+        ),
       ),
       onTap: () {
         _clearSearch();
