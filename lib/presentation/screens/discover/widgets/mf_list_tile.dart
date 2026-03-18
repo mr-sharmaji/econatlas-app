@@ -119,19 +119,17 @@ class MfListTile extends StatelessWidget {
               children: [
                 _CompactScore(score: item.score),
                 const SizedBox(width: 10),
-                if (item.subCategoryPercentile != null)
-                  _PercentileText(percentile: item.subCategoryPercentile!)
-                else if (item.subCategoryRank != null &&
+                if (item.subCategoryRank != null &&
                     item.subCategoryTotal != null &&
                     item.subCategoryTotal! > 0)
-                  _CategoryRankText(
+                  _RankOfTotalText(
                     rank: item.subCategoryRank!,
                     total: item.subCategoryTotal!,
                   )
                 else if (item.categoryRank != null &&
                     item.categoryTotal != null &&
                     item.categoryTotal! > 0)
-                  _CategoryRankText(
+                  _RankOfTotalText(
                     rank: item.categoryRank!,
                     total: item.categoryTotal!,
                   ),
@@ -175,42 +173,19 @@ class MfListTile extends StatelessWidget {
   }
 }
 
-class _PercentileText extends StatelessWidget {
-  final double percentile;
-
-  const _PercentileText({required this.percentile});
-
-  @override
-  Widget build(BuildContext context) {
-    final topPct = (100 - percentile).clamp(0.0, 100.0);
-    final isTopQuartile = topPct <= 25;
-    final color = isTopQuartile ? AppTheme.accentGreen : Colors.white60;
-
-    return Text(
-      'Top ${topPct.toStringAsFixed(0)}%',
-      style: TextStyle(
-        color: color,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-class _CategoryRankText extends StatelessWidget {
+class _RankOfTotalText extends StatelessWidget {
   final int rank;
   final int total;
 
-  const _CategoryRankText({required this.rank, required this.total});
+  const _RankOfTotalText({required this.rank, required this.total});
 
   @override
   Widget build(BuildContext context) {
-    final percentile = ((rank / total) * 100).clamp(0.0, 100.0);
-    final isTopQuartile = percentile <= 25;
+    final isTopQuartile = rank <= (total * 0.25).ceil();
     final color = isTopQuartile ? AppTheme.accentGreen : Colors.white60;
 
     return Text(
-      'Top ${percentile.toStringAsFixed(0)}%',
+      '#$rank of $total',
       style: TextStyle(
         color: color,
         fontSize: 12,
