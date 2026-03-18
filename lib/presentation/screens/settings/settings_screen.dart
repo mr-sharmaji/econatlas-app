@@ -19,7 +19,6 @@ class SettingsScreen extends ConsumerWidget {
     final chartTimezone = ref.watch(chartTimezoneProvider);
     final watchlistState = ref.watch(watchlistProvider);
     final developerUnlocked = ref.watch(developerOptionsUnlockedProvider);
-    final expertMode = ref.watch(expertModeProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -165,47 +164,6 @@ class SettingsScreen extends ConsumerWidget {
                     onChanged: (value) {
                       ref.read(themeModeProvider.notifier).setThemeMode(value);
                     },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Expert Mode',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              expertMode
-                                  ? 'All score breakdowns, charts, tables, and tags visible.'
-                                  : 'Simplified view with summaries and key highlights.',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white60,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: expertMode,
-                        onChanged: (_) =>
-                            ref.read(expertModeProvider.notifier).toggle(),
-                      ),
-                    ],
                   ),
                 ],
               ),

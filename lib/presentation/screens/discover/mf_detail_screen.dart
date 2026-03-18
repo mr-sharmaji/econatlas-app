@@ -47,8 +47,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Watch expert mode to trigger rebuild when toggled
-    ref.watch(expertModeProvider);
+    // Expert mode removed — always show full details
 
     if (widget.initialItem != null) {
       item = widget.initialItem!;
@@ -868,8 +867,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   // -- Risk & Performance Card (C8: expert mode support) --
 
   Widget _buildRiskPerformanceCard(ThemeData theme) {
-    final isExpert = ref.read(expertModeProvider);
-
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -879,159 +876,75 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Text('Risk & Performance', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
-            if (isExpert) ...[
-              // Expert mode: show all metrics
-              // Row 1: Sharpe, Sortino, Max Drawdown
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      label: 'Sharpe',
-                      value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
-                      valueColor: _sharpeColor(item.sharpe),
-                      tooltip: metricExplanations['sharpe'],
-                    ),
+            // Row 1: Sharpe, Sortino, Max Drawdown
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Sharpe',
+                    value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _sharpeColor(item.sharpe),
+                    tooltip: 'Sharpe ratio measures risk-adjusted returns. Higher is better — it shows how much return you earn per unit of total risk taken. Above 1.5 is excellent, below 0.5 is weak.',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Sortino',
-                      value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
-                      valueColor: _sharpeColor(item.sortino),
-                      tooltip: metricExplanations['sortino'],
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Sortino',
+                    value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _sharpeColor(item.sortino),
+                    tooltip: 'Sortino ratio is like Sharpe but only considers downside risk (losses). Higher is better. Above 2.0 is excellent — the fund protects well against losses while generating returns.',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Max DD',
-                      value: item.maxDrawdown != null
-                          ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      valueColor: _maxDrawdownColor(item.maxDrawdown),
-                      tooltip: metricExplanations['max_drawdown'],
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Max DD',
+                    value: item.maxDrawdown != null
+                        ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
+                        : '\u2014',
+                    valueColor: _maxDrawdownColor(item.maxDrawdown),
+                    tooltip: 'Maximum Drawdown is the largest peak-to-trough decline in the fund\'s history. Lower is better — it shows the worst-case loss you could have experienced.',
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Row 2: Alpha, Beta
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      label: 'Alpha',
-                      value: item.alpha != null
-                          ? '${item.alpha!.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      valueColor: _alphaColor(item.alpha),
-                      tooltip: metricExplanations['alpha'],
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Beta',
-                      value: item.beta?.toStringAsFixed(2) ?? '\u2014',
-                      valueColor: _betaColor(item.beta),
-                      tooltip: metricExplanations['beta'],
-                    ),
-                  ),
-                  const Spacer(),
-                ],
-              ),
-              if (item.rollingReturnConsistency != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: 48,
-                      height: 48,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          CircularProgressIndicator(
-                            value: (item.rollingReturnConsistency! / 100).clamp(0.0, 1.0),
-                            strokeWidth: 5,
-                            backgroundColor: Colors.white.withValues(alpha: 0.1),
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              ScoreBar.scoreColor(item.rollingReturnConsistency!.toDouble()),
-                            ),
-                          ),
-                          Text(
-                            '${item.rollingReturnConsistency!.toStringAsFixed(0)}%',
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Rolling Return Consistency',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                          Text(
-                            'How predictable the fund\'s returns have been over time',
-                            style: TextStyle(fontSize: 11, color: Colors.white54),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
                 ),
               ],
-            ] else ...[
-              // Non-expert mode: Sharpe, Max Drawdown, Alpha, Beta
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      label: 'Sharpe',
-                      value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
-                      valueColor: _sharpeColor(item.sharpe),
-                      tooltip: metricExplanations['sharpe'],
-                    ),
+            ),
+            const SizedBox(height: 8),
+            // Row 2: Alpha, Beta, Rolling Consistency
+            Row(
+              children: [
+                Expanded(
+                  child: StatCard(
+                    label: 'Alpha',
+                    value: item.alpha != null
+                        ? '${item.alpha!.toStringAsFixed(1)}%'
+                        : '\u2014',
+                    valueColor: _alphaColor(item.alpha),
+                    tooltip: 'Alpha measures how much the fund outperforms (or underperforms) its benchmark after adjusting for risk. Positive alpha means the fund manager is adding value beyond what the market provides.',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Max DD',
-                      value: item.maxDrawdown != null
-                          ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      valueColor: _maxDrawdownColor(item.maxDrawdown),
-                      tooltip: metricExplanations['max_drawdown'],
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Beta',
+                    value: item.beta?.toStringAsFixed(2) ?? '\u2014',
+                    valueColor: _betaColor(item.beta),
+                    tooltip: 'Beta measures the fund\'s sensitivity to market movements. Beta < 1 means the fund is defensive (moves less than the market). Beta > 1 means it\'s aggressive (amplifies market moves).',
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: StatCard(
-                      label: 'Alpha',
-                      value: item.alpha != null
-                          ? '${item.alpha!.toStringAsFixed(1)}%'
-                          : '\u2014',
-                      valueColor: _alphaColor(item.alpha),
-                      tooltip: metricExplanations['alpha'],
-                    ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: StatCard(
+                    label: 'Rolling',
+                    value: item.rollingReturnConsistency != null
+                        ? '${item.rollingReturnConsistency!.toStringAsFixed(1)}%'
+                        : '\u2014',
+                    valueColor: _rollingColor(item.rollingReturnConsistency),
+                    tooltip: 'Rolling Return Consistency measures how predictable the fund\'s returns are across different time periods. Lower is better — it means returns are consistent regardless of when you invest.',
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: StatCard(
-                      label: 'Beta',
-                      value: item.beta?.toStringAsFixed(2) ?? '\u2014',
-                      valueColor: _betaColor(item.beta),
-                      tooltip: metricExplanations['beta'],
-                    ),
-                  ),
-                ],
-              ),
-            ],
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -1572,5 +1485,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     if (beta < 0.8) return AppTheme.accentGreen;
     if (beta > 1.2) return AppTheme.accentRed;
     return null;
+  }
+
+  static Color? _rollingColor(double? rolling) {
+    if (rolling == null) return Colors.white38;
+    if (rolling < 10) return AppTheme.accentGreen;
+    if (rolling > 20) return AppTheme.accentRed;
+    return AppTheme.accentOrange;
   }
 }

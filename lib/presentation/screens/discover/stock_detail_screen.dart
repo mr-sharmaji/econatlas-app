@@ -196,8 +196,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   }
 
   Widget _buildContent(ThemeData theme, DiscoverStockItem item) {
-    // Watch expert mode to trigger rebuild when toggled
-    ref.watch(expertModeProvider);
+    // Expert mode removed — always show full details
     final historyAsync = ref.watch(
       discoverStockHistoryProvider((symbol: item.symbol, days: _selectedDays)),
     );
@@ -2384,7 +2383,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   Widget _buildGroupedTags(ThemeData theme, List<TagV2> tags) {
     final grouped = groupTagsByCategory(tags);
-    final isExpert = ref.read(expertModeProvider);
+    // Always show all tags (expert mode removed)
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -2424,7 +2423,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     Wrap(
                       spacing: 8,
                       runSpacing: 6,
-                      children: (isExpert ? entry.value : entry.value.take(3))
+                      children: entry.value
                           .map((tag) {
                         final td = getTagV2Display(tag);
                         return GestureDetector(
