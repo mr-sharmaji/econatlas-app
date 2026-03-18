@@ -697,6 +697,27 @@ class DiscoverMutualFundScoreBreakdown {
 }
 
 @immutable
+class MfTag {
+  final String tag;
+  final String sentiment; // positive, cautionary, negative, neutral
+  final String? preset; // screener preset to navigate to
+
+  const MfTag({
+    required this.tag,
+    required this.sentiment,
+    this.preset,
+  });
+
+  factory MfTag.fromJson(Map<String, dynamic> json) {
+    return MfTag(
+      tag: json['tag'] as String? ?? '',
+      sentiment: json['sentiment'] as String? ?? 'neutral',
+      preset: json['preset'] as String?,
+    );
+  }
+}
+
+@immutable
 class MfFundInsight {
   final String text;
   final String sentiment; // "positive", "negative", "neutral"
@@ -789,6 +810,8 @@ class DiscoverMutualFundItem {
   final int? subCategoryTotal;
   final double? fundAgeYears;
   final List<String> qualityBadges;
+  final List<MfTag> mfTags;
+  final Map<String, dynamic>? metricInsights;
   final double? categoryAvgReturns1y;
   final double? categoryAvgReturns3y;
   final double? categoryAvgReturns5y;
@@ -848,6 +871,8 @@ class DiscoverMutualFundItem {
     this.subCategoryTotal,
     this.fundAgeYears,
     this.qualityBadges = const [],
+    this.mfTags = const [],
+    this.metricInsights,
     this.categoryAvgReturns1y,
     this.categoryAvgReturns3y,
     this.categoryAvgReturns5y,
@@ -911,6 +936,11 @@ class DiscoverMutualFundItem {
       qualityBadges: (json['quality_badges'] as List<dynamic>? ?? const [])
           .map((e) => '$e')
           .toList(),
+      mfTags: (json['tags'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map((e) => MfTag.fromJson(e))
+          .toList(),
+      metricInsights: json['metric_insights'] as Map<String, dynamic>?,
       categoryAvgReturns1y:
           (json['category_avg_returns_1y'] as num?)?.toDouble(),
       categoryAvgReturns3y:

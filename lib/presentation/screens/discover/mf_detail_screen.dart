@@ -143,8 +143,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Quality Badges
-            if (item.qualityBadges.isNotEmpty) ...[
+            // 1. Tags (balanced: positive/cautionary/negative)
+            if (item.mfTags.isNotEmpty) ...[
+              _buildMfTags(theme),
+              const SizedBox(height: 8),
+            ] else if (item.qualityBadges.isNotEmpty) ...[
               _buildQualityBadges(theme),
               const SizedBox(height: 8),
             ],
@@ -295,6 +298,55 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         );
       }).toList(),
     );
+  }
+
+  // -- Balanced Tags (from backend) --
+
+  Widget _buildMfTags(ThemeData theme) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: item.mfTags.map((mfTag) {
+        final color = _sentimentColor(mfTag.sentiment);
+        return GestureDetector(
+          onTap: mfTag.preset != null
+              ? () {
+                  context.push('/discover/mf-screener', extra: {
+                    'preset': mfTag.preset,
+                  });
+                }
+              : null,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              mfTag.tag,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  static Color _sentimentColor(String sentiment) {
+    switch (sentiment) {
+      case 'positive':
+        return AppTheme.accentGreen;
+      case 'cautionary':
+        return AppTheme.accentOrange;
+      case 'negative':
+        return AppTheme.accentRed;
+      default:
+        return AppTheme.accentGray;
+    }
   }
 
   // -- Badge Helpers --
