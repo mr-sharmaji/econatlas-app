@@ -44,6 +44,19 @@ const _presetIcons = <DiscoverMutualFundPreset, IconData>{
   DiscoverMutualFundPreset.dynamicAssetAllocation: Icons.auto_graph,
   DiscoverMutualFundPreset.multiAsset: Icons.pie_chart,
   DiscoverMutualFundPreset.equitySavings: Icons.savings,
+  DiscoverMutualFundPreset.international: Icons.language,
+  DiscoverMutualFundPreset.ultraShort: Icons.timer,
+  DiscoverMutualFundPreset.lowDuration: Icons.hourglass_bottom,
+  DiscoverMutualFundPreset.mediumDuration: Icons.hourglass_full,
+  DiscoverMutualFundPreset.floater: Icons.waves,
+  DiscoverMutualFundPreset.targetMaturity: Icons.flag,
+  DiscoverMutualFundPreset.creditRisk: Icons.warning_amber,
+  DiscoverMutualFundPreset.other: Icons.more_horiz,
+  DiscoverMutualFundPreset.fofDomestic: Icons.folder_special,
+  DiscoverMutualFundPreset.fofOverseas: Icons.public,
+  DiscoverMutualFundPreset.goldSilver: Icons.diamond,
+  DiscoverMutualFundPreset.retirement: Icons.elderly,
+  DiscoverMutualFundPreset.children: Icons.child_care,
   DiscoverMutualFundPreset.lowRisk: Icons.verified_user,
 };
 
@@ -154,6 +167,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
         DiscoverMutualFundPresetX.hybridSubCategories.contains(preset)) {
       return DiscoverMutualFundPreset.hybrid;
     }
+    if (preset == DiscoverMutualFundPreset.other ||
+        DiscoverMutualFundPresetX.otherSubCategories.contains(preset)) {
+      return DiscoverMutualFundPreset.other;
+    }
     return null;
   }
 
@@ -167,6 +184,9 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     }
     if (_selectedSegment == DiscoverMutualFundPreset.hybrid) {
       return DiscoverMutualFundPresetX.hybridSubCategories;
+    }
+    if (_selectedSegment == DiscoverMutualFundPreset.other) {
+      return DiscoverMutualFundPresetX.otherSubCategories;
     }
     return [];
   }

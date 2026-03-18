@@ -139,7 +139,9 @@ enum DiscoverMutualFundPreset {
   equity,
   debt,
   hybrid,
+  other,
   // Equity sub-categories
+  indexFund,
   largeCap,
   largeMidCap,
   midCap,
@@ -150,16 +152,22 @@ enum DiscoverMutualFundPreset {
   valueMf,
   focused,
   sectoral,
-  indexFund,
+  international,
   // Debt sub-categories
+  liquid,
+  overnight,
+  moneyMarket,
+  ultraShort,
   shortDuration,
+  lowDuration,
+  mediumDuration,
   corporateBond,
   bankingPsu,
   gilt,
-  liquid,
-  overnight,
   dynamicBond,
-  moneyMarket,
+  floater,
+  targetMaturity,
+  creditRisk,
   // Hybrid sub-categories
   aggressiveHybrid,
   balancedHybrid,
@@ -168,6 +176,12 @@ enum DiscoverMutualFundPreset {
   dynamicAssetAllocation,
   multiAsset,
   equitySavings,
+  // Other sub-categories
+  fofDomestic,
+  fofOverseas,
+  goldSilver,
+  retirement,
+  children,
   // Legacy
   lowRisk,
 }
@@ -175,135 +189,99 @@ enum DiscoverMutualFundPreset {
 extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
   String get apiValue {
     switch (this) {
-      case DiscoverMutualFundPreset.all:
-        return 'all';
-      case DiscoverMutualFundPreset.equity:
-        return 'equity';
-      case DiscoverMutualFundPreset.debt:
-        return 'debt';
-      case DiscoverMutualFundPreset.hybrid:
-        return 'hybrid';
-      case DiscoverMutualFundPreset.largeCap:
-        return 'large-cap';
-      case DiscoverMutualFundPreset.largeMidCap:
-        return 'large-mid-cap';
-      case DiscoverMutualFundPreset.midCap:
-        return 'mid-cap';
-      case DiscoverMutualFundPreset.smallCap:
-        return 'small-cap';
-      case DiscoverMutualFundPreset.flexiCap:
-        return 'flexi-cap';
-      case DiscoverMutualFundPreset.multiCap:
-        return 'multi-cap';
-      case DiscoverMutualFundPreset.elss:
-        return 'elss';
-      case DiscoverMutualFundPreset.valueMf:
-        return 'value-mf';
-      case DiscoverMutualFundPreset.focused:
-        return 'focused';
-      case DiscoverMutualFundPreset.sectoral:
-        return 'sectoral';
-      case DiscoverMutualFundPreset.indexFund:
-        return 'index';
-      case DiscoverMutualFundPreset.shortDuration:
-        return 'short-duration';
-      case DiscoverMutualFundPreset.corporateBond:
-        return 'corporate-bond';
-      case DiscoverMutualFundPreset.bankingPsu:
-        return 'banking-psu';
-      case DiscoverMutualFundPreset.gilt:
-        return 'gilt';
-      case DiscoverMutualFundPreset.liquid:
-        return 'liquid';
-      case DiscoverMutualFundPreset.overnight:
-        return 'overnight';
-      case DiscoverMutualFundPreset.dynamicBond:
-        return 'dynamic-bond';
-      case DiscoverMutualFundPreset.moneyMarket:
-        return 'money-market';
-      case DiscoverMutualFundPreset.aggressiveHybrid:
-        return 'aggressive-hybrid';
-      case DiscoverMutualFundPreset.balancedHybrid:
-        return 'balanced-hybrid';
-      case DiscoverMutualFundPreset.conservativeHybrid:
-        return 'conservative-hybrid';
-      case DiscoverMutualFundPreset.arbitrage:
-        return 'arbitrage';
-      case DiscoverMutualFundPreset.dynamicAssetAllocation:
-        return 'dynamic-asset-allocation';
-      case DiscoverMutualFundPreset.multiAsset:
-        return 'multi-asset';
-      case DiscoverMutualFundPreset.equitySavings:
-        return 'equity-savings';
-      case DiscoverMutualFundPreset.lowRisk:
-        return 'low-risk';
+      case DiscoverMutualFundPreset.all: return 'all';
+      case DiscoverMutualFundPreset.equity: return 'equity';
+      case DiscoverMutualFundPreset.debt: return 'debt';
+      case DiscoverMutualFundPreset.hybrid: return 'hybrid';
+      case DiscoverMutualFundPreset.other: return 'other';
+      case DiscoverMutualFundPreset.indexFund: return 'index';
+      case DiscoverMutualFundPreset.largeCap: return 'large-cap';
+      case DiscoverMutualFundPreset.largeMidCap: return 'large-mid-cap';
+      case DiscoverMutualFundPreset.midCap: return 'mid-cap';
+      case DiscoverMutualFundPreset.smallCap: return 'small-cap';
+      case DiscoverMutualFundPreset.flexiCap: return 'flexi-cap';
+      case DiscoverMutualFundPreset.multiCap: return 'multi-cap';
+      case DiscoverMutualFundPreset.elss: return 'elss';
+      case DiscoverMutualFundPreset.valueMf: return 'value-mf';
+      case DiscoverMutualFundPreset.focused: return 'focused';
+      case DiscoverMutualFundPreset.sectoral: return 'sectoral';
+      case DiscoverMutualFundPreset.international: return 'international';
+      case DiscoverMutualFundPreset.liquid: return 'liquid';
+      case DiscoverMutualFundPreset.overnight: return 'overnight';
+      case DiscoverMutualFundPreset.moneyMarket: return 'money-market';
+      case DiscoverMutualFundPreset.ultraShort: return 'ultra-short';
+      case DiscoverMutualFundPreset.shortDuration: return 'short-duration';
+      case DiscoverMutualFundPreset.lowDuration: return 'low-duration';
+      case DiscoverMutualFundPreset.mediumDuration: return 'medium-duration';
+      case DiscoverMutualFundPreset.corporateBond: return 'corporate-bond';
+      case DiscoverMutualFundPreset.bankingPsu: return 'banking-psu';
+      case DiscoverMutualFundPreset.gilt: return 'gilt';
+      case DiscoverMutualFundPreset.dynamicBond: return 'dynamic-bond';
+      case DiscoverMutualFundPreset.floater: return 'floater';
+      case DiscoverMutualFundPreset.targetMaturity: return 'target-maturity';
+      case DiscoverMutualFundPreset.creditRisk: return 'credit-risk';
+      case DiscoverMutualFundPreset.aggressiveHybrid: return 'aggressive-hybrid';
+      case DiscoverMutualFundPreset.balancedHybrid: return 'balanced-hybrid';
+      case DiscoverMutualFundPreset.conservativeHybrid: return 'conservative-hybrid';
+      case DiscoverMutualFundPreset.arbitrage: return 'arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation: return 'dynamic-asset-allocation';
+      case DiscoverMutualFundPreset.multiAsset: return 'multi-asset';
+      case DiscoverMutualFundPreset.equitySavings: return 'equity-savings';
+      case DiscoverMutualFundPreset.fofDomestic: return 'fof-domestic';
+      case DiscoverMutualFundPreset.fofOverseas: return 'fof-overseas';
+      case DiscoverMutualFundPreset.goldSilver: return 'gold-silver';
+      case DiscoverMutualFundPreset.retirement: return 'retirement';
+      case DiscoverMutualFundPreset.children: return 'children';
+      case DiscoverMutualFundPreset.lowRisk: return 'low-risk';
     }
   }
 
   String get label {
     switch (this) {
-      case DiscoverMutualFundPreset.all:
-        return 'All';
-      case DiscoverMutualFundPreset.equity:
-        return 'Equity';
-      case DiscoverMutualFundPreset.debt:
-        return 'Debt';
-      case DiscoverMutualFundPreset.hybrid:
-        return 'Hybrid';
-      case DiscoverMutualFundPreset.largeCap:
-        return 'Large Cap';
-      case DiscoverMutualFundPreset.largeMidCap:
-        return 'Large & Mid Cap';
-      case DiscoverMutualFundPreset.midCap:
-        return 'Mid Cap';
-      case DiscoverMutualFundPreset.smallCap:
-        return 'Small Cap';
-      case DiscoverMutualFundPreset.flexiCap:
-        return 'Flexi Cap';
-      case DiscoverMutualFundPreset.multiCap:
-        return 'Multi Cap';
-      case DiscoverMutualFundPreset.elss:
-        return 'ELSS';
-      case DiscoverMutualFundPreset.valueMf:
-        return 'Value';
-      case DiscoverMutualFundPreset.focused:
-        return 'Focused';
-      case DiscoverMutualFundPreset.sectoral:
-        return 'Sectoral & Thematic';
-      case DiscoverMutualFundPreset.indexFund:
-        return 'Index';
-      case DiscoverMutualFundPreset.shortDuration:
-        return 'Short Duration';
-      case DiscoverMutualFundPreset.corporateBond:
-        return 'Corporate Bond';
-      case DiscoverMutualFundPreset.bankingPsu:
-        return 'Banking & PSU';
-      case DiscoverMutualFundPreset.gilt:
-        return 'Gilt';
-      case DiscoverMutualFundPreset.liquid:
-        return 'Liquid';
-      case DiscoverMutualFundPreset.overnight:
-        return 'Overnight';
-      case DiscoverMutualFundPreset.dynamicBond:
-        return 'Dynamic Bond';
-      case DiscoverMutualFundPreset.moneyMarket:
-        return 'Money Market';
-      case DiscoverMutualFundPreset.aggressiveHybrid:
-        return 'Aggressive Hybrid';
-      case DiscoverMutualFundPreset.balancedHybrid:
-        return 'Balanced Hybrid';
-      case DiscoverMutualFundPreset.conservativeHybrid:
-        return 'Conservative Hybrid';
-      case DiscoverMutualFundPreset.arbitrage:
-        return 'Arbitrage';
-      case DiscoverMutualFundPreset.dynamicAssetAllocation:
-        return 'Dynamic Asset Allocation';
-      case DiscoverMutualFundPreset.multiAsset:
-        return 'Multi Asset';
-      case DiscoverMutualFundPreset.equitySavings:
-        return 'Equity Savings';
-      case DiscoverMutualFundPreset.lowRisk:
-        return 'Low Risk';
+      case DiscoverMutualFundPreset.all: return 'All';
+      case DiscoverMutualFundPreset.equity: return 'Equity';
+      case DiscoverMutualFundPreset.debt: return 'Debt';
+      case DiscoverMutualFundPreset.hybrid: return 'Hybrid';
+      case DiscoverMutualFundPreset.other: return 'Other';
+      case DiscoverMutualFundPreset.indexFund: return 'Index';
+      case DiscoverMutualFundPreset.largeCap: return 'Large Cap';
+      case DiscoverMutualFundPreset.largeMidCap: return 'Large & Mid Cap';
+      case DiscoverMutualFundPreset.midCap: return 'Mid Cap';
+      case DiscoverMutualFundPreset.smallCap: return 'Small Cap';
+      case DiscoverMutualFundPreset.flexiCap: return 'Flexi Cap';
+      case DiscoverMutualFundPreset.multiCap: return 'Multi Cap';
+      case DiscoverMutualFundPreset.elss: return 'ELSS';
+      case DiscoverMutualFundPreset.valueMf: return 'Value';
+      case DiscoverMutualFundPreset.focused: return 'Focused';
+      case DiscoverMutualFundPreset.sectoral: return 'Sectoral & Thematic';
+      case DiscoverMutualFundPreset.international: return 'International';
+      case DiscoverMutualFundPreset.liquid: return 'Liquid';
+      case DiscoverMutualFundPreset.overnight: return 'Overnight';
+      case DiscoverMutualFundPreset.moneyMarket: return 'Money Market';
+      case DiscoverMutualFundPreset.ultraShort: return 'Ultra Short';
+      case DiscoverMutualFundPreset.shortDuration: return 'Short Duration';
+      case DiscoverMutualFundPreset.lowDuration: return 'Low Duration';
+      case DiscoverMutualFundPreset.mediumDuration: return 'Medium Duration';
+      case DiscoverMutualFundPreset.corporateBond: return 'Corporate Bond';
+      case DiscoverMutualFundPreset.bankingPsu: return 'Banking & PSU';
+      case DiscoverMutualFundPreset.gilt: return 'Gilt';
+      case DiscoverMutualFundPreset.dynamicBond: return 'Dynamic Bond';
+      case DiscoverMutualFundPreset.floater: return 'Floater';
+      case DiscoverMutualFundPreset.targetMaturity: return 'Target Maturity';
+      case DiscoverMutualFundPreset.creditRisk: return 'Credit Risk';
+      case DiscoverMutualFundPreset.aggressiveHybrid: return 'Aggressive';
+      case DiscoverMutualFundPreset.balancedHybrid: return 'Balanced';
+      case DiscoverMutualFundPreset.conservativeHybrid: return 'Conservative';
+      case DiscoverMutualFundPreset.arbitrage: return 'Arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation: return 'Dynamic Asset';
+      case DiscoverMutualFundPreset.multiAsset: return 'Multi Asset';
+      case DiscoverMutualFundPreset.equitySavings: return 'Equity Savings';
+      case DiscoverMutualFundPreset.fofDomestic: return 'FoF Domestic';
+      case DiscoverMutualFundPreset.fofOverseas: return 'FoF Overseas';
+      case DiscoverMutualFundPreset.goldSilver: return 'Gold & Silver';
+      case DiscoverMutualFundPreset.retirement: return 'Retirement';
+      case DiscoverMutualFundPreset.children: return 'Children';
+      case DiscoverMutualFundPreset.lowRisk: return 'Low Risk';
     }
   }
 
@@ -312,6 +290,7 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.equity,
         DiscoverMutualFundPreset.debt,
         DiscoverMutualFundPreset.hybrid,
+        DiscoverMutualFundPreset.other,
       ];
 
   static List<DiscoverMutualFundPreset> get equitySubCategories => [
@@ -326,17 +305,24 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.valueMf,
         DiscoverMutualFundPreset.focused,
         DiscoverMutualFundPreset.sectoral,
+        DiscoverMutualFundPreset.international,
       ];
 
   static List<DiscoverMutualFundPreset> get debtSubCategories => [
+        DiscoverMutualFundPreset.liquid,
+        DiscoverMutualFundPreset.overnight,
+        DiscoverMutualFundPreset.moneyMarket,
+        DiscoverMutualFundPreset.ultraShort,
         DiscoverMutualFundPreset.shortDuration,
+        DiscoverMutualFundPreset.lowDuration,
+        DiscoverMutualFundPreset.mediumDuration,
         DiscoverMutualFundPreset.corporateBond,
         DiscoverMutualFundPreset.bankingPsu,
         DiscoverMutualFundPreset.gilt,
-        DiscoverMutualFundPreset.liquid,
-        DiscoverMutualFundPreset.overnight,
         DiscoverMutualFundPreset.dynamicBond,
-        DiscoverMutualFundPreset.moneyMarket,
+        DiscoverMutualFundPreset.floater,
+        DiscoverMutualFundPreset.targetMaturity,
+        DiscoverMutualFundPreset.creditRisk,
       ];
 
   static List<DiscoverMutualFundPreset> get hybridSubCategories => [
@@ -347,6 +333,14 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.dynamicAssetAllocation,
         DiscoverMutualFundPreset.multiAsset,
         DiscoverMutualFundPreset.equitySavings,
+      ];
+
+  static List<DiscoverMutualFundPreset> get otherSubCategories => [
+        DiscoverMutualFundPreset.fofDomestic,
+        DiscoverMutualFundPreset.fofOverseas,
+        DiscoverMutualFundPreset.goldSilver,
+        DiscoverMutualFundPreset.retirement,
+        DiscoverMutualFundPreset.children,
       ];
 
   static DiscoverMutualFundPreset fromApi(String? value) {
@@ -409,6 +403,32 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return DiscoverMutualFundPreset.multiAsset;
       case 'equity-savings':
         return DiscoverMutualFundPreset.equitySavings;
+      case 'other':
+        return DiscoverMutualFundPreset.other;
+      case 'fof-domestic':
+        return DiscoverMutualFundPreset.fofDomestic;
+      case 'fof-overseas':
+        return DiscoverMutualFundPreset.fofOverseas;
+      case 'gold-silver':
+        return DiscoverMutualFundPreset.goldSilver;
+      case 'retirement':
+        return DiscoverMutualFundPreset.retirement;
+      case 'children':
+        return DiscoverMutualFundPreset.children;
+      case 'international':
+        return DiscoverMutualFundPreset.international;
+      case 'ultra-short':
+        return DiscoverMutualFundPreset.ultraShort;
+      case 'low-duration':
+        return DiscoverMutualFundPreset.lowDuration;
+      case 'medium-duration':
+        return DiscoverMutualFundPreset.mediumDuration;
+      case 'floater':
+        return DiscoverMutualFundPreset.floater;
+      case 'target-maturity':
+        return DiscoverMutualFundPreset.targetMaturity;
+      case 'credit-risk':
+        return DiscoverMutualFundPreset.creditRisk;
       case 'low-risk':
         return DiscoverMutualFundPreset.lowRisk;
       case 'all':
