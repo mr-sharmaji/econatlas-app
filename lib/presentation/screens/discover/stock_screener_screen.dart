@@ -204,7 +204,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: AppBar(title: const Text('Stocks')),
+      appBar: AppBar(title: const Text('Stocks'), actions: const []),
       endDrawer: _buildFilterDrawer(filters),
       endDrawerEnableOpenDragGesture: false,
       body: Column(

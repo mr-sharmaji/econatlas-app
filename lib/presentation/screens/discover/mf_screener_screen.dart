@@ -177,7 +177,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      appBar: AppBar(title: const Text('Mutual Funds')),
+      appBar: AppBar(title: const Text('Mutual Funds'), actions: const []),
       endDrawer: _buildFilterDrawer(filters),
       endDrawerEnableOpenDragGesture: false,
       body: Column(
