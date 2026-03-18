@@ -316,11 +316,11 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         items.where((r) => r.type == 'mf').map((r) => r.id).toList();
     final recentStockSparklines = recentStockSymbols.isNotEmpty
         ? ref.watch(discoverStockSparklinesProvider(
-            (symbolsCsv: recentStockSymbols.join(','), days: 7)))
+            (symbolsCsv: recentStockSymbols.join(','), days: 90)))
         : null;
     final recentMfSparklines = recentMfCodes.isNotEmpty
         ? ref.watch(discoverMfSparklinesProvider(
-            (codesCsv: recentMfCodes.join(','), days: 7)))
+            (codesCsv: recentMfCodes.join(','), days: 365)))
         : null;
     final recentStockSparkMap = recentStockSparklines?.valueOrNull ?? {};
     final recentMfSparkMap = recentMfSparklines?.valueOrNull ?? {};
