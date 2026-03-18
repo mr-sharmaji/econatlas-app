@@ -616,7 +616,9 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                 ?.copyWith(fontWeight: FontWeight.w600),
           ),
           Text(
-            Formatters.changeTag(change3m),
+            change3m != null
+                ? '${Formatters.changeTag(change3m)} 3M'
+                : '',
             style: theme.textTheme.labelSmall?.copyWith(
               color: changeColor,
               fontWeight: FontWeight.w600,
@@ -659,7 +661,9 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
       ),
       trailing: Text(
-        Formatters.changeTag(ret1y),
+        ret1y != null
+            ? '${Formatters.changeTag(ret1y)} 1Y'
+            : '',
         style: theme.textTheme.bodySmall?.copyWith(
           color: changeColor,
           fontWeight: FontWeight.w600,
