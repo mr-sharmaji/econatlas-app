@@ -595,23 +595,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             Text('Fund Ranking', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
 
-            // Sub-category rank (more granular: e.g. Large Cap, Mid Cap)
-            if (item.subCategoryRank != null && item.subCategoryTotal != null)
-              _buildRankRow(
-                theme,
-                rank: item.subCategoryRank!,
-                total: item.subCategoryTotal!,
-                label: item.fundClassification ?? item.subCategory ?? item.category ?? 'Sub-Category',
-              ),
-
-            // Category rank (broader: e.g. Equity, Debt)
-            if (item.categoryRank != null && item.categoryTotal != null) ...[
-              if (item.subCategoryRank != null) const SizedBox(height: 8),
+            // Category rank first (broader: e.g. Equity, Debt)
+            if (item.categoryRank != null && item.categoryTotal != null)
               _buildRankRow(
                 theme,
                 rank: item.categoryRank!,
                 total: item.categoryTotal!,
                 label: item.category ?? 'Category',
+              ),
+
+            // Sub-category rank second (more granular: e.g. Large Cap, Mid Cap)
+            if (item.subCategoryRank != null && item.subCategoryTotal != null) ...[
+              if (item.categoryRank != null) const SizedBox(height: 8),
+              _buildRankRow(
+                theme,
+                rank: item.subCategoryRank!,
+                total: item.subCategoryTotal!,
+                label: item.fundClassification ?? item.subCategory ?? item.category ?? 'Sub-Category',
               ),
             ],
           ],
@@ -673,17 +673,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           minLabel: 'Best',
           maxLabel: 'Worst',
           color: isTopQuartile ? AppTheme.accentGreen : AppTheme.accentOrange,
-        ),
-        const SizedBox(height: 4),
-        Align(
-          alignment: Alignment.center,
-          child: Text(
-            'Top $percentile%',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: isTopQuartile ? AppTheme.accentGreen : Colors.white54,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          showNearLabel: false,
         ),
       ],
     );

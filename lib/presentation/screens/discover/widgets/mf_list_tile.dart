@@ -118,21 +118,6 @@ class MfListTile extends StatelessWidget {
             Row(
               children: [
                 _CompactScore(score: item.score),
-                const SizedBox(width: 10),
-                if (item.subCategoryRank != null &&
-                    item.subCategoryTotal != null &&
-                    item.subCategoryTotal! > 0)
-                  _RankOfTotalText(
-                    rank: item.subCategoryRank!,
-                    total: item.subCategoryTotal!,
-                  )
-                else if (item.categoryRank != null &&
-                    item.categoryTotal != null &&
-                    item.categoryTotal! > 0)
-                  _RankOfTotalText(
-                    rank: item.categoryRank!,
-                    total: item.categoryTotal!,
-                  ),
                 const Spacer(),
                 if (sparklineValues != null && sparklineValues!.length >= 2)
                   SizedBox(

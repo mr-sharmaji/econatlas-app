@@ -9,6 +9,7 @@ class PositionBar extends StatelessWidget {
   final String? minLabel;
   final String? maxLabel;
   final Color color;
+  final bool showNearLabel;
 
   const PositionBar({
     super.key,
@@ -18,6 +19,7 @@ class PositionBar extends StatelessWidget {
     this.minLabel,
     this.maxLabel,
     this.color = AppTheme.accentBlue,
+    this.showNearLabel = true,
   });
 
   @override
@@ -83,7 +85,7 @@ class PositionBar extends StatelessWidget {
               )
             else
               const SizedBox.shrink(),
-            if (nearLow)
+            if (showNearLabel && nearLow)
               Text(
                 'Near Low',
                 style: TextStyle(
@@ -92,7 +94,7 @@ class PositionBar extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
               )
-            else if (nearHigh)
+            else if (showNearLabel && nearHigh)
               Text(
                 'Near High',
                 style: TextStyle(
