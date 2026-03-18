@@ -119,7 +119,9 @@ class MfListTile extends StatelessWidget {
               children: [
                 _CompactScore(score: item.score),
                 const SizedBox(width: 10),
-                if (item.subCategoryRank != null &&
+                if (item.subCategoryPercentile != null)
+                  _PercentileText(percentile: item.subCategoryPercentile!)
+                else if (item.subCategoryRank != null &&
                     item.subCategoryTotal != null &&
                     item.subCategoryTotal! > 0)
                   _CategoryRankText(
@@ -168,6 +170,28 @@ class MfListTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),
+      ),
+    );
+  }
+}
+
+class _PercentileText extends StatelessWidget {
+  final double percentile;
+
+  const _PercentileText({required this.percentile});
+
+  @override
+  Widget build(BuildContext context) {
+    final topPct = (100 - percentile).clamp(0.0, 100.0);
+    final isTopQuartile = topPct <= 25;
+    final color = isTopQuartile ? AppTheme.accentGreen : Colors.white60;
+
+    return Text(
+      'Top ${topPct.toStringAsFixed(0)}%',
+      style: TextStyle(
+        color: color,
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
       ),
     );
   }
