@@ -21,6 +21,9 @@ const _presetIcons = <DiscoverStockPreset, IconData>{
   DiscoverStockPreset.breakout: Icons.rocket_launch_outlined,
   DiscoverStockPreset.quality: Icons.verified_outlined,
   DiscoverStockPreset.dividend: Icons.payments_outlined,
+  DiscoverStockPreset.largeCap: Icons.business_outlined,
+  DiscoverStockPreset.midCap: Icons.domain_outlined,
+  DiscoverStockPreset.smallCap: Icons.store_outlined,
 };
 
 // ---------------------------------------------------------------------------
@@ -275,10 +278,16 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                       _presetIcons[option] ?? Icons.apps,
                       size: 16,
                       color: isSelected
-                          ? theme.colorScheme.onSecondaryContainer
+                          ? Colors.white
                           : theme.colorScheme.onSurfaceVariant,
                     ),
                     label: Text(option.label),
+                    labelStyle: isSelected
+                        ? const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          )
+                        : null,
                     selected: isSelected,
                     showCheckmark: false,
                     onSelected: (_) {

@@ -44,6 +44,9 @@ enum DiscoverStockPreset {
   breakout,
   quality,
   dividend,
+  largeCap,
+  midCap,
+  smallCap,
 }
 
 extension DiscoverStockPresetX on DiscoverStockPreset {
@@ -65,6 +68,12 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'quality';
       case DiscoverStockPreset.dividend:
         return 'dividend';
+      case DiscoverStockPreset.largeCap:
+        return 'large-cap';
+      case DiscoverStockPreset.midCap:
+        return 'mid-cap';
+      case DiscoverStockPreset.smallCap:
+        return 'small-cap';
     }
   }
 
@@ -86,6 +95,12 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'Quality';
       case DiscoverStockPreset.dividend:
         return 'Dividend';
+      case DiscoverStockPreset.largeCap:
+        return 'Large Cap';
+      case DiscoverStockPreset.midCap:
+        return 'Mid Cap';
+      case DiscoverStockPreset.smallCap:
+        return 'Small Cap';
     }
   }
 
@@ -105,6 +120,12 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return DiscoverStockPreset.quality;
       case 'dividend':
         return DiscoverStockPreset.dividend;
+      case 'large-cap':
+        return DiscoverStockPreset.largeCap;
+      case 'mid-cap':
+        return DiscoverStockPreset.midCap;
+      case 'small-cap':
+        return DiscoverStockPreset.smallCap;
       case 'momentum':
       default:
         return DiscoverStockPreset.momentum;
@@ -120,6 +141,7 @@ enum DiscoverMutualFundPreset {
   hybrid,
   // Equity sub-categories
   largeCap,
+  largeMidCap,
   midCap,
   smallCap,
   flexiCap,
@@ -159,6 +181,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'hybrid';
       case DiscoverMutualFundPreset.largeCap:
         return 'large-cap';
+      case DiscoverMutualFundPreset.largeMidCap:
+        return 'large-mid-cap';
       case DiscoverMutualFundPreset.midCap:
         return 'mid-cap';
       case DiscoverMutualFundPreset.smallCap:
@@ -216,6 +240,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Hybrid';
       case DiscoverMutualFundPreset.largeCap:
         return 'Large Cap';
+      case DiscoverMutualFundPreset.largeMidCap:
+        return 'Large & Mid Cap';
       case DiscoverMutualFundPreset.midCap:
         return 'Mid Cap';
       case DiscoverMutualFundPreset.smallCap:
@@ -270,6 +296,7 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
 
   static List<DiscoverMutualFundPreset> get equitySubCategories => [
         DiscoverMutualFundPreset.largeCap,
+        DiscoverMutualFundPreset.largeMidCap,
         DiscoverMutualFundPreset.midCap,
         DiscoverMutualFundPreset.smallCap,
         DiscoverMutualFundPreset.flexiCap,
@@ -312,6 +339,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return DiscoverMutualFundPreset.midCap;
       case 'small-cap':
         return DiscoverMutualFundPreset.smallCap;
+      case 'large-mid-cap':
+        return DiscoverMutualFundPreset.largeMidCap;
       case 'flexi-cap':
         return DiscoverMutualFundPreset.flexiCap;
       case 'multi-cap':

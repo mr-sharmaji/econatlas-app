@@ -19,6 +19,7 @@ const _presetIcons = <DiscoverMutualFundPreset, IconData>{
   DiscoverMutualFundPreset.debt: Icons.account_balance,
   DiscoverMutualFundPreset.hybrid: Icons.merge_type,
   DiscoverMutualFundPreset.largeCap: Icons.business,
+  DiscoverMutualFundPreset.largeMidCap: Icons.domain,
   DiscoverMutualFundPreset.midCap: Icons.store,
   DiscoverMutualFundPreset.smallCap: Icons.storefront,
   DiscoverMutualFundPreset.flexiCap: Icons.auto_awesome,
@@ -283,10 +284,16 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                       _presetIcons[segment] ?? Icons.apps,
                       size: 16,
                       color: selected
-                          ? Theme.of(context).colorScheme.onSecondaryContainer
+                          ? Colors.white
                           : Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                     label: Text(segment.label),
+                    labelStyle: selected
+                        ? const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          )
+                        : null,
                     selected: selected,
                     showCheckmark: false,
                     onSelected: (_) {
@@ -462,10 +469,16 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   _presetIcons[sub] ?? Icons.apps,
                   size: 16,
                   color: selectedPreset == sub
-                      ? Theme.of(context).colorScheme.onSecondaryContainer
+                      ? Colors.white
                       : Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 label: Text(sub.label),
+                labelStyle: selectedPreset == sub
+                    ? const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      )
+                    : null,
                 selected: selectedPreset == sub,
                 showCheckmark: false,
                 onSelected: (_) {

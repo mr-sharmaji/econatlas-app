@@ -100,22 +100,17 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
   }
 
   void _onQuickCategoryTap(QuickCategory cat) {
+    final extra = <String, String>{
+      if (cat.preset != null) 'preset': cat.preset!,
+      if (cat.filterKey != null && cat.filterValue != null) ...{
+        'filterKey': cat.filterKey!,
+        'filterValue': cat.filterValue!,
+      },
+    };
     if (cat.segment == 'mutual_funds') {
-      context.push('/discover/mutual-funds', extra: {
-        if (cat.preset != null) 'preset': cat.preset,
-        if (cat.filterKey != null && cat.filterValue != null) ...{
-          'filterKey': cat.filterKey,
-          'filterValue': cat.filterValue,
-        },
-      });
+      context.push('/discover/mutual-funds', extra: extra);
     } else {
-      context.push('/discover/stocks', extra: {
-        if (cat.preset != null) 'preset': cat.preset,
-        if (cat.filterKey != null && cat.filterValue != null) ...{
-          'filterKey': cat.filterKey,
-          'filterValue': cat.filterValue,
-        },
-      });
+      context.push('/discover/stocks', extra: extra);
     }
   }
 
