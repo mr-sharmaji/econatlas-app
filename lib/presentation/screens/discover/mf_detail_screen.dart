@@ -245,11 +245,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildRiskPerformanceCard(theme),
             const SizedBox(height: 8),
 
-            // 10. Portfolio / Holdings (C6)
-            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
-              _buildHoldingsSection(theme),
-              const SizedBox(height: 8),
-            ],
+            // 10. Portfolio / Holdings — removed (asset allocation only)
 
             // 11. Key Metrics
             _buildMetricsCard(theme),
