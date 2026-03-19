@@ -1161,7 +1161,17 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Asset Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Row(
+              children: [
+                Text('Asset Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (item.holdingsAsOf != null)
+                  Text(
+                    'As of ${item.holdingsAsOf}',
+                    style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+                  ),
+              ],
+            ),
             const SizedBox(height: 10),
 
             // Asset allocation horizontal bar
@@ -1211,15 +1221,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   if (item.assetAllocation!.other > 0)
                     _assetLegend('Other', item.assetAllocation!.other, AppTheme.accentGray, theme),
                 ],
-              ),
-            ],
-
-            // As-of date
-            if (item.holdingsAsOf != null) ...[
-              const SizedBox(height: 4),
-              Text(
-                'As of ${item.holdingsAsOf}',
-                style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
               ),
             ],
           ],
