@@ -1157,15 +1157,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Portfolio / Holdings', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+            Text('Asset Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 10),
 
             // Asset allocation horizontal bar
             if (item.assetAllocation != null) ...[
-              Text(
-                'Asset Allocation',
-                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
-              ),
               const SizedBox(height: 6),
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
