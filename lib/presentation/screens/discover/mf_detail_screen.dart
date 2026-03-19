@@ -1167,7 +1167,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 const Spacer(),
                 if (item.holdingsAsOf != null)
                   Text(
-                    'As of ${item.holdingsAsOf}',
+                    'As of ${_formatDate(item.holdingsAsOf!)}',
                     style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
                   ),
               ],
@@ -1227,6 +1227,16 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         ),
       ),
     );
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final parts = dateStr.split('-');
+      if (parts.length == 3) {
+        return '${parts[2]}-${parts[1]}-${parts[0]}';
+      }
+    } catch (_) {}
+    return dateStr;
   }
 
   Widget _assetLegend(String label, double pct, Color color, ThemeData theme) {
