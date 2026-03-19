@@ -1212,91 +1212,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     _assetLegend('Other', item.assetAllocation!.other, AppTheme.accentGray, theme),
                 ],
               ),
-              const SizedBox(height: 12),
             ],
 
-            // Top holdings list
-            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
-              Text(
-                'Top Holdings',
-                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
-              ),
-              const SizedBox(height: 6),
-              ...item.topHoldings!.map((holding) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                holding.name,
-                                style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${holding.percentage.toStringAsFixed(2)}%',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: Colors.white54,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        PositionBar(
-                          min: 0,
-                          max: 100,
-                          current: holding.percentage,
-                          color: AppTheme.accentBlue,
-                        ),
-                      ],
-                    ),
-                  )),
-            ],
-
-            // Sector allocation
-            if (item.sectorAllocation != null && item.sectorAllocation!.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Sector Allocation',
-                style: theme.textTheme.labelMedium?.copyWith(color: Colors.white54),
-              ),
-              const SizedBox(height: 6),
-              ...item.sectorAllocation!.map((sector) => Padding(
-                    padding: const EdgeInsets.only(bottom: 6),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            sector.sector,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          '${sector.percentage.toStringAsFixed(1)}%',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: Colors.white54,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )),
-            ],
-
-            // Holdings as-of date
+            // As-of date
             if (item.holdingsAsOf != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               Text(
-                'Holdings as of ${item.holdingsAsOf}',
+                'As of ${item.holdingsAsOf}',
                 style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
               ),
             ],
