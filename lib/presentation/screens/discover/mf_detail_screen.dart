@@ -509,7 +509,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         breakdown.riskScore > 0 ||
         breakdown.costScore > 0 ||
         breakdown.consistencyScore > 0;
-    final isDebt = (item.category ?? '').toLowerCase() == 'debt';
+    final isDebt = (item.fundType ?? item.category ?? '').toLowerCase() == 'debt';
     final catFit = breakdown.categoryFitScore ?? item.scoreCategoryFit?.toDouble();
 
     return Card(

@@ -833,6 +833,7 @@ class DiscoverMutualFundItem {
   final double? scoreCategoryFit;
   final double? subCategoryPercentile;
   final String? fundClassification;
+  final String? fundType;
   final DiscoverMutualFundScoreBreakdown scoreBreakdown;
   final List<String> whyRanked;
   final List<MfFundInsight> fundInsights;
@@ -893,6 +894,7 @@ class DiscoverMutualFundItem {
     this.scoreCategoryFit,
     this.subCategoryPercentile,
     this.fundClassification,
+    this.fundType,
     required this.scoreBreakdown,
     required this.whyRanked,
     this.fundInsights = const [],
@@ -968,6 +970,7 @@ class DiscoverMutualFundItem {
       scoreCategoryFit: (json['score_category_fit'] as num?)?.toDouble(),
       subCategoryPercentile: (json['sub_category_percentile'] as num?)?.toDouble(),
       fundClassification: json['fund_classification'] as String?,
+      fundType: json['fund_type'] as String?,
       scoreBreakdown: DiscoverMutualFundScoreBreakdown.fromJson(
         (json['score_breakdown'] as Map<String, dynamic>? ?? const {}),
       ),
