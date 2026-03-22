@@ -14,10 +14,26 @@ class MfListTile extends StatelessWidget {
   final DiscoverMutualFundItem item;
   final VoidCallback? onTap;
 
-  /// Optional 30-day sparkline data points.
+  /// Optional sparkline data points.
   final List<double>? sparklineValues;
 
-  const MfListTile({super.key, required this.item, this.onTap, this.sparklineValues});
+  /// Current sort field — determines which return to display.
+  final String sortBy;
+
+  const MfListTile({
+    super.key,
+    required this.item,
+    this.onTap,
+    this.sparklineValues,
+    this.sortBy = 'score',
+  });
+
+  /// Format AUM (in Cr) to compact string.
+  static String _formatAum(double crores) {
+    if (crores >= 100000) return '${(crores / 100000).toStringAsFixed(1)}L Cr';
+    if (crores >= 1000) return '${(crores / 1000).toStringAsFixed(1)}K Cr';
+    return '${crores.toStringAsFixed(0)} Cr';
+  }
 
   static Color riskColor(String? risk) {
     final r = (risk ?? '').toLowerCase();
@@ -27,12 +43,33 @@ class MfListTile extends StatelessWidget {
     return AppTheme.accentGray;
   }
 
+  /// Returns the display return value and label based on sort.
+  ({double? value, String label}) get _displayReturn {
+    switch (sortBy) {
+      case 'returns_3y':
+        return (value: item.returns3y, label: '3Y');
+      case 'returns_5y':
+        return (value: item.returns5y, label: '5Y');
+      case 'expense':
+        return (value: item.expenseRatio, label: 'ER');
+      case 'aum':
+        return (value: item.aumCr, label: 'AUM');
+      default:
+        return (value: item.returns1y, label: '1Y');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final ret1y = item.returns1y;
-    final retPositive = (ret1y ?? 0) >= 0;
-    final retColor = retPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final dr = _displayReturn;
+    final retVal = dr.value;
+    final retLabel = dr.label;
+    final isReturnField = sortBy != 'expense' && sortBy != 'aum';
+    final retPositive = isReturnField ? (retVal ?? 0) >= 0 : true;
+    final retColor = isReturnField
+        ? (retPositive ? AppTheme.accentGreen : AppTheme.accentRed)
+        : Colors.white60;
 
     return GestureDetector(
       onTap: onTap,
@@ -48,7 +85,7 @@ class MfListTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: Scheme name + 1Y return badge
+            // Row 1: Scheme name + return/metric badge
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -61,7 +98,7 @@ class MfListTile extends StatelessWidget {
                         ?.copyWith(fontWeight: FontWeight.w600),
                   ),
                 ),
-                if (ret1y != null) ...[
+                if (retVal != null) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding:
@@ -71,7 +108,9 @@ class MfListTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      '${ret1y >= 0 ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                      sortBy == 'aum'
+                          ? '₹${retVal >= 1000 ? '${(retVal / 1000).toStringAsFixed(1)}K' : retVal.toStringAsFixed(0)} Cr'
+                          : '${isReturnField && retVal >= 0 ? '+' : ''}${retVal.toStringAsFixed(sortBy == 'expense' ? 2 : 1)}% $retLabel',
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: retColor,
                         fontWeight: FontWeight.w700,
@@ -84,19 +123,19 @@ class MfListTile extends StatelessWidget {
 
             const SizedBox(height: 6),
 
-            // Row 2: Category · Risk level · Expense ratio
+            // Row 2: Fund classification · AUM · Risk level · Expense ratio
             Row(
               children: [
-                if (item.category != null)
-                  Flexible(
-                    child: Text(
-                      item.category!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white),
-                    ),
+                Flexible(
+                  child: Text(
+                    '${item.fundClassification ?? item.category ?? ''}'
+                    '${item.aumCr != null ? ' · ₹${_formatAum(item.aumCr!)}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white54),
                   ),
+                ),
                 if (item.riskLevel != null) ...[
                   const SizedBox(width: 8),
                   _riskBadge(context, item.riskLevel!),
@@ -106,7 +145,7 @@ class MfListTile extends StatelessWidget {
                   Text(
                     'ER: ${item.expenseRatio!.toStringAsFixed(2)}%',
                     style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white, fontSize: 11),
+                        ?.copyWith(color: Colors.white54, fontSize: 11),
                   ),
                 ],
               ],
@@ -153,28 +192,6 @@ class MfListTile extends StatelessWidget {
               fontWeight: FontWeight.w600,
               fontSize: 11,
             ),
-      ),
-    );
-  }
-}
-
-class _RankOfTotalText extends StatelessWidget {
-  final int rank;
-  final int total;
-
-  const _RankOfTotalText({required this.rank, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    final isTopQuartile = rank <= (total * 0.25).ceil();
-    final color = isTopQuartile ? AppTheme.accentGreen : Colors.white60;
-
-    return Text(
-      '#$rank of $total',
-      style: TextStyle(
-        color: color,
-        fontSize: 12,
-        fontWeight: FontWeight.w600,
       ),
     );
   }

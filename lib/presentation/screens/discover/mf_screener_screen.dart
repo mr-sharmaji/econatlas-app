@@ -68,7 +68,6 @@ const _sortOptions = [
   (value: 'returns_5y', label: '5Y Return'),
   (value: 'aum', label: 'AUM'),
   (value: 'expense', label: 'Expense Ratio'),
-  (value: 'risk', label: 'Risk'),
 ];
 
 class MfScreenerScreen extends ConsumerStatefulWidget {
@@ -172,6 +171,18 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
       return DiscoverMutualFundPresetX.otherSubCategories;
     }
     return [];
+  }
+
+  /// Map sort field to sparkline days (max 365 — backend limit).
+  int _sparklineDaysForSort(String sortBy) {
+    switch (sortBy) {
+      case 'returns_1y':
+      case 'returns_3y':
+      case 'returns_5y':
+        return 365;
+      default:
+        return 90;
+    }
   }
 
   void _showSortSheet() {
@@ -387,9 +398,10 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                 }
                 final codesCsv =
                     items.map((e) => e.schemeCode).join(',');
+                final sparkDays = _sparklineDaysForSort(filters.sortBy);
                 final sparkAsync = ref.watch(
                   discoverMfSparklinesProvider(
-                    (codesCsv: codesCsv, days: 90),
+                    (codesCsv: codesCsv, days: sparkDays),
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
@@ -483,6 +495,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                       return MfListTile(
                         item: item,
                         sparklineValues: sparkVals,
+                        sortBy: filters.sortBy,
                         onTap: () {
                           context.push(
                             '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',

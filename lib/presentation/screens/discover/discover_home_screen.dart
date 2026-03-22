@@ -369,35 +369,50 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   static IconData? _quickCategoryIcon(QuickCategory cat) {
     switch (cat.preset) {
+      // Stocks
+      case 'all':
+        return Icons.apps;
       case 'momentum':
         return Icons.speed;
+      case 'quality':
+        return Icons.verified_outlined;
       case 'value':
       case 'value-mf':
         return Icons.diamond_outlined;
-      case 'quality':
-        return Icons.verified_outlined;
       case 'dividend':
         return Icons.payments_outlined;
+      case 'low-volatility':
+        return Icons.shield_outlined;
+      case 'high-volume':
+        return Icons.bar_chart;
+      case 'breakout':
+        return Icons.rocket_launch_outlined;
+      // Market cap (shared)
+      case 'large-cap':
+        return Icons.business;
+      case 'mid-cap':
+        return Icons.domain;
+      case 'small-cap':
+        return Icons.storefront;
+      // MF
       case 'equity':
         return Icons.show_chart;
       case 'debt':
-        return Icons.savings_outlined;
-      case 'large-cap':
-        return Icons.business;
-      case 'small-cap':
-        return Icons.store;
-      case 'mid-cap':
-        return Icons.apartment;
-      case 'high-volume':
-        return Icons.trending_up;
-      case 'elss':
-        return Icons.receipt_long_outlined;
+        return Icons.account_balance;
+      case 'hybrid':
+        return Icons.merge_type;
       case 'flexi-cap':
-        return Icons.swap_vert_rounded;
-      case 'low-risk':
-        return Icons.shield_outlined;
+        return Icons.auto_awesome;
+      case 'multi-cap':
+        return Icons.grid_view;
+      case 'elss':
+        return Icons.savings;
       case 'index':
-        return Icons.pie_chart_outline;
+        return Icons.trending_up;
+      case 'sectoral':
+        return Icons.category;
+      case 'low-risk':
+        return Icons.verified_user;
       default:
         return null;
     }
