@@ -1207,6 +1207,7 @@ class DiscoverHomeMfItem {
   final String schemeName;
   final String? displayName;
   final String? category;
+  final String? fundClassification;
   final double score;
   final double? returns1y;
   final List<String> qualityBadges;
@@ -1216,10 +1217,14 @@ class DiscoverHomeMfItem {
     required this.schemeName,
     this.displayName,
     this.category,
+    this.fundClassification,
     required this.score,
     this.returns1y,
     this.qualityBadges = const [],
   });
+
+  /// Returns the best available label: fund_classification > category > ''.
+  String get categoryLabel => fundClassification ?? category ?? '';
 
   factory DiscoverHomeMfItem.fromJson(Map<String, dynamic> json) {
     return DiscoverHomeMfItem(
@@ -1227,6 +1232,7 @@ class DiscoverHomeMfItem {
       schemeName: json['scheme_name'] as String,
       displayName: json['display_name'] as String?,
       category: json['category'] as String?,
+      fundClassification: json['fund_classification'] as String?,
       score: (json['score'] as num?)?.toDouble() ?? 0,
       returns1y: (json['returns_1y'] as num?)?.toDouble(),
       qualityBadges: (json['quality_badges'] as List<dynamic>? ?? const [])

@@ -1028,18 +1028,18 @@ class _MfCard extends StatelessWidget {
                   ),
               ],
             ),
-            // Row 2: category + risk
+            // Row 2: category label
             Text(
-              item.category ?? '',
+              item.categoryLabel,
               style: theme.textTheme.labelSmall?.copyWith(
                 color: Colors.white54,
                 fontSize: 10,
               ),
-              maxLines: 2,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
-            // Row 3: 1Y return (primary)
+            // Row 3: 1Y return (bottom-anchored)
             if (hasReturn)
               Text(
                 '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
