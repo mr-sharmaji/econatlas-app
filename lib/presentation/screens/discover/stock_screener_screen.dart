@@ -29,18 +29,19 @@ const _presetIcons = <DiscoverStockPreset, IconData>{
 // ---------------------------------------------------------------------------
 // Sort options
 // ---------------------------------------------------------------------------
-const _sortOptions = [
-  (value: 'score', label: 'Score'),
-  (value: 'change_3m', label: 'Change 3M'),
-  (value: 'change_1y', label: 'Change 1Y'),
-  (value: 'market_cap', label: 'Market Cap'),
-];
-
-const _smartSorts = [
-  (label: 'Top Quality', sortBy: 'score', sortOrder: 'desc', icon: Icons.verified_outlined),
+// Named sort presets — each maps to a sort field + order
+const _sortPresets = [
+  // Best performers
+  (label: 'Top Rated', sortBy: 'score', sortOrder: 'desc', icon: Icons.star_rounded),
+  (label: 'Best 3M Gain', sortBy: 'change_3m', sortOrder: 'desc', icon: Icons.speed_rounded),
   (label: 'Best 1Y Gain', sortBy: 'change_1y', sortOrder: 'desc', icon: Icons.trending_up_rounded),
-  (label: 'Most Active', sortBy: 'change_3m', sortOrder: 'desc', icon: Icons.speed_rounded),
+  // Market cap
   (label: 'Blue Chips', sortBy: 'market_cap', sortOrder: 'desc', icon: Icons.business_outlined),
+  (label: 'Small Caps First', sortBy: 'market_cap', sortOrder: 'asc', icon: Icons.storefront_outlined),
+  // Reverse / contrarian
+  (label: 'Biggest Losers 3M', sortBy: 'change_3m', sortOrder: 'asc', icon: Icons.trending_down_rounded),
+  (label: 'Biggest Losers 1Y', sortBy: 'change_1y', sortOrder: 'asc', icon: Icons.arrow_downward_rounded),
+  (label: 'Lowest Rated', sortBy: 'score', sortOrder: 'asc', icon: Icons.star_border_rounded),
 ];
 
 // ---------------------------------------------------------------------------
@@ -179,58 +180,26 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text('Sort By', style: theme.textTheme.titleSmall),
                 ),
-                ..._sortOptions.map((opt) {
-                  final isSelected = filters.sortBy == opt.value;
+                ..._sortPresets.map((preset) {
+                  final isActive = filters.sortBy == preset.sortBy &&
+                      filters.sortOrder == preset.sortOrder;
                   return ListTile(
                     dense: true,
-                    title: Text(opt.label),
-                    trailing: isSelected
-                        ? Icon(
-                            filters.sortOrder == 'desc'
-                                ? Icons.arrow_downward_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          )
-                        : null,
-                    selected: isSelected,
-                    onTap: () {
-                      final newOrder = isSelected
-                          ? (filters.sortOrder == 'desc' ? 'asc' : 'desc')
-                          : 'desc';
-                      ref
-                          .read(discoverStockFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(
-                            sortBy: opt.value,
-                            sortOrder: newOrder,
-                          ));
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Text('Smart Sorts', style: theme.textTheme.titleSmall),
-                ),
-                ..._smartSorts.map((smart) {
-                  final isActive = filters.sortBy == smart.sortBy &&
-                      filters.sortOrder == smart.sortOrder;
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(smart.icon, size: 20,
-                        color: isActive ? theme.colorScheme.primary : null),
-                    title: Text(smart.label),
+                    leading: Icon(preset.icon, size: 20,
+                        color: isActive
+                            ? theme.colorScheme.primary
+                            : Colors.white38),
+                    title: Text(preset.label),
                     selected: isActive,
                     onTap: () {
                       ref
                           .read(discoverStockFiltersProvider.notifier)
                           .setFilters(filters.copyWith(
-                            sortBy: smart.sortBy,
-                            sortOrder: smart.sortOrder,
+                            sortBy: preset.sortBy,
+                            sortOrder: preset.sortOrder,
                           ));
                       Navigator.pop(ctx);
                     },
@@ -300,49 +269,65 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
             ),
           ),
 
-          // Row 2: SegmentedButton (All / Strategy / Market Cap)
+          // Row 2: Toggle buttons (All / Strategy / Market Cap)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SizedBox(
               width: double.infinity,
-              child: SegmentedButton<String>(
-                segments: DiscoverStockPresetX.segmentLabels.map((seg) {
-                  return ButtonSegment(
-                    value: seg,
-                    label: Text(seg, style: const TextStyle(fontSize: 12)),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final segments = DiscoverStockPresetX.segmentLabels;
+                  // Subtract border widths (1px per segment + 1px extra)
+                  final buttonWidth =
+                      (constraints.maxWidth - segments.length - 1) /
+                          segments.length;
+                  return ToggleButtons(
+                    isSelected:
+                        segments.map((s) => s == _selectedSegment).toList(),
+                    onPressed: (i) {
+                      final seg = segments[i];
+                      setState(() => _selectedSegment = seg);
+                      if (seg == 'All') {
+                        ref
+                            .read(discoverStockPresetProvider.notifier)
+                            .setPreset(DiscoverStockPreset.all);
+                      }
+                      final subs = DiscoverStockPresetX.subPresetsFor(seg);
+                      if (subs.isNotEmpty) {
+                        ref
+                            .read(discoverStockPresetProvider.notifier)
+                            .setPreset(subs.first);
+                      }
+                      if (_searchController.text.isNotEmpty) {
+                        _searchController.clear();
+                        setState(() {});
+                        ref
+                            .read(discoverStockFiltersProvider.notifier)
+                            .setFilters(ref
+                                .read(discoverStockFiltersProvider)
+                                .copyWith(search: ''));
+                      }
+                    },
+                    constraints: BoxConstraints(
+                      minWidth: buttonWidth,
+                      minHeight: 36,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    borderColor: Colors.white.withValues(alpha: 0.15),
+                    selectedBorderColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.5),
+                    fillColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.15),
+                    selectedColor: theme.colorScheme.primary,
+                    color: Colors.white60,
+                    textStyle: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: segments
+                        .map((s) => Text(s))
+                        .toList(),
                   );
-                }).toList(),
-                selected: {_selectedSegment},
-                onSelectionChanged: (selected) {
-                  final seg = selected.first;
-                  setState(() => _selectedSegment = seg);
-                  if (seg == 'All') {
-                    ref
-                        .read(discoverStockPresetProvider.notifier)
-                        .setPreset(DiscoverStockPreset.all);
-                  }
-                  // When selecting a segment, pick the first sub-preset
-                  final subs = DiscoverStockPresetX.subPresetsFor(seg);
-                  if (subs.isNotEmpty) {
-                    ref
-                        .read(discoverStockPresetProvider.notifier)
-                        .setPreset(subs.first);
-                  }
-                  if (_searchController.text.isNotEmpty) {
-                    _searchController.clear();
-                    setState(() {});
-                    ref
-                        .read(discoverStockFiltersProvider.notifier)
-                        .setFilters(ref
-                            .read(discoverStockFiltersProvider)
-                            .copyWith(search: ''));
-                  }
                 },
-                showSelectedIcon: false,
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
               ),
             ),
           ),
@@ -413,14 +398,11 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
 
-                final sortLabel = _smartSorts
-                        .where((s) => s.sortBy == filters.sortBy && s.sortOrder == filters.sortOrder)
-                        .map((s) => s.label)
-                        .firstOrNull ??
-                    _sortOptions
-                        .firstWhere((o) => o.value == filters.sortBy,
-                            orElse: () => _sortOptions.first)
-                        .label;
+                final sortLabel = _sortPresets
+                    .where((s) => s.sortBy == filters.sortBy &&
+                        s.sortOrder == filters.sortOrder)
+                    .map((s) => s.label)
+                    .firstOrNull ?? 'Top Rated';
 
                 return Stack(
                   children: [
@@ -468,7 +450,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                     ),
                     // Sticky bottom sort pill
                     Positioned(
-                      bottom: 12,
+                      bottom: 24,
                       left: 0,
                       right: 0,
                       child: Center(

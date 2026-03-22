@@ -61,21 +61,21 @@ const _presetIcons = <DiscoverMutualFundPreset, IconData>{
 // ---------------------------------------------------------------------------
 // Sort options
 // ---------------------------------------------------------------------------
-const _sortOptions = [
-  (value: 'score', label: 'Score'),
-  (value: 'returns_1y', label: '1Y Return'),
-  (value: 'returns_3y', label: '3Y Return'),
-  (value: 'returns_5y', label: '5Y Return'),
-  (value: 'aum', label: 'AUM'),
-  (value: 'expense', label: 'Expense Ratio'),
-];
-
-// Smart sort presets — apply sort + order in one tap
-const _smartSorts = [
+// Named sort presets — each maps to a sort field + order
+const _sortPresets = [
+  // Best performers
+  (label: 'Top Rated', sortBy: 'score', sortOrder: 'desc', icon: Icons.star_rounded),
+  (label: 'Top 1Y Return', sortBy: 'returns_1y', sortOrder: 'desc', icon: Icons.trending_up_rounded),
   (label: 'Best SIP Pick', sortBy: 'returns_3y', sortOrder: 'desc', icon: Icons.savings_outlined),
   (label: 'Proven Winner', sortBy: 'returns_5y', sortOrder: 'desc', icon: Icons.emoji_events_outlined),
-  (label: 'Low Cost Leader', sortBy: 'expense', sortOrder: 'asc', icon: Icons.trending_down_rounded),
+  // Cost & size
+  (label: 'Low Cost', sortBy: 'expense', sortOrder: 'asc', icon: Icons.trending_down_rounded),
   (label: 'Biggest Funds', sortBy: 'aum', sortOrder: 'desc', icon: Icons.account_balance_outlined),
+  (label: 'Smallest Funds', sortBy: 'aum', sortOrder: 'asc', icon: Icons.storefront_outlined),
+  // Reverse / contrarian
+  (label: 'Worst 1Y Return', sortBy: 'returns_1y', sortOrder: 'asc', icon: Icons.arrow_downward_rounded),
+  (label: 'Lowest Rated', sortBy: 'score', sortOrder: 'asc', icon: Icons.star_border_rounded),
+  (label: 'Highest Expense', sortBy: 'expense', sortOrder: 'desc', icon: Icons.warning_amber_rounded),
 ];
 
 class MfScreenerScreen extends ConsumerStatefulWidget {
@@ -206,58 +206,26 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
                   child: Text('Sort By', style: theme.textTheme.titleSmall),
                 ),
-                ..._sortOptions.map((opt) {
-                  final isSelected = filters.sortBy == opt.value;
+                ..._sortPresets.map((preset) {
+                  final isActive = filters.sortBy == preset.sortBy &&
+                      filters.sortOrder == preset.sortOrder;
                   return ListTile(
                     dense: true,
-                    title: Text(opt.label),
-                    trailing: isSelected
-                        ? Icon(
-                            filters.sortOrder == 'desc'
-                                ? Icons.arrow_downward_rounded
-                                : Icons.arrow_upward_rounded,
-                            size: 18,
-                            color: theme.colorScheme.primary,
-                          )
-                        : null,
-                    selected: isSelected,
-                    onTap: () {
-                      final newOrder = isSelected
-                          ? (filters.sortOrder == 'desc' ? 'asc' : 'desc')
-                          : 'desc';
-                      ref
-                          .read(discoverMutualFundFiltersProvider.notifier)
-                          .setFilters(filters.copyWith(
-                            sortBy: opt.value,
-                            sortOrder: newOrder,
-                          ));
-                      Navigator.pop(ctx);
-                    },
-                  );
-                }),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                  child: Text('Smart Sorts', style: theme.textTheme.titleSmall),
-                ),
-                ..._smartSorts.map((smart) {
-                  final isActive = filters.sortBy == smart.sortBy &&
-                      filters.sortOrder == smart.sortOrder;
-                  return ListTile(
-                    dense: true,
-                    leading: Icon(smart.icon, size: 20,
-                        color: isActive ? theme.colorScheme.primary : null),
-                    title: Text(smart.label),
+                    leading: Icon(preset.icon, size: 20,
+                        color: isActive
+                            ? theme.colorScheme.primary
+                            : Colors.white38),
+                    title: Text(preset.label),
                     selected: isActive,
                     onTap: () {
                       ref
                           .read(discoverMutualFundFiltersProvider.notifier)
                           .setFilters(filters.copyWith(
-                            sortBy: smart.sortBy,
-                            sortOrder: smart.sortOrder,
+                            sortBy: preset.sortBy,
+                            sortOrder: preset.sortOrder,
                           ));
                       Navigator.pop(ctx);
                     },
@@ -327,46 +295,63 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
             ),
           ),
 
-          // Row 2: SegmentedButton (All / Equity / Debt / Hybrid / Other)
+          // Row 2: Toggle buttons (All / Equity / Debt / Hybrid / Other)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: SizedBox(
               width: double.infinity,
-              child: SegmentedButton<DiscoverMutualFundPreset>(
-                segments: DiscoverMutualFundPresetX.segments.map((seg) {
-                  return ButtonSegment(
-                    value: seg,
-                    label: Text(seg.label,
-                        style: const TextStyle(fontSize: 12)),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final segments = DiscoverMutualFundPresetX.segments;
+                  final selectedSeg =
+                      _selectedSegment ?? DiscoverMutualFundPreset.all;
+                  // Subtract border widths (1px per segment + 1px extra)
+                  final buttonWidth =
+                      (constraints.maxWidth - segments.length - 1) /
+                          segments.length;
+                  return ToggleButtons(
+                    isSelected:
+                        segments.map((s) => s == selectedSeg).toList(),
+                    onPressed: (i) {
+                      final seg = segments[i];
+                      setState(() {
+                        _selectedSegment =
+                            seg == DiscoverMutualFundPreset.all ? null : seg;
+                      });
+                      ref
+                          .read(discoverMutualFundPresetProvider.notifier)
+                          .setPreset(seg);
+                      if (_searchController.text.isNotEmpty) {
+                        _searchController.clear();
+                        setState(() {});
+                        ref
+                            .read(
+                                discoverMutualFundFiltersProvider.notifier)
+                            .setFilters(ref
+                                .read(discoverMutualFundFiltersProvider)
+                                .copyWith(search: ''));
+                      }
+                    },
+                    constraints: BoxConstraints(
+                      minWidth: buttonWidth,
+                      minHeight: 36,
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    borderColor: Colors.white.withValues(alpha: 0.15),
+                    selectedBorderColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.5),
+                    fillColor:
+                        theme.colorScheme.primary.withValues(alpha: 0.15),
+                    selectedColor: theme.colorScheme.primary,
+                    color: Colors.white60,
+                    textStyle: theme.textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    children: segments
+                        .map((s) => Text(s.label))
+                        .toList(),
                   );
-                }).toList(),
-                selected: {
-                  _selectedSegment ?? DiscoverMutualFundPreset.all,
                 },
-                onSelectionChanged: (selected) {
-                  final seg = selected.first;
-                  setState(() {
-                    _selectedSegment =
-                        seg == DiscoverMutualFundPreset.all ? null : seg;
-                  });
-                  ref
-                      .read(discoverMutualFundPresetProvider.notifier)
-                      .setPreset(seg);
-                  if (_searchController.text.isNotEmpty) {
-                    _searchController.clear();
-                    setState(() {});
-                    ref
-                        .read(discoverMutualFundFiltersProvider.notifier)
-                        .setFilters(ref
-                            .read(discoverMutualFundFiltersProvider)
-                            .copyWith(search: ''));
-                  }
-                },
-                showSelectedIcon: false,
-                style: ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
               ),
             ),
           ),
@@ -436,14 +421,11 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
                 // Find current sort label
-                final sortLabel = _smartSorts
-                        .where((s) => s.sortBy == filters.sortBy && s.sortOrder == filters.sortOrder)
-                        .map((s) => s.label)
-                        .firstOrNull ??
-                    _sortOptions
-                        .firstWhere((o) => o.value == filters.sortBy,
-                            orElse: () => _sortOptions.first)
-                        .label;
+                final sortLabel = _sortPresets
+                    .where((s) => s.sortBy == filters.sortBy &&
+                        s.sortOrder == filters.sortOrder)
+                    .map((s) => s.label)
+                    .firstOrNull ?? 'Top Rated';
 
                 return Stack(
                   children: [
@@ -493,7 +475,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                     ),
                     // Sticky bottom sort pill
                     Positioned(
-                      bottom: 12,
+                      bottom: 24,
                       left: 0,
                       right: 0,
                       child: Center(
