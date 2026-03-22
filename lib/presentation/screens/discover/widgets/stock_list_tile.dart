@@ -4,7 +4,6 @@ import '../../../../core/theme.dart';
 import '../../../../core/utils.dart';
 import '../../../../data/models/discover.dart';
 import 'sparkline_widget.dart';
-import 'tag_utils.dart';
 
 /// Which percent-change field to display in the tile.
 enum StockChangeField {
@@ -18,8 +17,8 @@ enum StockChangeField {
 ///
 /// 3-row layout:
 /// Row 1: name + price
-/// Row 2: symbol · sector  [readable tags]  3M change%
-/// Row 3: circular score + quality tier text
+/// Row 2: symbol · market cap · sector     3M change%
+/// Row 3: circular score + quality tier + lynch classification + sparkline
 class StockListTile extends StatelessWidget {
   final DiscoverStockItem item;
   final VoidCallback? onTap;
@@ -27,7 +26,7 @@ class StockListTile extends StatelessWidget {
   /// Which change field to display (driven by sort selection).
   final StockChangeField changeField;
 
-  /// Optional 7-day sparkline data points.
+  /// Optional sparkline data points.
   final List<double>? sparklineValues;
 
   const StockListTile({
@@ -64,12 +63,72 @@ class StockListTile extends StatelessWidget {
     }
   }
 
-  /// Returns the single best tag for display.
-  static TagDisplay? _bestTag(DiscoverStockItem item) {
-    if (item.tags.isEmpty) return null;
-    final best = bestTagForListTile(item.tags);
-    if (best != null) return getTagV2Display(best);
-    return null;
+  /// Format market cap (in Cr) to compact string.
+  static String _formatMarketCap(double crores) {
+    if (crores >= 100000) return '${(crores / 100000).toStringAsFixed(1)}L Cr';
+    if (crores >= 1000) return '${(crores / 1000).toStringAsFixed(1)}K Cr';
+    return '${crores.toStringAsFixed(0)} Cr';
+  }
+
+  /// Format lynch classification from snake_case to Title Case.
+  static String _formatLynch(String classification) {
+    return classification
+        .split('_')
+        .map((w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  /// Color for Lynch classification badge — uses severity colors from backend.
+  /// neutral → blue, cautionary → orange, negative → red.
+  static Color _lynchColor(String classification) {
+    final normalized = classification.toLowerCase().replaceAll('_', ' ');
+    switch (normalized) {
+      // neutral severity → blue
+      case 'fast grower':
+      case 'stalwart':
+      case 'asset play':
+        return AppTheme.accentBlue;
+      // cautionary severity → orange
+      case 'slow grower':
+      case 'cyclical':
+      case 'turnaround':
+        return AppTheme.accentOrange;
+      // negative severity → red
+      case 'speculative':
+        return AppTheme.accentRed;
+      default:
+        return AppTheme.accentBlue;
+    }
+  }
+
+  /// Icon and color for action verdict tag — matches stock_detail_screen.dart.
+  static ({IconData icon, Color color}) _actionVerdict(String? tag) {
+    final formatted = _formatLynch(tag ?? ''); // normalize snake_case
+    switch (formatted) {
+      case 'Strong Outperformer':
+        return (icon: Icons.rocket_launch_rounded, color: AppTheme.accentGreen);
+      case 'Outperformer':
+        return (icon: Icons.trending_up_rounded, color: AppTheme.accentTeal);
+      case 'Accumulate':
+        return (icon: Icons.add_circle_outline_rounded, color: const Color(0xFF66BB6A));
+      case 'Watchlist':
+        return (icon: Icons.visibility_rounded, color: AppTheme.accentBlue);
+      case 'Momentum Only':
+        return (icon: Icons.speed_rounded, color: const Color(0xFF7C4DFF));
+      case 'Hold':
+      case 'Hold — Low Data':
+        return (icon: Icons.pause_circle_outline_rounded, color: AppTheme.accentOrange);
+      case 'Neutral':
+        return (icon: Icons.pause_circle_outline_rounded, color: AppTheme.accentGray);
+      case 'Deteriorating':
+        return (icon: Icons.trending_down_rounded, color: const Color(0xFFFF7043));
+      case 'Underperformer':
+        return (icon: Icons.trending_down_rounded, color: AppTheme.accentRed);
+      case 'Avoid':
+        return (icon: Icons.block_rounded, color: const Color(0xFFD32F2F));
+      default:
+        return (icon: Icons.bolt, color: AppTheme.accentTeal);
+    }
   }
 
   @override
@@ -78,6 +137,7 @@ class StockListTile extends StatelessWidget {
     final change = _displayChange;
     final isPositive = (change ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
+    final verdict = _actionVerdict(item.actionTag);
 
     return GestureDetector(
       onTap: onTap,
@@ -93,9 +153,11 @@ class StockListTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: name + price
+            // Row 1: verdict icon + name + price
             Row(
               children: [
+                Icon(verdict.icon, size: 16, color: verdict.color),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     item.displayName,
@@ -116,53 +178,21 @@ class StockListTile extends StatelessWidget {
 
             const SizedBox(height: 6),
 
-            // Row 2: symbol · sector  [readable tags]  3M change%
+            // Row 2: symbol · market cap · sector     3M change%
             Row(
               children: [
                 Expanded(
-                  child: Row(
-                    children: [
-                      Flexible(
-                        child: Text(
-                          '${item.symbol}${item.sector != null ? ' \u00b7 ${item.sector}' : ''}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: Colors.white54),
-                        ),
-                      ),
-                      if (_bestTag(item) != null) ...[
-                        const SizedBox(width: 6),
-                        Builder(builder: (_) {
-                          final td = _bestTag(item)!;
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: td.color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(td.icon, size: 9, color: td.color),
-                                const SizedBox(width: 3),
-                                Text(
-                                  td.label,
-                                  style: TextStyle(
-                                    color: td.color,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ],
+                  child: Text(
+                    '${item.symbol}'
+                    '${item.marketCap != null ? ' \u00b7 \u20b9${_formatMarketCap(item.marketCap!)}' : ''}'
+                    '${item.sector != null ? ' \u00b7 ${item.sector}' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white54),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -183,13 +213,14 @@ class StockListTile extends StatelessWidget {
 
             const SizedBox(height: 8),
 
-            // Row 3: Circular score + quality tier text + sparkline
+            // Row 3: score + lynch classification + sparkline
             Row(
               children: [
                 _CircularScore(score: item.score),
-                const SizedBox(width: 10),
-                if (item.qualityTier != null)
-                  _QualityTierBadge(tier: item.qualityTier!),
+                if (item.lynchClassification != null) ...[
+                  const SizedBox(width: 8),
+                  _LynchBadge(classification: item.lynchClassification!),
+                ],
                 const Spacer(),
                 if (sparklineValues != null && sparklineValues!.length >= 2)
                   SizedBox(
@@ -247,15 +278,16 @@ class _CircularScore extends StatelessWidget {
   }
 }
 
-/// Small colored chip showing quality tier (Strong, Good, Average, Weak).
-class _QualityTierBadge extends StatelessWidget {
-  final String tier;
+/// Colored chip showing Lynch classification.
+class _LynchBadge extends StatelessWidget {
+  final String classification;
 
-  const _QualityTierBadge({required this.tier});
+  const _LynchBadge({required this.classification});
 
   @override
   Widget build(BuildContext context) {
-    final color = _tierColor(tier);
+    final color = StockListTile._lynchColor(classification);
+    final label = StockListTile._formatLynch(classification);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -263,7 +295,7 @@ class _QualityTierBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        tier,
+        label,
         style: TextStyle(
           color: color,
           fontSize: 11,
@@ -271,22 +303,5 @@ class _QualityTierBadge extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  static Color _tierColor(String tier) {
-    switch (tier.toLowerCase()) {
-      case 'strong':
-      case 'excellent':
-        return AppTheme.accentGreen;
-      case 'good':
-        return AppTheme.accentBlue;
-      case 'average':
-        return AppTheme.accentOrange;
-      case 'weak':
-      case 'poor':
-        return AppTheme.accentRed;
-      default:
-        return Colors.white54;
-    }
   }
 }

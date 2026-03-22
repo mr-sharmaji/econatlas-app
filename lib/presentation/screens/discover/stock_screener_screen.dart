@@ -31,14 +31,9 @@ const _presetIcons = <DiscoverStockPreset, IconData>{
 // ---------------------------------------------------------------------------
 const _sortOptions = [
   (value: 'score', label: 'Score'),
-  (value: 'price', label: 'Price'),
-  (value: 'pe', label: 'P/E'),
-  (value: 'change', label: 'Change'),
   (value: 'change_3m', label: 'Change 3M'),
   (value: 'change_1y', label: 'Change 1Y'),
-  (value: 'volume', label: 'Volume'),
-  (value: 'roe', label: 'ROE'),
-  (value: 'market_cap', label: 'Mkt Cap'),
+  (value: 'market_cap', label: 'Market Cap'),
 ];
 
 // ---------------------------------------------------------------------------
@@ -138,6 +133,18 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
         return StockChangeField.daily;
       default:
         return StockChangeField.threeMonth;
+    }
+  }
+
+  /// Map sort field to sparkline days.
+  int _sparklineDaysForSort(String sortBy) {
+    switch (sortBy) {
+      case 'change':
+        return 7;
+      case 'change_1y':
+        return 365;
+      default:
+        return 90;
     }
   }
 
@@ -369,114 +376,111 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
 
                 // Fetch sparklines for visible items
                 final symbolsCsv = items.map((e) => e.symbol).join(',');
+                final sparkDays = _sparklineDaysForSort(filters.sortBy);
                 final sparkAsync = ref.watch(
                   discoverStockSparklinesProvider(
-                    (symbolsCsv: symbolsCsv, days: 90),
+                    (symbolsCsv: symbolsCsv, days: sparkDays),
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
 
-                return Column(
-                  children: [
-                    // Results header: count + sort
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      child: Row(
-                        children: [
-                          Text(
-                            totalCount > 0
-                                ? '$totalCount stocks'
-                                : '${items.length} stocks',
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: Colors.white38),
-                          ),
-                          const Spacer(),
-                          InkWell(
-                            onTap: _showSortSheet,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _sortOptions
-                                        .firstWhere(
-                                            (o) =>
-                                                o.value == filters.sortBy,
-                                            orElse: () =>
-                                                _sortOptions.first)
-                                        .label,
-                                    style: theme.textTheme.labelSmall
-                                        ?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Icon(
-                                    filters.sortOrder == 'desc'
-                                        ? Icons.arrow_downward_rounded
-                                        : Icons.arrow_upward_rounded,
-                                    size: 14,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ],
+                final headerCount = 1;
+                final totalItems = headerCount + items.length +
+                    (hasMore ? 1 : 0) + (allLoaded ? 1 : 0);
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(discoverStocksProvider);
+                  },
+                  child: ListView.builder(
+                    controller: _listScrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: totalItems,
+                    itemBuilder: (context, index) {
+                      // Results header: count + sort
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 4),
+                          child: Row(
+                            children: [
+                              Text(
+                                totalCount > 0
+                                    ? '$totalCount stocks'
+                                    : '${items.length} stocks',
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: Colors.white38),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // List
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: () async {
-                          ref.invalidate(discoverStocksProvider);
-                        },
-                        child: ListView.builder(
-                          controller: _listScrollController,
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: items.length +
-                              (hasMore ? 1 : 0) +
-                              (allLoaded ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= items.length && hasMore) {
-                              return const ShimmerInlineRow(height: 80);
-                            }
-                            if (index >= items.length && allLoaded) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16),
-                                child: Center(
-                                  child: Text(
-                                    '${items.length} results',
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(color: Colors.white38),
+                              const Spacer(),
+                              InkWell(
+                                onTap: _showSortSheet,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _sortOptions
+                                            .firstWhere(
+                                                (o) =>
+                                                    o.value == filters.sortBy,
+                                                orElse: () =>
+                                                    _sortOptions.first)
+                                            .label,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Icon(
+                                        filters.sortOrder == 'desc'
+                                            ? Icons.arrow_downward_rounded
+                                            : Icons.arrow_upward_rounded,
+                                        size: 14,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }
-                            final item = items[index];
-                            final sparkVals = sparkMap[item.symbol]
-                                ?.map((p) => p.value)
-                                .toList();
-                            return StockListTile(
-                              item: item,
-                              changeField: changeField,
-                              sparklineValues: sparkVals,
-                              onTap: () => context.push(
-                                '/discover/stock/${Uri.encodeComponent(item.symbol)}',
-                                extra: item,
                               ),
-                            );
-                          },
+                            ],
+                          ),
+                        );
+                      }
+                      final itemIndex = index - headerCount;
+                      if (itemIndex >= items.length && hasMore) {
+                        return const ShimmerInlineRow(height: 80);
+                      }
+                      if (itemIndex >= items.length && allLoaded) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 16),
+                          child: Center(
+                            child: Text(
+                              '${items.length} results',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.white38),
+                            ),
+                          ),
+                        );
+                      }
+                      final item = items[itemIndex];
+                      final sparkVals = sparkMap[item.symbol]
+                          ?.map((p) => p.value)
+                          .toList();
+                      return StockListTile(
+                        item: item,
+                        changeField: changeField,
+                        sparklineValues: sparkVals,
+                        onTap: () => context.push(
+                          '/discover/stock/${Uri.encodeComponent(item.symbol)}',
+                          extra: item,
                         ),
-                      ),
-                    ),
-                  ],
+                      );
+                    },
+                  ),
                 );
               },
             ),

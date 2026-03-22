@@ -393,107 +393,105 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
-                return Column(
-                  children: [
-                    // Results header: count + sort
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
-                      child: Row(
-                        children: [
-                          Text(
-                            totalCount > 0
-                                ? '$totalCount funds'
-                                : '${items.length} funds',
-                            style: theme.textTheme.labelSmall
-                                ?.copyWith(color: Colors.white38),
-                          ),
-                          const Spacer(),
-                          InkWell(
-                            onTap: _showSortSheet,
-                            borderRadius: BorderRadius.circular(8),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _sortOptions
-                                        .firstWhere(
-                                            (o) =>
-                                                o.value == filters.sortBy,
-                                            orElse: () => _sortOptions.first)
-                                        .label,
-                                    style: theme.textTheme.labelSmall
-                                        ?.copyWith(
-                                      color: theme.colorScheme.primary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 2),
-                                  Icon(
-                                    filters.sortOrder == 'desc'
-                                        ? Icons.arrow_downward_rounded
-                                        : Icons.arrow_upward_rounded,
-                                    size: 14,
-                                    color: theme.colorScheme.primary,
-                                  ),
-                                ],
+                // Header item count: 1 (results header) + items + loading/end
+                final headerCount = 1;
+                final totalItems = headerCount + items.length +
+                    (hasMore ? 1 : 0) + (allLoaded ? 1 : 0);
+                return RefreshIndicator(
+                  onRefresh: () async {
+                    ref.invalidate(discoverMutualFundsProvider);
+                  },
+                  child: ListView.builder(
+                    controller: _listScrollController,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: totalItems,
+                    itemBuilder: (context, index) {
+                      // Results header: count + sort
+                      if (index == 0) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 4),
+                          child: Row(
+                            children: [
+                              Text(
+                                totalCount > 0
+                                    ? '$totalCount funds'
+                                    : '${items.length} funds',
+                                style: theme.textTheme.labelSmall
+                                    ?.copyWith(color: Colors.white38),
                               ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // List
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: () async {
-                          ref.invalidate(discoverMutualFundsProvider);
-                        },
-                        child: ListView.builder(
-                          controller: _listScrollController,
-                          padding:
-                              const EdgeInsets.symmetric(horizontal: 12),
-                          itemCount: items.length +
-                              (hasMore ? 1 : 0) +
-                              (allLoaded ? 1 : 0),
-                          itemBuilder: (context, index) {
-                            if (index >= items.length && hasMore) {
-                              return const ShimmerInlineRow(height: 86);
-                            }
-                            if (index >= items.length && allLoaded) {
-                              return Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16),
-                                child: Center(
-                                  child: Text(
-                                    '${items.length} results',
-                                    style: theme.textTheme.bodySmall
-                                        ?.copyWith(color: Colors.white38),
+                              const Spacer(),
+                              InkWell(
+                                onTap: _showSortSheet,
+                                borderRadius: BorderRadius.circular(8),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 8, vertical: 4),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        _sortOptions
+                                            .firstWhere(
+                                                (o) =>
+                                                    o.value == filters.sortBy,
+                                                orElse: () =>
+                                                    _sortOptions.first)
+                                            .label,
+                                        style: theme.textTheme.labelSmall
+                                            ?.copyWith(
+                                          color: theme.colorScheme.primary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 2),
+                                      Icon(
+                                        filters.sortOrder == 'desc'
+                                            ? Icons.arrow_downward_rounded
+                                            : Icons.arrow_upward_rounded,
+                                        size: 14,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              );
-                            }
-                            final item = items[index];
-                            final sparkVals = sparkMap[item.schemeCode]
-                                ?.map((p) => p.value)
-                                .toList();
-                            return MfListTile(
-                              item: item,
-                              sparklineValues: sparkVals,
-                              onTap: () {
-                                context.push(
-                                  '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
-                                  extra: item,
-                                );
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      final itemIndex = index - headerCount;
+                      if (itemIndex >= items.length && hasMore) {
+                        return const ShimmerInlineRow(height: 86);
+                      }
+                      if (itemIndex >= items.length && allLoaded) {
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 16),
+                          child: Center(
+                            child: Text(
+                              '${items.length} results',
+                              style: theme.textTheme.bodySmall
+                                  ?.copyWith(color: Colors.white38),
+                            ),
+                          ),
+                        );
+                      }
+                      final item = items[itemIndex];
+                      final sparkVals = sparkMap[item.schemeCode]
+                          ?.map((p) => p.value)
+                          .toList();
+                      return MfListTile(
+                        item: item,
+                        sparklineValues: sparkVals,
+                        onTap: () {
+                          context.push(
+                            '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
+                            extra: item,
+                          );
+                        },
+                      );
+                    },
+                  ),
                 );
               },
             ),

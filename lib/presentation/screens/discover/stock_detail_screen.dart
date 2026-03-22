@@ -474,19 +474,24 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       case 'Strong Outperformer':
         return AppTheme.accentGreen;
       case 'Outperformer':
-      case 'Accumulate':
         return AppTheme.accentTeal;
+      case 'Accumulate':
+        return const Color(0xFF66BB6A); // light green
       case 'Watchlist':
+        return AppTheme.accentBlue;
+      case 'Momentum Only':
+        return const Color(0xFF7C4DFF); // purple
       case 'Hold':
       case 'Hold — Low Data':
-      case 'Neutral':
         return AppTheme.accentOrange;
-      case 'Momentum Only':
-        return AppTheme.accentBlue;
+      case 'Neutral':
+        return AppTheme.accentGray;
       case 'Deteriorating':
+        return const Color(0xFFFF7043); // deep orange
       case 'Underperformer':
-      case 'Avoid':
         return AppTheme.accentRed;
+      case 'Avoid':
+        return const Color(0xFFD32F2F); // dark red
       default:
         return AppTheme.accentTeal;
     }

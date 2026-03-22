@@ -490,7 +490,7 @@ class DiscoverStockFilters {
   const DiscoverStockFilters({
     this.search = '',
     this.sector = 'All',
-    this.minScore = 40,
+    this.minScore = 0,
     this.minPrice,
     this.maxPrice,
     this.minPe,
