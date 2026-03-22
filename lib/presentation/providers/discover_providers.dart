@@ -105,8 +105,8 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
           DiscoverStockPreset.momentum,
           DiscoverStockPreset.value,
           DiscoverStockPreset.quality,
-          DiscoverStockPreset.dividend,
           DiscoverStockPreset.lowVolatility,
+          DiscoverStockPreset.dividend,
         ];
       case 'Market Cap':
         return [
