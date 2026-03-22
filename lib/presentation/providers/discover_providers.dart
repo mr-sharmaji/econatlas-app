@@ -40,8 +40,6 @@ enum DiscoverStockPreset {
   momentum,
   value,
   lowVolatility,
-  highVolume,
-  breakout,
   quality,
   dividend,
   largeCap,
@@ -60,10 +58,6 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'value';
       case DiscoverStockPreset.lowVolatility:
         return 'low-volatility';
-      case DiscoverStockPreset.highVolume:
-        return 'high-volume';
-      case DiscoverStockPreset.breakout:
-        return 'breakout';
       case DiscoverStockPreset.quality:
         return 'quality';
       case DiscoverStockPreset.dividend:
@@ -87,10 +81,6 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return 'Value';
       case DiscoverStockPreset.lowVolatility:
         return 'Low Volatility';
-      case DiscoverStockPreset.highVolume:
-        return 'High Volume';
-      case DiscoverStockPreset.breakout:
-        return 'Breakout';
       case DiscoverStockPreset.quality:
         return 'Quality';
       case DiscoverStockPreset.dividend:
@@ -117,8 +107,6 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
           DiscoverStockPreset.quality,
           DiscoverStockPreset.dividend,
           DiscoverStockPreset.lowVolatility,
-          DiscoverStockPreset.highVolume,
-          DiscoverStockPreset.breakout,
         ];
       case 'Market Cap':
         return [
@@ -139,10 +127,6 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
         return DiscoverStockPreset.value;
       case 'low-volatility':
         return DiscoverStockPreset.lowVolatility;
-      case 'high-volume':
-        return DiscoverStockPreset.highVolume;
-      case 'breakout':
-        return DiscoverStockPreset.breakout;
       case 'quality':
         return DiscoverStockPreset.quality;
       case 'dividend':

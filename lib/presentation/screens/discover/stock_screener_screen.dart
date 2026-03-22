@@ -17,8 +17,6 @@ const _presetIcons = <DiscoverStockPreset, IconData>{
   DiscoverStockPreset.momentum: Icons.trending_up,
   DiscoverStockPreset.value: Icons.diamond_outlined,
   DiscoverStockPreset.lowVolatility: Icons.shield_outlined,
-  DiscoverStockPreset.highVolume: Icons.bar_chart,
-  DiscoverStockPreset.breakout: Icons.rocket_launch_outlined,
   DiscoverStockPreset.quality: Icons.verified_outlined,
   DiscoverStockPreset.dividend: Icons.payments_outlined,
   DiscoverStockPreset.largeCap: Icons.business_outlined,
