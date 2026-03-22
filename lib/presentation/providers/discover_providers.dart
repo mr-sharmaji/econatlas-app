@@ -104,6 +104,33 @@ extension DiscoverStockPresetX on DiscoverStockPreset {
     }
   }
 
+  /// Segment labels for the SegmentedButton grouping.
+  static const segmentLabels = ['All', 'Strategy', 'Market Cap'];
+
+  /// Sub-presets for each segment.
+  static List<DiscoverStockPreset> subPresetsFor(String segment) {
+    switch (segment) {
+      case 'Strategy':
+        return [
+          DiscoverStockPreset.momentum,
+          DiscoverStockPreset.value,
+          DiscoverStockPreset.quality,
+          DiscoverStockPreset.dividend,
+          DiscoverStockPreset.lowVolatility,
+          DiscoverStockPreset.highVolume,
+          DiscoverStockPreset.breakout,
+        ];
+      case 'Market Cap':
+        return [
+          DiscoverStockPreset.largeCap,
+          DiscoverStockPreset.midCap,
+          DiscoverStockPreset.smallCap,
+        ];
+      default:
+        return [];
+    }
+  }
+
   static DiscoverStockPreset fromApi(String? value) {
     switch (value) {
       case 'all':

@@ -980,9 +980,6 @@ class _MfCard extends StatelessWidget {
     final hasReturn = ret1y != null;
     final isUp = (ret1y ?? 0) >= 0;
     final returnColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
-    final firstBadge =
-        item.qualityBadges.isNotEmpty ? item.qualityBadges.first : null;
-
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -996,37 +993,14 @@ class _MfCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: fund name + quality tag
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.displayName ?? item.schemeName,
-                    style: theme.textTheme.labelMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (firstBadge != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentTeal.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      firstBadge,
-                      style: const TextStyle(
-                        color: AppTheme.accentTeal,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-              ],
+            // Row 1: fund name
+            Text(
+              item.displayName ?? item.schemeName,
+              style: theme.textTheme.labelMedium?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             // Row 2: category label
             Text(
@@ -1039,28 +1013,27 @@ class _MfCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const Spacer(),
-            // Row 3: 1Y return (bottom-anchored)
-            if (hasReturn)
-              Text(
-                '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: returnColor,
-                ),
-              )
-            else
-              Text(
-                '\u2014',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            const SizedBox(height: 3),
-            // Row 4: score badge (right-aligned)
+            // Row 3: 1Y return + score (bottom-anchored)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
+                if (hasReturn)
+                  Text(
+                    '${isUp ? '+' : ''}${ret1y.toStringAsFixed(1)}% 1Y',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: returnColor,
+                    ),
+                  )
+                else
+                  Text(
+                    '\u2014',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                  ),
                 const Spacer(),
                 Container(
                   padding:
