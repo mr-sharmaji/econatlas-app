@@ -180,49 +180,51 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
       context: context,
       builder: (ctx) {
         return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: Row(
-                  children: [
-                    Text('Sort By',
-                        style: Theme.of(ctx).textTheme.titleSmall),
-                  ],
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: Row(
+                    children: [
+                      Text('Sort By',
+                          style: Theme.of(ctx).textTheme.titleSmall),
+                    ],
+                  ),
                 ),
-              ),
-              ..._sortOptions.map((opt) {
-                final isSelected = filters.sortBy == opt.value;
-                return ListTile(
-                  dense: true,
-                  title: Text(opt.label),
-                  trailing: isSelected
-                      ? Icon(
-                          filters.sortOrder == 'desc'
-                              ? Icons.arrow_downward_rounded
-                              : Icons.arrow_upward_rounded,
-                          size: 18,
-                          color: Theme.of(ctx).colorScheme.primary,
-                        )
-                      : null,
-                  selected: isSelected,
-                  onTap: () {
-                    final newOrder = isSelected
-                        ? (filters.sortOrder == 'desc' ? 'asc' : 'desc')
-                        : 'desc';
-                    ref
-                        .read(discoverMutualFundFiltersProvider.notifier)
-                        .setFilters(filters.copyWith(
-                          sortBy: opt.value,
-                          sortOrder: newOrder,
-                        ));
-                    Navigator.pop(ctx);
-                  },
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
+                ..._sortOptions.map((opt) {
+                  final isSelected = filters.sortBy == opt.value;
+                  return ListTile(
+                    dense: true,
+                    title: Text(opt.label),
+                    trailing: isSelected
+                        ? Icon(
+                            filters.sortOrder == 'desc'
+                                ? Icons.arrow_downward_rounded
+                                : Icons.arrow_upward_rounded,
+                            size: 18,
+                            color: Theme.of(ctx).colorScheme.primary,
+                          )
+                        : null,
+                    selected: isSelected,
+                    onTap: () {
+                      final newOrder = isSelected
+                          ? (filters.sortOrder == 'desc' ? 'asc' : 'desc')
+                          : 'desc';
+                      ref
+                          .read(discoverMutualFundFiltersProvider.notifier)
+                          .setFilters(filters.copyWith(
+                            sortBy: opt.value,
+                            sortOrder: newOrder,
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                }),
+                const SizedBox(height: 8),
+              ],
+            ),
           ),
         );
       },
