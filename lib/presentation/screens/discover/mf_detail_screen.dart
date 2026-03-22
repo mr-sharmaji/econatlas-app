@@ -220,34 +220,34 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             const SizedBox(height: 12),
 
-            // 5. Score Card
+            // 5. Returns (with XIRR/CAGR toggle)
+            _buildReturnsCard(theme),
+            const SizedBox(height: 8),
+
+            // 6. Score Card
             _buildScoreCard(theme),
             const SizedBox(height: 8),
 
-            // 6. Fund Insights (from backend)
+            // 7. Fund Insights (from backend)
             if (item.fundInsights.length >= 2) ...[
               _buildFundInsightsCard(theme),
               const SizedBox(height: 8),
             ],
 
-            // 7. Fund Ranking
-            if ((item.categoryRank != null && item.categoryTotal != null) ||
-                (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
-              _buildCategoryRankCard(theme),
+            // 8. Asset Allocation
+            if (item.assetAllocation != null) ...[
+              _buildHoldingsSection(theme),
               const SizedBox(height: 8),
             ],
-
-            // 8. Returns (with XIRR/CAGR toggle)
-            _buildReturnsCard(theme),
-            const SizedBox(height: 8),
 
             // 9. Risk & Performance
             _buildRiskPerformanceCard(theme),
             const SizedBox(height: 8),
 
-            // 10. Asset Allocation
-            if (item.assetAllocation != null) ...[
-              _buildHoldingsSection(theme),
+            // 10. Fund Ranking
+            if ((item.categoryRank != null && item.categoryTotal != null) ||
+                (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
+              _buildCategoryRankCard(theme),
               const SizedBox(height: 8),
             ],
 
@@ -255,15 +255,15 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildMetricsCard(theme),
             const SizedBox(height: 8),
 
-            // 12. Fund Manager
+            // 12. Peer Comparison
+            _buildPeerComparison(theme),
+            const SizedBox(height: 8),
+
+            // 13. Fund Manager
             if (item.fundManagers != null && item.fundManagers!.isNotEmpty) ...[
               _buildFundManagerCard(theme),
               const SizedBox(height: 8),
             ],
-
-            // 13. Peer Comparison
-            _buildPeerComparison(theme),
-            const SizedBox(height: 8),
 
             const SizedBox(height: 12),
           ],
