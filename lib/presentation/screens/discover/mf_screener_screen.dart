@@ -70,6 +70,14 @@ const _sortOptions = [
   (value: 'expense', label: 'Expense Ratio'),
 ];
 
+// Smart sort presets — apply sort + order in one tap
+const _smartSorts = [
+  (label: 'Best SIP Pick', sortBy: 'returns_3y', sortOrder: 'desc', icon: Icons.savings_outlined),
+  (label: 'Proven Winner', sortBy: 'returns_5y', sortOrder: 'desc', icon: Icons.emoji_events_outlined),
+  (label: 'Low Cost Leader', sortBy: 'expense', sortOrder: 'asc', icon: Icons.trending_down_rounded),
+  (label: 'Biggest Funds', sortBy: 'aum', sortOrder: 'desc', icon: Icons.account_balance_outlined),
+];
+
 class MfScreenerScreen extends ConsumerStatefulWidget {
   final String? initialSearch;
   final String? initialPreset;
@@ -190,19 +198,16 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
+        final theme = Theme.of(ctx);
         return SafeArea(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Text('Sort By',
-                          style: Theme.of(ctx).textTheme.titleSmall),
-                    ],
-                  ),
+                  child: Text('Sort By', style: theme.textTheme.titleSmall),
                 ),
                 ..._sortOptions.map((opt) {
                   final isSelected = filters.sortBy == opt.value;
@@ -215,7 +220,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                                 ? Icons.arrow_downward_rounded
                                 : Icons.arrow_upward_rounded,
                             size: 18,
-                            color: Theme.of(ctx).colorScheme.primary,
+                            color: theme.colorScheme.primary,
                           )
                         : null,
                     selected: isSelected,
@@ -228,6 +233,31 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                           .setFilters(filters.copyWith(
                             sortBy: opt.value,
                             sortOrder: newOrder,
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                }),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text('Smart Sorts', style: theme.textTheme.titleSmall),
+                ),
+                ..._smartSorts.map((smart) {
+                  final isActive = filters.sortBy == smart.sortBy &&
+                      filters.sortOrder == smart.sortOrder;
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(smart.icon, size: 20,
+                        color: isActive ? theme.colorScheme.primary : null),
+                    title: Text(smart.label),
+                    selected: isActive,
+                    onTap: () {
+                      ref
+                          .read(discoverMutualFundFiltersProvider.notifier)
+                          .setFilters(filters.copyWith(
+                            sortBy: smart.sortBy,
+                            sortOrder: smart.sortOrder,
                           ));
                       Navigator.pop(ctx);
                     },
@@ -405,106 +435,131 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   ),
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
-                // Header item count: 1 (results header) + items + loading/end
-                final headerCount = 1;
-                final totalItems = headerCount + items.length +
-                    (hasMore ? 1 : 0) + (allLoaded ? 1 : 0);
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(discoverMutualFundsProvider);
-                  },
-                  child: ListView.builder(
-                    controller: _listScrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: totalItems,
-                    itemBuilder: (context, index) {
-                      // Results header: count + sort
-                      if (index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 4),
-                          child: Row(
-                            children: [
-                              Text(
-                                totalCount > 0
-                                    ? '$totalCount funds'
-                                    : '${items.length} funds',
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: Colors.white38),
-                              ),
-                              const Spacer(),
-                              InkWell(
-                                onTap: _showSortSheet,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _sortOptions
-                                            .firstWhere(
-                                                (o) =>
-                                                    o.value == filters.sortBy,
-                                                orElse: () =>
-                                                    _sortOptions.first)
-                                            .label,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Icon(
-                                        filters.sortOrder == 'desc'
-                                            ? Icons.arrow_downward_rounded
-                                            : Icons.arrow_upward_rounded,
-                                        size: 14,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ],
-                                  ),
+                // Find current sort label
+                final sortLabel = _smartSorts
+                        .where((s) => s.sortBy == filters.sortBy && s.sortOrder == filters.sortOrder)
+                        .map((s) => s.label)
+                        .firstOrNull ??
+                    _sortOptions
+                        .firstWhere((o) => o.value == filters.sortBy,
+                            orElse: () => _sortOptions.first)
+                        .label;
+
+                return Stack(
+                  children: [
+                    RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(discoverMutualFundsProvider);
+                      },
+                      child: ListView.builder(
+                        controller: _listScrollController,
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 60),
+                        itemCount: items.length +
+                            (hasMore ? 1 : 0) + (allLoaded ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index >= items.length && hasMore) {
+                            return const ShimmerInlineRow(height: 86);
+                          }
+                          if (index >= items.length && allLoaded) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16),
+                              child: Center(
+                                child: Text(
+                                  '${items.length} results',
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white38),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                      final itemIndex = index - headerCount;
-                      if (itemIndex >= items.length && hasMore) {
-                        return const ShimmerInlineRow(height: 86);
-                      }
-                      if (itemIndex >= items.length && allLoaded) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 16),
-                          child: Center(
-                            child: Text(
-                              '${items.length} results',
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: Colors.white38),
-                            ),
-                          ),
-                        );
-                      }
-                      final item = items[itemIndex];
-                      final sparkVals = sparkMap[item.schemeCode]
-                          ?.map((p) => p.value)
-                          .toList();
-                      return MfListTile(
-                        item: item,
-                        sparklineValues: sparkVals,
-                        sortBy: filters.sortBy,
-                        onTap: () {
-                          context.push(
-                            '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
-                            extra: item,
+                            );
+                          }
+                          final item = items[index];
+                          final sparkVals = sparkMap[item.schemeCode]
+                              ?.map((p) => p.value)
+                              .toList();
+                          return MfListTile(
+                            item: item,
+                            sparklineValues: sparkVals,
+                            sortBy: filters.sortBy,
+                            onTap: () {
+                              context.push(
+                                '/discover/mf/${Uri.encodeComponent(item.schemeCode)}',
+                                extra: item,
+                              );
+                            },
                           );
                         },
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                    // Sticky bottom sort pill
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _showSortSheet,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface
+                                    .withValues(alpha: 0.95),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.3),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.sort_rounded,
+                                      size: 16,
+                                      color: theme.colorScheme.primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    sortLabel,
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    filters.sortOrder == 'desc'
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  if (totalCount > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '$totalCount',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(color: Colors.white38),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),

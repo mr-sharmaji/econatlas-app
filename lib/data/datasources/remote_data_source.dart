@@ -512,6 +512,7 @@ class RemoteDataSource {
       queryParameters: {
         'symbols': symbols.join(','),
         'days': days,
+        'max_points': 30,
       },
     );
     final data = response.data as Map<String, dynamic>;
@@ -532,6 +533,7 @@ class RemoteDataSource {
       queryParameters: {
         'scheme_codes': schemeCodes.join(','),
         'days': days,
+        'max_points': 30,
       },
     );
     final data = response.data as Map<String, dynamic>;

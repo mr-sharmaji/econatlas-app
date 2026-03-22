@@ -36,6 +36,13 @@ const _sortOptions = [
   (value: 'market_cap', label: 'Market Cap'),
 ];
 
+const _smartSorts = [
+  (label: 'Top Quality', sortBy: 'score', sortOrder: 'desc', icon: Icons.verified_outlined),
+  (label: 'Best 1Y Gain', sortBy: 'change_1y', sortOrder: 'desc', icon: Icons.trending_up_rounded),
+  (label: 'Most Active', sortBy: 'change_3m', sortOrder: 'desc', icon: Icons.speed_rounded),
+  (label: 'Blue Chips', sortBy: 'market_cap', sortOrder: 'desc', icon: Icons.business_outlined),
+];
+
 // ---------------------------------------------------------------------------
 // Main screen
 // ---------------------------------------------------------------------------
@@ -164,19 +171,16 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
     showModalBottomSheet(
       context: context,
       builder: (ctx) {
+        final theme = Theme.of(ctx);
         return SafeArea(
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                  child: Row(
-                    children: [
-                      Text('Sort By',
-                          style: Theme.of(ctx).textTheme.titleSmall),
-                    ],
-                  ),
+                  child: Text('Sort By', style: theme.textTheme.titleSmall),
                 ),
                 ..._sortOptions.map((opt) {
                   final isSelected = filters.sortBy == opt.value;
@@ -189,7 +193,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                                 ? Icons.arrow_downward_rounded
                                 : Icons.arrow_upward_rounded,
                             size: 18,
-                            color: Theme.of(ctx).colorScheme.primary,
+                            color: theme.colorScheme.primary,
                           )
                         : null,
                     selected: isSelected,
@@ -202,6 +206,31 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                           .setFilters(filters.copyWith(
                             sortBy: opt.value,
                             sortOrder: newOrder,
+                          ));
+                      Navigator.pop(ctx);
+                    },
+                  );
+                }),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Text('Smart Sorts', style: theme.textTheme.titleSmall),
+                ),
+                ..._smartSorts.map((smart) {
+                  final isActive = filters.sortBy == smart.sortBy &&
+                      filters.sortOrder == smart.sortOrder;
+                  return ListTile(
+                    dense: true,
+                    leading: Icon(smart.icon, size: 20,
+                        color: isActive ? theme.colorScheme.primary : null),
+                    title: Text(smart.label),
+                    selected: isActive,
+                    onTap: () {
+                      ref
+                          .read(discoverStockFiltersProvider.notifier)
+                          .setFilters(filters.copyWith(
+                            sortBy: smart.sortBy,
+                            sortOrder: smart.sortOrder,
                           ));
                       Navigator.pop(ctx);
                     },
@@ -384,103 +413,128 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                 );
                 final sparkMap = sparkAsync.valueOrNull ?? {};
 
-                final headerCount = 1;
-                final totalItems = headerCount + items.length +
-                    (hasMore ? 1 : 0) + (allLoaded ? 1 : 0);
-                return RefreshIndicator(
-                  onRefresh: () async {
-                    ref.invalidate(discoverStocksProvider);
-                  },
-                  child: ListView.builder(
-                    controller: _listScrollController,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    itemCount: totalItems,
-                    itemBuilder: (context, index) {
-                      // Results header: count + sort
-                      if (index == 0) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 4, vertical: 4),
-                          child: Row(
-                            children: [
-                              Text(
-                                totalCount > 0
-                                    ? '$totalCount stocks'
-                                    : '${items.length} stocks',
-                                style: theme.textTheme.labelSmall
-                                    ?.copyWith(color: Colors.white38),
-                              ),
-                              const Spacer(),
-                              InkWell(
-                                onTap: _showSortSheet,
-                                borderRadius: BorderRadius.circular(8),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 8, vertical: 4),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        _sortOptions
-                                            .firstWhere(
-                                                (o) =>
-                                                    o.value == filters.sortBy,
-                                                orElse: () =>
-                                                    _sortOptions.first)
-                                            .label,
-                                        style: theme.textTheme.labelSmall
-                                            ?.copyWith(
-                                          color: theme.colorScheme.primary,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 2),
-                                      Icon(
-                                        filters.sortOrder == 'desc'
-                                            ? Icons.arrow_downward_rounded
-                                            : Icons.arrow_upward_rounded,
-                                        size: 14,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    ],
-                                  ),
+                final sortLabel = _smartSorts
+                        .where((s) => s.sortBy == filters.sortBy && s.sortOrder == filters.sortOrder)
+                        .map((s) => s.label)
+                        .firstOrNull ??
+                    _sortOptions
+                        .firstWhere((o) => o.value == filters.sortBy,
+                            orElse: () => _sortOptions.first)
+                        .label;
+
+                return Stack(
+                  children: [
+                    RefreshIndicator(
+                      onRefresh: () async {
+                        ref.invalidate(discoverStocksProvider);
+                      },
+                      child: ListView.builder(
+                        controller: _listScrollController,
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 60),
+                        itemCount: items.length +
+                            (hasMore ? 1 : 0) + (allLoaded ? 1 : 0),
+                        itemBuilder: (context, index) {
+                          if (index >= items.length && hasMore) {
+                            return const ShimmerInlineRow(height: 80);
+                          }
+                          if (index >= items.length && allLoaded) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 16),
+                              child: Center(
+                                child: Text(
+                                  '${items.length} results',
+                                  style: theme.textTheme.bodySmall
+                                      ?.copyWith(color: Colors.white38),
                                 ),
                               ),
-                            ],
-                          ),
-                        );
-                      }
-                      final itemIndex = index - headerCount;
-                      if (itemIndex >= items.length && hasMore) {
-                        return const ShimmerInlineRow(height: 80);
-                      }
-                      if (itemIndex >= items.length && allLoaded) {
-                        return Padding(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 16),
-                          child: Center(
-                            child: Text(
-                              '${items.length} results',
-                              style: theme.textTheme.bodySmall
-                                  ?.copyWith(color: Colors.white38),
+                            );
+                          }
+                          final item = items[index];
+                          final sparkVals = sparkMap[item.symbol]
+                              ?.map((p) => p.value)
+                              .toList();
+                          return StockListTile(
+                            item: item,
+                            changeField: changeField,
+                            sparklineValues: sparkVals,
+                            onTap: () => context.push(
+                              '/discover/stock/${Uri.encodeComponent(item.symbol)}',
+                              extra: item,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    // Sticky bottom sort pill
+                    Positioned(
+                      bottom: 12,
+                      left: 0,
+                      right: 0,
+                      child: Center(
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _showSortSheet,
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface
+                                    .withValues(alpha: 0.95),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: theme.colorScheme.primary
+                                      .withValues(alpha: 0.3),
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.sort_rounded,
+                                      size: 16,
+                                      color: theme.colorScheme.primary),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    sortLabel,
+                                    style: theme.textTheme.labelMedium
+                                        ?.copyWith(
+                                      color: theme.colorScheme.primary,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    filters.sortOrder == 'desc'
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    size: 14,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                  if (totalCount > 0) ...[
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '$totalCount',
+                                      style: theme.textTheme.labelSmall
+                                          ?.copyWith(color: Colors.white38),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
-                        );
-                      }
-                      final item = items[itemIndex];
-                      final sparkVals = sparkMap[item.symbol]
-                          ?.map((p) => p.value)
-                          .toList();
-                      return StockListTile(
-                        item: item,
-                        changeField: changeField,
-                        sparklineValues: sparkVals,
-                        onTap: () => context.push(
-                          '/discover/stock/${Uri.encodeComponent(item.symbol)}',
-                          extra: item,
                         ),
-                      );
-                    },
-                  ),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
