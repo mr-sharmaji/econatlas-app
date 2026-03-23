@@ -6,8 +6,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Top-level handler for background messages (must be top-level function).
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // Android auto-displays notifications with a `notification` payload
+  // in background/terminated state. No need to show a local notification.
   await Firebase.initializeApp();
-  await NotificationService.instance._showLocalNotification(message);
 }
 
 class NotificationService {
@@ -65,8 +66,13 @@ class NotificationService {
       // TODO: send updated token to backend
     });
 
-    // Foreground message handler
-    FirebaseMessaging.onMessage.listen(_showLocalNotification);
+    // Foreground message handler — only show local notification
+    // when the app is in the foreground, since Android auto-displays
+    // the notification payload when the app is in background/terminated.
+    FirebaseMessaging.onMessage.listen((message) async {
+      // Foreground: Android does NOT auto-display, so we must show it
+      await _showLocalNotification(message);
+    });
 
     // Background message handler
     FirebaseMessaging.onBackgroundMessage(
