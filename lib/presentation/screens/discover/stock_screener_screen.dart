@@ -33,9 +33,6 @@ const _sortPresets = [
   (label: 'Top Rated', sortBy: 'score', sortOrder: 'desc', icon: Icons.star_rounded),
   (label: 'Best 3M Gain', sortBy: 'change_3m', sortOrder: 'desc', icon: Icons.speed_rounded),
   (label: 'Best 1Y Gain', sortBy: 'change_1y', sortOrder: 'desc', icon: Icons.trending_up_rounded),
-  // Market cap
-  (label: 'Blue Chips', sortBy: 'market_cap', sortOrder: 'desc', icon: Icons.business_outlined),
-  (label: 'Small Caps First', sortBy: 'market_cap', sortOrder: 'asc', icon: Icons.storefront_outlined),
   // Reverse / contrarian
   (label: 'Biggest Losers 3M', sortBy: 'change_3m', sortOrder: 'asc', icon: Icons.trending_down_rounded),
   (label: 'Biggest Losers 1Y', sortBy: 'change_1y', sortOrder: 'asc', icon: Icons.arrow_downward_rounded),
