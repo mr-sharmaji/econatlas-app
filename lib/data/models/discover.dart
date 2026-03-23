@@ -1353,7 +1353,7 @@ class ScoreHistoryPoint {
   factory ScoreHistoryPoint.fromJson(Map<String, dynamic> json) {
     return ScoreHistoryPoint(
       scoredAt: DateTime.parse(json['scored_at'] as String),
-      score: (json['score'] as num).toDouble(),
+      score: (json['score'] as num?)?.toDouble() ?? 0,
     );
   }
 }

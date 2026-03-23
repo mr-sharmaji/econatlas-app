@@ -116,9 +116,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           _periodChange = apiReturn;
         } else {
           // Compute from raw NAV history for short periods (1W, 1M, 3M, 6M)
-          final first = chartPrices.first;
-          final last = chartPrices.last;
-          if (first > 0) _periodChange = ((last - first) / first) * 100;
+          if (chartPrices.length >= 2) {
+            final first = chartPrices.first;
+            final last = chartPrices.last;
+            if (first > 0) _periodChange = ((last - first) / first) * 100;
+          }
         }
         // Override last chart point with live NAV for visual display only
         if (chartPrices.isNotEmpty) {
@@ -439,7 +441,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   }
 
   Widget _buildRiskBadge(ThemeData theme) {
-    final risk = item.riskLevel!.toLowerCase();
+    final risk = (item.riskLevel ?? '').toLowerCase();
     final Color color;
     if (risk.contains('low')) {
       color = AppTheme.accentGreen;
@@ -458,7 +460,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        item.riskLevel!,
+        item.riskLevel ?? '',
         style: theme.textTheme.labelSmall?.copyWith(
           color: color,
           fontWeight: FontWeight.w600,

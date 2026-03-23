@@ -42,7 +42,7 @@ class StockListTile extends StatelessWidget {
       case StockChangeField.daily:
         return item.percentChange;
       case StockChangeField.weekly:
-        return item.percentChange1w;
+        return item.percentChange1w ?? item.percentChange;
       case StockChangeField.threeMonth:
         return item.percentChange3m ?? item.percentChange;
       case StockChangeField.oneYear:

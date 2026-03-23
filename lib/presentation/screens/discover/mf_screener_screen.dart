@@ -391,7 +391,7 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
               ),
               data: (paginatedState) {
                 final items = paginatedState.items;
-                final hasMore = paginatedState.isLoadingMore;
+                final hasMore = paginatedState.hasMore;
                 final allLoaded = !hasMore && items.isNotEmpty;
                 final totalCount = paginatedState.totalCount;
                 if (items.isEmpty) {
