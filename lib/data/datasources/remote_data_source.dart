@@ -196,8 +196,12 @@ class RemoteDataSource {
     return EconCalendarResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<MacroMetadataResponse> getMacroMetadata() async {
-    final response = await _dio.get('/macro/metadata');
+  Future<MacroMetadataResponse> getMacroMetadata({String? country}) async {
+    final params = <String, dynamic>{};
+    if (country != null && country.trim().isNotEmpty) {
+      params['country'] = country;
+    }
+    final response = await _dio.get('/macro/metadata', queryParameters: params);
     return MacroMetadataResponse.fromJson(
         response.data as Map<String, dynamic>);
   }

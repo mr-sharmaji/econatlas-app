@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 class MacroIndicatorMetadata {
   final String indicatorName;
   final String displayName;
+  final String helperText;
   final String unit;
   final String frequency;
   final String source;
@@ -14,6 +15,7 @@ class MacroIndicatorMetadata {
   const MacroIndicatorMetadata({
     required this.indicatorName,
     required this.displayName,
+    required this.helperText,
     required this.unit,
     required this.frequency,
     required this.source,
@@ -27,6 +29,7 @@ class MacroIndicatorMetadata {
     return MacroIndicatorMetadata(
       indicatorName: json['indicator_name'] as String? ?? '',
       displayName: json['display_name'] as String? ?? '',
+      helperText: json['helper_text'] as String? ?? '',
       unit: json['unit'] as String? ?? '',
       frequency: json['frequency'] as String? ?? '',
       source: json['source'] as String? ?? '',
