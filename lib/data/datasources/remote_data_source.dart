@@ -158,6 +158,27 @@ class RemoteDataSource {
         response.data as Map<String, dynamic>);
   }
 
+  Future<MacroForecastResponse> getMacroForecasts({
+    String? country,
+    String? indicator,
+  }) async {
+    final params = <String, dynamic>{};
+    if (country != null) params['country'] = country;
+    if (indicator != null) params['indicator'] = indicator;
+    final response = await _dio.get('/macro/forecasts', queryParameters: params);
+    return MacroForecastResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<EconCalendarResponse> getEconCalendar({
+    int daysAhead = 90,
+    String? country,
+  }) async {
+    final params = <String, dynamic>{'days_ahead': daysAhead};
+    if (country != null) params['country'] = country;
+    final response = await _dio.get('/macro/calendar', queryParameters: params);
+    return EconCalendarResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<bool> healthCheck() async {
     try {
       final response = await _dio.get('/health');

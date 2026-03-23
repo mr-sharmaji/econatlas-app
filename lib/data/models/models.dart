@@ -11,6 +11,8 @@ export 'brief.dart';
 export 'discover.dart';
 export 'ipo.dart';
 export 'institutional_flow_overview.dart';
+export 'macro_forecast.dart';
+export 'econ_calendar_event.dart';
 export 'converter_fx_snapshot.dart';
 export 'tax_config.dart';
 export 'ops_log.dart';

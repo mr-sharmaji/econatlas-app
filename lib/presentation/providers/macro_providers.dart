@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/macro_indicator.dart';
+import '../../data/models/macro_forecast.dart';
+import '../../data/models/econ_calendar_event.dart';
 import '../../data/models/institutional_flow_overview.dart';
 import '../../core/constants.dart';
 import 'repository_providers.dart';
@@ -36,4 +38,18 @@ final institutionalFlowsOverviewProvider =
     FutureProvider.autoDispose<InstitutionalFlowsOverview>((ref) async {
   final ds = ref.watch(remoteDataSourceProvider);
   return ds.getInstitutionalFlowsOverview(sessions: 30);
+});
+
+final macroForecastsProvider =
+    FutureProvider.autoDispose<List<MacroForecast>>((ref) async {
+  final ds = ref.watch(remoteDataSourceProvider);
+  final response = await ds.getMacroForecasts();
+  return response.forecasts;
+});
+
+final econCalendarProvider =
+    FutureProvider.autoDispose<List<EconCalendarEvent>>((ref) async {
+  final ds = ref.watch(remoteDataSourceProvider);
+  final response = await ds.getEconCalendar(daysAhead: 180);
+  return response.events;
 });
