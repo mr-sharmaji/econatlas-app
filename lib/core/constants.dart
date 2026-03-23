@@ -332,6 +332,11 @@ class Entities {
     'dap fertilizer',
     'potash',
     'tsp fertilizer',
+    'iron ore',
+    'coal',
+    'palm oil',
+    'rubber',
+    'zinc',
   ];
 
   static const List<String> crypto = [
@@ -450,7 +455,11 @@ class Entities {
     'dap fertilizer': 'DAP Fertilizer',
     'potash': 'Potash',
     'tsp fertilizer': 'TSP Fertilizer',
-
+    'iron ore': 'Iron Ore',
+    'coal': 'Coal',
+    'palm oil': 'Palm Oil',
+    'rubber': 'Rubber',
+    'zinc': 'Zinc',
     'bitcoin': 'Bitcoin',
     'ethereum': 'Ethereum',
     'bnb': 'BNB',
@@ -487,6 +496,8 @@ class Entities {
     'usd_per_hundredweight': '/cwt',
     'usd_per_gallon': '/gal',
     'usd_per_metric_ton': '/MT',
+    'usd_per_dry_metric_ton': '/dmt',
+    'usd_per_kg': '/kg',
   };
 
   static const Map<String, String> unitLabelsIndian = {

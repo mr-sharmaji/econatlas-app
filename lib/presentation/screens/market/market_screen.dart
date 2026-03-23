@@ -419,16 +419,16 @@ class _CommoditiesTab extends ConsumerWidget {
                   {'gold', 'silver', 'platinum', 'palladium'}.contains(p.asset))
               .toList();
           final industrial = ordered
-              .where((p) => {'copper', 'aluminum'}.contains(p.asset))
+              .where((p) => {'copper', 'aluminum', 'zinc', 'iron ore'}.contains(p.asset))
               .toList();
           final energy = ordered
-              .where((p) => {'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil'}.contains(p.asset))
+              .where((p) => {'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil', 'coal'}.contains(p.asset))
               .toList();
           final agriculture = ordered
               .where((p) => {'wheat', 'corn', 'soybeans', 'rice', 'oats'}.contains(p.asset))
               .toList();
           final softs = ordered
-              .where((p) => {'cotton', 'sugar', 'coffee', 'cocoa'}.contains(p.asset))
+              .where((p) => {'cotton', 'sugar', 'coffee', 'cocoa', 'palm oil', 'rubber'}.contains(p.asset))
               .toList();
           final fertilizers = ordered
               .where((p) => {'urea', 'dap fertilizer', 'potash', 'tsp fertilizer'}.contains(p.asset))
@@ -436,10 +436,10 @@ class _CommoditiesTab extends ConsumerWidget {
           final others = ordered
               .where((p) => !{
                     'gold', 'silver', 'platinum', 'palladium',
-                    'copper', 'aluminum',
-                    'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil',
+                    'copper', 'aluminum', 'zinc', 'iron ore',
+                    'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil', 'coal',
                     'wheat', 'corn', 'soybeans', 'rice', 'oats',
-                    'cotton', 'sugar', 'coffee', 'cocoa',
+                    'cotton', 'sugar', 'coffee', 'cocoa', 'palm oil', 'rubber',
                     'urea', 'dap fertilizer', 'potash', 'tsp fertilizer',
                   }.contains(p.asset))
               .toList();
@@ -1381,6 +1381,11 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         'dap fertilizer': 'OTC',
         'potash': 'OTC',
         'tsp fertilizer': 'OTC',
+        'iron ore': 'OTC',
+        'coal': 'OTC',
+        'palm oil': 'OTC',
+        'rubber': 'OTC',
+        'zinc': 'LME',
       };
       return exchanges[asset.toLowerCase()] ?? 'Exchange';
     }

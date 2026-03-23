@@ -92,6 +92,8 @@ class AssetBadgeResolver {
             normalizedAsset == 'silver' ||
             normalizedAsset == 'copper' ||
             normalizedAsset == 'aluminum' ||
+            normalizedAsset == 'zinc' ||
+            normalizedAsset == 'iron ore' ||
             normalizedAsset == 'platinum' ||
             normalizedAsset == 'palladium') {
           return AssetBadgeStyle.metals;
@@ -106,7 +108,9 @@ class AssetBadgeResolver {
         if (normalizedAsset == 'cotton' ||
             normalizedAsset == 'sugar' ||
             normalizedAsset == 'coffee' ||
-            normalizedAsset == 'cocoa') {
+            normalizedAsset == 'cocoa' ||
+            normalizedAsset == 'palm oil' ||
+            normalizedAsset == 'rubber') {
           return AssetBadgeStyle.softs;
         }
         if (normalizedAsset == 'urea' ||
@@ -533,6 +537,11 @@ const Map<String, IconData> _assetIconOverrides = {
   'potash': FontAwesomeIcons.mountain,
   'tsp fertilizer': FontAwesomeIcons.vials,
 
+  'iron ore': FontAwesomeIcons.mountain,
+  'coal': FontAwesomeIcons.fire,
+  'palm oil': FontAwesomeIcons.droplet,
+  'rubber': FontAwesomeIcons.circle,
+  'zinc': FontAwesomeIcons.cubesStacked,
   'india 10y bond yield': FontAwesomeIcons.landmark,
   'us 10y treasury yield': FontAwesomeIcons.buildingColumns,
   'us 2y treasury yield': FontAwesomeIcons.scaleBalanced,
@@ -601,6 +610,11 @@ const Map<String, Color> _assetColorOverrides = {
   'potash': Color(0xFF6A4A3A),
   'tsp fertilizer': Color(0xFF4A5A4A),
 
+  'iron ore': Color(0xFF8A4A2A),
+  'coal': Color(0xFF3A3A3A),
+  'palm oil': Color(0xFF6A7A2A),
+  'rubber': Color(0xFF5A4A3A),
+  'zinc': Color(0xFF6A7A8A),
   'india 10y bond yield': Color(0xFF3F546F),
   'us 10y treasury yield': Color(0xFF445872),
   'us 2y treasury yield': Color(0xFF4A5970),
