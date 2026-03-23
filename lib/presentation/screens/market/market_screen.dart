@@ -1231,6 +1231,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
       };
       return exchanges[asset.toLowerCase()] ?? 'Exchange';
     }
+    if (instType == 'crypto') return 'Decentralized';
     // index
     if (Entities.indicesUS.contains(asset)) return 'United States';
     if (Entities.indicesEurope.contains(asset)) return 'Europe';
