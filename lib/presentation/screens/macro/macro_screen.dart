@@ -121,22 +121,64 @@ Color _institutionColor(String inst) {
   }
 }
 
-const _explainers = {
-  'gdp_growth': 'Gross Domestic Product growth rate. Measures how fast the economy is expanding.',
-  'inflation': 'Consumer Price Index year-over-year change. Measures how fast prices are rising.',
-  'core_inflation': 'CPI excluding food and fuel. Shows underlying inflation trend.',
-  'unemployment': 'Percentage of labor force actively looking for work but unable to find it.',
-  'repo_rate': 'Policy rate set by the central bank. Core lever for controlling inflation.',
-  'pmi_manufacturing': 'Purchasing Managers Index for manufacturing. Above 50 = expansion.',
-  'pmi_services': 'Purchasing Managers Index for services. Above 50 = expansion.',
-  'iip': 'Index of Industrial Production. Tracks factory output growth.',
-  'forex_reserves': 'Foreign exchange reserves as an external shock buffer.',
-  'trade_balance': 'Exports minus imports. Negative = trade deficit.',
-  'current_account_deficit': 'Broad external balance including goods, services, transfers.',
-  'fiscal_deficit': 'Government spending minus revenue as % of GDP.',
-  'bank_credit_growth': 'Rate at which banks are lending to the private sector.',
-  'gst_collection': 'Monthly GST collections. Proxy for formal economy activity.',
-};
+/// Generate rich context explanation based on actual value + country
+(String explanation, Color sentimentColor) _richExplainer(String name, double value, String country) {
+  final countryName = _countryLabel(country);
+  switch (name) {
+    case 'gdp_growth':
+      if (value > 6) return ('$countryName GDP grew at ${value.toStringAsFixed(1)}%, indicating a robustly expanding economy. This is well above the global average and suggests strong domestic demand, investment activity, and industrial output.', AppTheme.accentGreen);
+      if (value > 3) return ('$countryName GDP growth of ${value.toStringAsFixed(1)}% shows a moderately growing economy. Growth is positive but not overheating — a healthy balance for sustainable expansion.', AppTheme.accentGreen);
+      if (value > 0) return ('$countryName GDP growth of ${value.toStringAsFixed(1)}% indicates sluggish economic expansion. Growth is positive but weak, which may prompt central banks to consider rate cuts to stimulate activity.', AppTheme.accentOrange);
+      return ('$countryName GDP contracted by ${value.abs().toStringAsFixed(1)}%, signaling an economic recession. Negative growth means the economy is shrinking — businesses are producing less, consumers are spending less.', AppTheme.accentRed);
+    case 'inflation':
+      final target = country == 'IN' ? 4.0 : 2.0;
+      if (value > target + 2) return ('Inflation at ${value.toStringAsFixed(1)}% is significantly above the central bank\'s ${target.toStringAsFixed(0)}% target. High inflation erodes purchasing power and may trigger rate hikes. Essential goods become more expensive for consumers.', AppTheme.accentRed);
+      if (value > target) return ('Inflation at ${value.toStringAsFixed(1)}% is slightly above the ${target.toStringAsFixed(0)}% target but within tolerance. The central bank is likely monitoring closely but may not act immediately.', AppTheme.accentOrange);
+      if (value < 0) return ('Prices are falling (deflation) at ${value.abs().toStringAsFixed(1)}%. While this sounds good, deflation can be dangerous — it discourages spending and investment as people wait for lower prices.', AppTheme.accentRed);
+      return ('Inflation at ${value.toStringAsFixed(1)}% is comfortably below the ${target.toStringAsFixed(0)}% target. This gives the central bank room to cut rates and support growth without worrying about price stability.', AppTheme.accentGreen);
+    case 'core_inflation':
+      if (value > 5) return ('Core inflation (excluding food and fuel) at ${value.toStringAsFixed(1)}% is sticky and elevated. This suggests broad-based price pressures beyond volatile components — harder for the central bank to control.', AppTheme.accentRed);
+      if (value > 3) return ('Core inflation at ${value.toStringAsFixed(1)}% is moderately elevated. While not alarming, persistent core inflation above 3% can become entrenched and is closely watched by policymakers.', AppTheme.accentOrange);
+      return ('Core inflation at ${value.toStringAsFixed(1)}% is well-contained. This indicates that underlying price pressures are manageable and the central bank has policy flexibility.', AppTheme.accentGreen);
+    case 'unemployment':
+      if (value > 6) return ('Unemployment at ${value.toStringAsFixed(1)}% is high. A large portion of the workforce is seeking jobs unsuccessfully. This typically leads to lower consumer spending, social stress, and pressure on the government for stimulus.', AppTheme.accentRed);
+      if (value > 4) return ('Unemployment at ${value.toStringAsFixed(1)}% is moderate. The labor market has some slack but isn\'t in distress. Job seekers face competition but opportunities exist.', AppTheme.accentOrange);
+      return ('Unemployment at ${value.toStringAsFixed(1)}% indicates a tight labor market. Most people who want jobs can find them. This is positive for wage growth but can contribute to inflation.', AppTheme.accentGreen);
+    case 'repo_rate':
+      final label = country == 'US' ? 'Fed Funds Rate' : 'Repo Rate';
+      return ('The $label is set at ${value.toStringAsFixed(2)}% by the ${country == "IN" ? "RBI" : country == "US" ? "Federal Reserve" : "central bank"}. This is the rate at which the central bank lends to commercial banks. Higher rates make borrowing expensive (slows inflation), lower rates make it cheap (stimulates growth). Changes in this rate affect home loans, car loans, and business credit across the economy.', Colors.white70);
+    case 'pmi_manufacturing':
+      if (value >= 55) return ('Manufacturing PMI at ${value.toStringAsFixed(1)} signals strong expansion. New orders are flowing in, factories are ramping up production, and employment is likely growing. This is a leading indicator of GDP growth.', AppTheme.accentGreen);
+      if (value >= 50) return ('Manufacturing PMI at ${value.toStringAsFixed(1)} indicates expansion, though modest. Factory activity is growing but at a measured pace. Above 50 means more businesses reported improvement than deterioration.', AppTheme.accentGreen);
+      return ('Manufacturing PMI at ${value.toStringAsFixed(1)} signals contraction. Factory output is declining, new orders are falling, and businesses are cutting back. Below 50 is a warning sign for the broader economy.', AppTheme.accentRed);
+    case 'pmi_services':
+      if (value >= 55) return ('Services PMI at ${value.toStringAsFixed(1)} shows robust expansion in the services sector — which makes up 50-70% of most economies. Strong services activity means consumer spending, IT, banking, and hospitality are all growing.', AppTheme.accentGreen);
+      if (value >= 50) return ('Services PMI at ${value.toStringAsFixed(1)} indicates the services sector is expanding. Business activity is positive, supporting employment and consumer confidence.', AppTheme.accentGreen);
+      return ('Services PMI at ${value.toStringAsFixed(1)} signals contraction in the services sector. This is concerning as services represent the largest part of the economy.', AppTheme.accentRed);
+    case 'iip':
+      if (value > 5) return ('Industrial production grew ${value.toStringAsFixed(1)}% year-over-year, showing strong manufacturing and mining output. This suggests factories are running at high capacity and demand for goods is robust.', AppTheme.accentGreen);
+      if (value > 0) return ('Industrial production grew ${value.toStringAsFixed(1)}% — positive but modest. Factory output is increasing at a measured pace, consistent with a steady but not booming manufacturing sector.', AppTheme.accentGreen);
+      return ('Industrial production declined ${value.abs().toStringAsFixed(1)}%. Factories are producing less than a year ago, which could reflect weak demand, supply chain issues, or economic slowdown.', AppTheme.accentRed);
+    case 'forex_reserves':
+      return ('Foreign exchange reserves stand at \$${(value / 1000).toStringAsFixed(0)} billion. These reserves act as a buffer against external shocks — currency crises, sudden capital outflows, or import payment needs. Higher reserves give the central bank more ammunition to defend the currency.', Colors.white70);
+    case 'trade_balance':
+      if (value < 0) return ('Trade deficit of \$${value.abs().toStringAsFixed(1)} billion means $countryName imports more than it exports. A persistent deficit puts pressure on the currency and requires financing through capital inflows or reserve drawdowns.', AppTheme.accentOrange);
+      return ('Trade surplus of \$${value.toStringAsFixed(1)} billion means $countryName exports more than it imports. This strengthens the currency and adds to foreign exchange reserves.', AppTheme.accentGreen);
+    case 'current_account_deficit':
+      if (value < 0) return ('Current account deficit of \$${value.abs().toStringAsFixed(1)} billion reflects the broadest measure of $countryName\'s external transactions — goods, services, income, and transfers. A deficit means the country is a net borrower from the world.', AppTheme.accentOrange);
+      return ('Current account surplus of \$${value.toStringAsFixed(1)} billion means $countryName earns more from the world than it pays out. This is a sign of external strength.', AppTheme.accentGreen);
+    case 'fiscal_deficit':
+      if (value > 5) return ('Fiscal deficit at ${value.toStringAsFixed(1)}% of GDP is wide. The government is spending significantly more than it earns, funded by borrowing. High fiscal deficits can crowd out private investment and increase interest rates.', AppTheme.accentRed);
+      if (value > 3) return ('Fiscal deficit at ${value.toStringAsFixed(1)}% of GDP is moderate. Government finances are stretched but manageable. The deficit is being financed through market borrowings.', AppTheme.accentOrange);
+      return ('Fiscal deficit at ${value.toStringAsFixed(1)}% of GDP shows disciplined government spending. This gives the government room to increase spending during downturns without destabilizing finances.', AppTheme.accentGreen);
+    case 'bank_credit_growth':
+      return ('Bank credit is growing at ${value.toStringAsFixed(1)}%. This reflects how quickly banks are lending to businesses and individuals. Higher credit growth supports economic expansion but excessive growth can create asset bubbles.', Colors.white70);
+    case 'gst_collection':
+      return ('GST collections of \u20B9${value.toStringAsFixed(2)} lakh crore reflect the health of the formal economy. Higher collections indicate increased business activity and better tax compliance.', Colors.white70);
+    default:
+      return ('${displayName(name)}: ${value.toStringAsFixed(2)}', Colors.white54);
+  }
+}
 
 /// Insight card definitions: (key, title, icon, metrics_per_country)
 const _insightCards = [
@@ -235,15 +277,73 @@ class _MacroScreenState extends ConsumerState<MacroScreen> with SingleTickerProv
     context.push('/macro/detail/${ind.country}/${ind.indicatorName}', extra: ind);
   }
 
-  void _showExplainer(String name) {
-    final text = _explainers[name];
-    if (text == null) return;
-    showDialog(
+  void _showExplainer(String name, MacroIndicator? indicator) {
+    if (indicator == null) return;
+    final (explanation, sentimentColor) = _richExplainer(name, indicator.value, indicator.country);
+    final value = Formatters.macroValue(indicator.value, indicator.indicatorName);
+    final (label, _) = _contextLabel(name, indicator.value, indicator.country);
+
+    showModalBottomSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(displayName(name)),
-        content: Text(text),
-        actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 32, height: 4,
+                decoration: BoxDecoration(color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            // Sentiment strip
+            Container(
+              height: 3,
+              decoration: BoxDecoration(
+                color: sentimentColor,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Title + value
+            Row(
+              children: [
+                Expanded(
+                  child: Text(displayName(name),
+                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: sentimentColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(value,
+                    style: TextStyle(color: sentimentColor, fontSize: 16, fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+                ),
+              ],
+            ),
+            if (label.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(color: sentimentColor, fontSize: 12, fontWeight: FontWeight.w600)),
+            ],
+            const SizedBox(height: 12),
+            // Explanation
+            Text(explanation,
+              style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.6)),
+            const SizedBox(height: 8),
+            // Date
+            Text('${_countryLabel(indicator.country)} · ${DateFormat("MMM yyyy").format(indicator.timestamp)}',
+              style: const TextStyle(color: Colors.white38, fontSize: 11)),
+          ],
+        ),
       ),
     );
   }
@@ -353,7 +453,7 @@ class _MacroScreenState extends ConsumerState<MacroScreen> with SingleTickerProv
                     isExpanded: _expandedCard == idx,
                     onToggle: () => setState(() => _expandedCard = _expandedCard == idx ? null : idx),
                     onMetricTap: _openDetail,
-                    onInfoTap: _showExplainer,
+                    onInfoTap: (name) => _showExplainer(name, _latest(filtered, name, country)),
                   );
                 }),
 
