@@ -1430,7 +1430,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           ref.invalidate(latestCryptoProvider);
           ref.invalidate(marketStoryProvider(
               (asset: widget.asset, instrumentType: instType)));
-          // Always invalidate intraday
+          // Always invalidate intraday + current history range
           if (isCommodity) {
             ref.invalidate(commodityIntradayProvider(widget.asset));
             if (!_chartRange.isIntradayRange) {
@@ -1448,6 +1448,16 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               ref.invalidate(marketHistoryRangeProvider(historyKey));
             }
           }
+          // Wait for the primary data to arrive so the spinner stays visible
+          await Future.wait([
+            ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]),
+            if (isCommodity)
+              ref.read(commodityIntradayProvider(widget.asset).future).catchError((_) => const IntradayResponse(prices: []))
+            else if (isCrypto)
+              ref.read(cryptoIntradayProvider(widget.asset).future).catchError((_) => const IntradayResponse(prices: []))
+            else
+              ref.read(marketIntradayProvider((asset: widget.asset, instrumentType: instType)).future).catchError((_) => const IntradayResponse(prices: [])),
+          ]);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
