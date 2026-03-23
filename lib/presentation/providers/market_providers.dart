@@ -256,6 +256,12 @@ final marketStoryProvider = FutureProvider.family<MarketStory,
   },
 );
 
+/// Bulk action tags for all scored market instruments — keyed by asset name.
+final marketScoresProvider = FutureProvider<Map<String, String>>((ref) async {
+  final remote = ref.watch(remoteDataSourceProvider);
+  return remote.getMarketScores();
+});
+
 Future<List<MarketPrice>> _loadLatestMarketWithCache(
   Ref ref, {
   required String cacheKey,

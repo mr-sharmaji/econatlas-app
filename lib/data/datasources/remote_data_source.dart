@@ -66,6 +66,22 @@ class RemoteDataSource {
     return MarketStory.fromJson(response.data as Map<String, dynamic>);
   }
 
+  /// Fetch action_tag for all scored market instruments (lightweight).
+  Future<Map<String, String>> getMarketScores() async {
+    final response = await _dio.get('/market/scores');
+    final data = response.data as Map<String, dynamic>;
+    final scores = (data['scores'] as List<dynamic>?) ?? [];
+    final map = <String, String>{};
+    for (final item in scores) {
+      final asset = item['asset'] as String?;
+      final tag = item['action_tag'] as String?;
+      if (asset != null && tag != null) {
+        map[asset] = tag;
+      }
+    }
+    return map;
+  }
+
   Future<IntradayResponse> getCommodityIntraday({required String asset}) async {
     final response = await _dio.get(
       '/commodities/intraday',

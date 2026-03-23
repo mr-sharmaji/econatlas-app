@@ -117,10 +117,12 @@ class _IndicesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestMarketPricesProvider);
+    final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(latestMarketPricesProvider);
+        ref.invalidate(marketScoresProvider);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 6),
@@ -172,7 +174,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'India',
                   prices: inIndices,
                 ),
-                ...inIndices.map((p) => _MarketTile(price: p)),
+                ...inIndices.map((p) => _MarketTile(price: p, actionTag: scores[p.asset])),
               ],
               if (usIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -180,7 +182,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'United States',
                   prices: usIndices,
                 ),
-                ...usIndices.map((p) => _MarketTile(price: p)),
+                ...usIndices.map((p) => _MarketTile(price: p, actionTag: scores[p.asset])),
               ],
               if (europeIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -188,7 +190,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'Europe',
                   prices: europeIndices,
                 ),
-                ...europeIndices.map((p) => _MarketTile(price: p)),
+                ...europeIndices.map((p) => _MarketTile(price: p, actionTag: scores[p.asset])),
               ],
               if (japanIndices.isNotEmpty) ...[
                 _RegionBanner(
@@ -196,7 +198,7 @@ class _IndicesTab extends ConsumerWidget {
                   title: 'Japan',
                   prices: japanIndices,
                 ),
-                ...japanIndices.map((p) => _MarketTile(price: p)),
+                ...japanIndices.map((p) => _MarketTile(price: p, actionTag: scores[p.asset])),
               ],
               ...indices
                   .where((p) =>
@@ -204,7 +206,7 @@ class _IndicesTab extends ConsumerWidget {
                       !Entities.indicesIndia.contains(p.asset) &&
                       !Entities.indicesEurope.contains(p.asset) &&
                       !Entities.indicesJapan.contains(p.asset))
-                  .map((p) => _MarketTile(price: p)),
+                  .map((p) => _MarketTile(price: p, actionTag: scores[p.asset])),
             ],
           );
         },
@@ -221,10 +223,12 @@ class _CurrenciesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestCurrenciesProvider);
+    final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(latestCurrenciesProvider);
+        ref.invalidate(marketScoresProvider);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 4),
@@ -281,6 +285,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...majors.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (asiaPacific.isNotEmpty) ...[
@@ -292,6 +297,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...asiaPacific.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (middleEast.isNotEmpty) ...[
@@ -303,6 +309,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...middleEast.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (europe.isNotEmpty) ...[
@@ -314,6 +321,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...europe.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (americas.isNotEmpty) ...[
@@ -325,6 +333,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...americas.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (africa.isNotEmpty) ...[
@@ -336,6 +345,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...africa.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (others.isNotEmpty) ...[
@@ -347,6 +357,7 @@ class _CurrenciesTab extends ConsumerWidget {
                 ...others.map((p) => _MarketTile(
                       price: p,
                       pricePrefix: '₹ ',
+                      actionTag: scores[p.asset],
                     )),
               ],
             ],
@@ -367,6 +378,7 @@ class _CommoditiesTab extends ConsumerWidget {
     final pricesAsync = ref.watch(latestCommoditiesProvider);
     final unitSystem = ref.watch(unitSystemProvider);
     final marketAsync = ref.watch(latestMarketPricesProvider);
+    final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
     final usdInrRate = marketAsync.whenOrNull(
       data: (prices) {
         final usdInr = prices.where((p) => p.asset == 'USD/INR').toList();
@@ -437,6 +449,7 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: effectiveUsdInrRate,
                       useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (industrial.isNotEmpty) ...[
@@ -449,6 +462,7 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: effectiveUsdInrRate,
                       useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (energy.isNotEmpty) ...[
@@ -461,12 +475,14 @@ class _CommoditiesTab extends ConsumerWidget {
                       price: p,
                       usdInrRate: effectiveUsdInrRate,
                       useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
                     )),
               ],
               ...others.map((p) => _CommodityTile(
                     price: p,
                     usdInrRate: effectiveUsdInrRate,
                     useIndianCommodityUnits: useIndianCommodityUnits,
+                    actionTag: scores[p.asset],
                   )),
             ],
           );
@@ -484,10 +500,12 @@ class _BondsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestBondsProvider);
+    final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
 
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(latestBondsProvider);
+        ref.invalidate(marketScoresProvider);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 3),
@@ -538,6 +556,7 @@ class _BondsTab extends ConsumerWidget {
                       price: p,
                       suffix: '%',
                       showChange: false,
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (usBonds.isNotEmpty) ...[
@@ -550,6 +569,7 @@ class _BondsTab extends ConsumerWidget {
                       price: p,
                       suffix: '%',
                       showChange: false,
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (euBonds.isNotEmpty) ...[
@@ -562,6 +582,7 @@ class _BondsTab extends ConsumerWidget {
                       price: p,
                       suffix: '%',
                       showChange: false,
+                      actionTag: scores[p.asset],
                     )),
               ],
               if (jpBonds.isNotEmpty) ...[
@@ -574,6 +595,7 @@ class _BondsTab extends ConsumerWidget {
                       price: p,
                       suffix: '%',
                       showChange: false,
+                      actionTag: scores[p.asset],
                     )),
               ],
               ...others.map((p) => _MarketTile(
@@ -709,17 +731,53 @@ class _RegionBanner extends StatelessWidget {
   }
 }
 
+IconData _verdictIcon(String tag) {
+  switch (tag) {
+    case 'Bullish':
+      return Icons.trending_up_rounded;
+    case 'Moderately Bullish':
+      return Icons.north_east_rounded;
+    case 'Neutral':
+      return Icons.trending_flat_rounded;
+    case 'Moderately Bearish':
+      return Icons.south_east_rounded;
+    case 'Bearish':
+      return Icons.trending_down_rounded;
+    default:
+      return Icons.trending_flat_rounded;
+  }
+}
+
+Color _verdictColor(String tag) {
+  switch (tag) {
+    case 'Bullish':
+      return AppTheme.accentGreen;
+    case 'Moderately Bullish':
+      return AppTheme.accentTeal;
+    case 'Neutral':
+      return AppTheme.accentGray;
+    case 'Moderately Bearish':
+      return AppTheme.accentOrange;
+    case 'Bearish':
+      return AppTheme.accentRed;
+    default:
+      return AppTheme.accentGray;
+  }
+}
+
 class _MarketTile extends StatelessWidget {
   final MarketPrice price;
   final String pricePrefix;
   final String suffix;
   final bool showChange;
+  final String? actionTag;
 
   const _MarketTile({
     required this.price,
     this.pricePrefix = '',
     this.suffix = '',
     this.showChange = true,
+    this.actionTag,
   });
 
   @override
@@ -761,6 +819,14 @@ class _MarketTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
+              if (actionTag != null) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  _verdictIcon(actionTag!),
+                  size: 14,
+                  color: _verdictColor(actionTag!),
+                ),
+              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -850,6 +916,7 @@ class _CryptoTab extends ConsumerWidget {
     final unitSystem = ref.watch(unitSystemProvider);
     final useIndian = unitSystem == UnitSystem.indian;
     final marketAsync = ref.watch(latestMarketPricesProvider);
+    final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
     final usdInrRate = marketAsync.valueOrNull
             ?.where((p) => p.asset == 'USD/INR')
             .map((p) => p.price)
@@ -896,6 +963,7 @@ class _CryptoTab extends ConsumerWidget {
                 price: p,
                 useIndian: useIndian,
                 usdInrRate: usdInrRate,
+                actionTag: scores[p.asset],
               );
 
           return ListView(
@@ -939,11 +1007,13 @@ class _CryptoTile extends StatelessWidget {
   final MarketPrice price;
   final bool useIndian;
   final double usdInrRate;
+  final String? actionTag;
 
   const _CryptoTile({
     required this.price,
     this.useIndian = false,
     this.usdInrRate = 84.0,
+    this.actionTag,
   });
 
   @override
@@ -989,6 +1059,14 @@ class _CryptoTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
+              if (actionTag != null) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  _verdictIcon(actionTag!),
+                  size: 14,
+                  color: _verdictColor(actionTag!),
+                ),
+              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -1060,11 +1138,13 @@ class _CommodityTile extends StatelessWidget {
   final MarketPrice price;
   final double usdInrRate;
   final bool useIndianCommodityUnits;
+  final String? actionTag;
 
   const _CommodityTile({
     required this.price,
     required this.usdInrRate,
     required this.useIndianCommodityUnits,
+    this.actionTag,
   });
 
   @override
@@ -1132,6 +1212,14 @@ class _CommodityTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
+              if (actionTag != null) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  _verdictIcon(actionTag!),
+                  size: 14,
+                  color: _verdictColor(actionTag!),
+                ),
+              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
