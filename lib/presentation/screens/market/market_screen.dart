@@ -1731,15 +1731,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.06),
+                          color: AppTheme.accentBlue.withValues(alpha: 0.10),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: Text(
                           tag,
                           style: theme.textTheme.labelSmall?.copyWith(
-                            color: Colors.white70,
+                            color: AppTheme.accentBlue,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -1865,42 +1863,40 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
 
   Widget _buildScoreCard(ThemeData theme, String label, double score) {
     final color = _scoreColor(score);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style:
-                theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                score.toStringAsFixed(0),
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: color,
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style:
+                  theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  score.toStringAsFixed(0),
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
                 ),
-              ),
-              Text(
-                '/100',
-                style: theme.textTheme.labelSmall?.copyWith(
-                  color: Colors.white24,
+                Text(
+                  '/100',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: Colors.white24,
+                  ),
                 ),
-              ),
-            ],
-          ),
-        ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
