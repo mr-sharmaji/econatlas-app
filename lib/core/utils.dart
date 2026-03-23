@@ -352,9 +352,15 @@ double assetDisplayValue({
     final rawUnit = unitCode.isEmpty ? null : Entities.unitLabelsIntl[unitCode];
     final fallbackUnit = switch (a) {
       'gold' || 'silver' || 'platinum' || 'palladium' => '/oz',
-      'copper' => '/lb',
-      'crude oil' => '/bbl',
+      'copper' || 'cotton' || 'sugar' || 'coffee' || 'aluminum' => '/lb',
+      'crude oil' || 'brent crude' => '/bbl',
       'natural gas' => '/MMBtu',
+      'gasoline' || 'heating oil' => '/gal',
+      'wheat' || 'corn' || 'soybeans' || 'oats' => '/bu',
+      'rice' => '/cwt',
+      'cocoa' || 'iron ore' || 'coal' || 'palm oil' || 'urea' ||
+      'dap fertilizer' || 'potash' || 'tsp fertilizer' || 'zinc' => '/MT',
+      'rubber' => '/kg',
       _ => null,
     };
     final normalized = rawUnit ?? fallbackUnit;
