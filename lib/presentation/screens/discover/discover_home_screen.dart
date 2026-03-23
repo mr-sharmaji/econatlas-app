@@ -662,7 +662,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
       dense: true,
       visualDensity: VisualDensity.compact,
       title: Text(
-        item.schemeName,
+        item.displayName ?? item.schemeName,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style:
@@ -689,7 +689,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         ref.read(recentlyViewedProvider.notifier).add(
               type: 'mf',
               id: item.schemeCode,
-              name: item.schemeName,
+              name: item.displayName ?? item.schemeName,
             );
         context.push('/discover/mf/${item.schemeCode}', extra: item);
       },

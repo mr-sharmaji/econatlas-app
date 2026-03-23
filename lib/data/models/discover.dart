@@ -1074,6 +1074,7 @@ class SearchStockResult {
 class SearchMfResult {
   final String schemeCode;
   final String schemeName;
+  final String? displayName;
   final String? category;
   final double nav;
   final double? returns1y;
@@ -1082,6 +1083,7 @@ class SearchMfResult {
   const SearchMfResult({
     required this.schemeCode,
     required this.schemeName,
+    this.displayName,
     this.category,
     required this.nav,
     this.returns1y,
@@ -1092,6 +1094,7 @@ class SearchMfResult {
     return SearchMfResult(
       schemeCode: json['scheme_code'] as String,
       schemeName: json['scheme_name'] as String,
+      displayName: json['display_name'] as String?,
       category: json['category'] as String?,
       nav: (json['nav'] as num).toDouble(),
       returns1y: (json['returns_1y'] as num?)?.toDouble(),
