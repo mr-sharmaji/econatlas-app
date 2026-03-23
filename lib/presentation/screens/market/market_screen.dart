@@ -1409,17 +1409,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // ── a) Verdict Card ──
-            _buildVerdictCard(theme, storyAsync),
-            const SizedBox(height: 8),
-
-            // ── b) Header Section ──
+            // ── 1. Header: Name + Chips + Status ──
             Text(
               displayName(widget.asset),
-              style: theme.textTheme.titleLarge
-                  ?.copyWith(fontWeight: FontWeight.w700),
+              style: theme.textTheme.headlineSmall
+                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Row(
               children: [
                 _buildChipLabel(theme, _typeBadge(instType)),
@@ -1428,13 +1424,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   _buildChipLabel(
                       theme, _contextForAsset(widget.asset, instType)),
                 ],
-                const SizedBox(width: 6),
+                const SizedBox(width: 8),
                 MarketStatusPill(phase: phase, showLabel: true),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-            // ── c) Price + Change Badge ──
+            // ── 2. Price + Change Badge ──
             if (currentPrice != null && display != null) ...[
               _buildPriceRow(
                 theme,
@@ -1449,14 +1445,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 phase: phase,
                 showTickAge: hasAuthoritativeTick,
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
             ],
 
-            // ── d) Period Selector ──
+            // ── 3. Period Selector ──
             _buildPeriodSelector(theme, oneDayLabel: oneDayLabel),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
 
-            // ── e) Chart + f) Range card ──
+            // ── 4. Chart + 5. Range card ──
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
               error: (err, _) => ErrorView(
@@ -1606,7 +1602,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ── e) Chart ──
                     PriceLineChart(
                       prices: chartPrices,
                       timestamps: chartTimestamps,
@@ -1617,81 +1612,58 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       pricePrefix: prefix,
                       chartUnitHint: chartUnitHint,
                     ),
-                    const SizedBox(height: 14),
-                    // ── f) Range Card ──
-                    Card(
-                      margin: EdgeInsets.zero,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              rangeLabel,
-                              style: theme.textTheme.titleSmall
-                                  ?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                            const SizedBox(height: 10),
-                            PositionBar(
-                              min: low,
-                              max: high,
-                              current: currentVal,
-                              minLabel: fmt(low),
-                              maxLabel: fmt(high),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: _miniStat(theme, 'Open', fmt(open)),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: _miniStat(theme, 'Close', fmt(close)),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                    const SizedBox(height: 16),
+                    // ── Range Card ──
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            rangeLabel,
+                            style: theme.textTheme.labelMedium
+                                ?.copyWith(color: Colors.white54),
+                          ),
+                          const SizedBox(height: 10),
+                          PositionBar(
+                            min: low,
+                            max: high,
+                            current: currentVal,
+                            minLabel: fmt(low),
+                            maxLabel: fmt(high),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _miniStat(theme, 'Open', fmt(open)),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: _miniStat(theme, 'Close', fmt(close)),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 );
               },
             ),
+            const SizedBox(height: 16),
 
-            // ── g) Driver Tags ──
-            storyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (story) {
-                if (story.driverTags.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 14),
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: story.driverTags.map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentBlue.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          tag,
-                          style: theme.textTheme.bodySmall
-                              ?.copyWith(color: AppTheme.accentBlue),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
+            // ── 6. Verdict Card ──
+            _buildVerdictCard(theme, storyAsync),
 
-            // ── h) Score Stats ──
+            // ── 7. Score Stats ──
             storyAsync.when(
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
@@ -1703,7 +1675,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   return const SizedBox.shrink();
                 }
                 return Padding(
-                  padding: const EdgeInsets.only(top: 14),
+                  padding: const EdgeInsets.only(top: 12),
                   child: Row(
                     children: [
                       if (hasTrend)
@@ -1716,7 +1688,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       if (hasVol)
                         Expanded(
                           child: _buildScoreCard(
-                              theme, 'Volatility', story.scoreVolatility!),
+                              theme, 'Stability', story.scoreVolatility!),
                         ),
                       if (hasVol && hasMom) const SizedBox(width: 8),
                       if (hasMom)
@@ -1729,6 +1701,42 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 );
               },
             ),
+
+            // ── 8. Driver Tags ──
+            storyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (story) {
+                if (story.driverTags.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: story.driverTags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.08)),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1754,11 +1762,18 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
 
         return Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                color.withValues(alpha: 0.12),
+                color.withValues(alpha: 0.04),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.20)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1766,25 +1781,35 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               if (actionTag != null)
                 Row(
                   children: [
-                    Icon(_marketTagIcon(actionTag), size: 18, color: color),
-                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(_marketTagIcon(actionTag),
+                          size: 16, color: color),
+                    ),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _formatTag(actionTag),
                         style: theme.textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w700,
                           color: color,
+                          letterSpacing: 0.3,
                         ),
                       ),
                     ),
                   ],
                 ),
               if (verdict != null) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
                   verdict,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
@@ -1793,8 +1818,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 Text(
                   reasoning,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white70,
-                    height: 1.4,
+                    color: Colors.white54,
+                    height: 1.5,
                   ),
                 ),
               ],
@@ -1826,28 +1851,43 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
   // ── Score card helper ──────────────────────────────────────────────
 
   Widget _buildScoreCard(ThemeData theme, String label, double score) {
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              score.toStringAsFixed(0),
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: _scoreColor(score),
+    final color = _scoreColor(score);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style:
+                theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                score.toStringAsFixed(0),
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
               ),
-            ),
-          ],
-        ),
+              Text(
+                '/100',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: Colors.white24,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -60,8 +60,8 @@ class RemoteDataSource {
     required String instrumentType,
   }) async {
     final response = await _dio.get(
-      '/market/$asset/story',
-      queryParameters: {'instrument_type': instrumentType},
+      '/market/story',
+      queryParameters: {'asset': asset, 'instrument_type': instrumentType},
     );
     return MarketStory.fromJson(response.data as Map<String, dynamic>);
   }
