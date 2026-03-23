@@ -406,6 +406,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                         ref.invalidate(discoverStocksProvider);
                       },
                       child: ListView.builder(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         controller: _listScrollController,
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 60),
                         itemCount: items.length +
