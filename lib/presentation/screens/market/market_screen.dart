@@ -1661,7 +1661,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     ),
                   );
                 }
-                final isShortRange = _chartRange == ChartRange.oneMonth ||
+                final isShortRange = _chartRange == ChartRange.oneWeek ||
+                    _chartRange == ChartRange.oneMonth ||
                     _chartRange == ChartRange.threeMonths;
                 final open = statsPrices.first;
                 final close = statsPrices.last;
