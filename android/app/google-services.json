@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1033357162980",
+    "project_id": "econatlas-70ca0",
+    "storage_bucket": "econatlas-70ca0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1033357162980:android:bb38909567cb2283076ff1",
+        "android_client_info": {
+          "package_name": "com.econatlas.econatlas_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC8O0_Z1wQxFIFiqqoAHNdlFCPXuc2ESUA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/error_utils.dart';
+import '../../../core/notification_service.dart';
 import '../../providers/providers.dart';
 import '../../providers/settings_providers.dart';
 
@@ -167,6 +168,28 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                 ],
               ),
+            ),
+          ),
+          Card(
+            child: StatefulBuilder(
+              builder: (context, setCardState) {
+                return FutureBuilder<bool>(
+                  future: NotificationService.instance.isEnabled(),
+                  builder: (context, snap) {
+                    final enabled = snap.data ?? true;
+                    return SwitchListTile(
+                      title: const Text('Push Notifications'),
+                      subtitle:
+                          const Text('Market alerts and updates'),
+                      value: enabled,
+                      onChanged: (val) {
+                        NotificationService.instance.setEnabled(val);
+                        setCardState(() {});
+                      },
+                    );
+                  },
+                );
+              },
             ),
           ),
           Card(
