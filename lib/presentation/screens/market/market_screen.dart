@@ -1529,6 +1529,10 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             const SizedBox(height: 12),
 
             // ── 4. Chart + 5. Range card ──
+            // On 1D: if intraday is still loading, show shimmer
+            if (is1D && intradayChartList.isEmpty && intradayAsync.isLoading)
+              const ShimmerCard(height: 200)
+            else
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
               error: (err, _) => ErrorView(
@@ -1592,6 +1596,22 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                           : null;
                 } else {
                   if (prices.isEmpty) {
+                    if (is1D) {
+                      // 1D selected but no intraday data and no history loaded
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 24),
+                        child: Center(
+                          child: Text(
+                            'No intraday data available\nMarket may be closed',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.onSurface
+                                  .withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ),
+                      );
+                    }
                     return const EmptyView(
                         message:
                             'No historical data yet.\nData builds up as the scraper runs.');
