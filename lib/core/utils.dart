@@ -344,7 +344,18 @@ double assetDisplayValue({
           ' /10g'
         );
       default:
-        return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', '');
+        final indianUnit = switch (a) {
+          'wheat' || 'corn' || 'soybeans' || 'oats' => '/bu',
+          'rice' => '/cwt',
+          'cotton' || 'sugar' || 'coffee' || 'aluminum' => '/lb',
+          'cocoa' || 'iron ore' || 'coal' || 'palm oil' || 'urea' ||
+          'dap fertilizer' || 'potash' || 'tsp fertilizer' || 'zinc' => '/MT',
+          'rubber' => '/kg',
+          'brent crude' => '/bbl',
+          'gasoline' || 'heating oil' => '/gal',
+          _ => '',
+        };
+        return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', indianUnit.isEmpty ? '' : ' $indianUnit');
     }
   }
   if (instrumentType == 'commodity') {
