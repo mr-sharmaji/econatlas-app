@@ -1298,6 +1298,23 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         .join(' ');
   }
 
+  static Color _driverTagColor(String tag) {
+    final lower = tag.toLowerCase();
+    if (lower.contains('uptrend') || lower.contains('rally') ||
+        lower.contains('strengthening') || lower.contains('high momentum') ||
+        lower.contains('rising')) {
+      return AppTheme.accentGreen;
+    }
+    if (lower.contains('downtrend') || lower.contains('slump') ||
+        lower.contains('weakening') || lower.contains('weak momentum') ||
+        lower.contains('falling')) {
+      return AppTheme.accentRed;
+    }
+    if (lower.contains('high volatility')) return AppTheme.accentOrange;
+    if (lower.contains('low volatility')) return AppTheme.accentTeal;
+    return AppTheme.accentBlue;
+  }
+
   static Color _scoreColor(double score) {
     if (score >= 60) return AppTheme.accentGreen;
     if (score >= 40) return Colors.white;
@@ -1444,6 +1461,40 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 const SizedBox(width: 8),
                 MarketStatusPill(phase: phase, showLabel: true),
               ],
+            ),
+
+            // ── Driver Tags (below header) ──
+            storyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (story) {
+                if (story.driverTags.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: story.driverTags.map((tag) {
+                      final tagColor = _driverTagColor(tag);
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: tagColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: tagColor,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
 
@@ -1715,38 +1766,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               },
             ),
 
-            // ── 8. Driver Tags ──
-            storyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (story) {
-                if (story.driverTags.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: story.driverTags.map((tag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppTheme.accentBlue.withValues(alpha: 0.10),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tag,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: AppTheme.accentBlue,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
             const SizedBox(height: 16),
           ],
         ),
