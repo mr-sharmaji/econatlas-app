@@ -55,6 +55,17 @@ class RemoteDataSource {
     return IntradayResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
+  Future<MarketStory> getMarketStory({
+    required String asset,
+    required String instrumentType,
+  }) async {
+    final response = await _dio.get(
+      '/market/$asset/story',
+      queryParameters: {'instrument_type': instrumentType},
+    );
+    return MarketStory.fromJson(response.data as Map<String, dynamic>);
+  }
+
   Future<IntradayResponse> getCommodityIntraday({required String asset}) async {
     final response = await _dio.get(
       '/commodities/intraday',
@@ -165,18 +176,80 @@ class RemoteDataSource {
     final params = <String, dynamic>{};
     if (country != null) params['country'] = country;
     if (indicator != null) params['indicator'] = indicator;
-    final response = await _dio.get('/macro/forecasts', queryParameters: params);
-    return MacroForecastResponse.fromJson(response.data as Map<String, dynamic>);
+    final response =
+        await _dio.get('/macro/forecasts', queryParameters: params);
+    return MacroForecastResponse.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   Future<EconCalendarResponse> getEconCalendar({
     int daysAhead = 90,
     String? country,
+    bool includePast = false,
   }) async {
-    final params = <String, dynamic>{'days_ahead': daysAhead};
+    final params = <String, dynamic>{
+      'days_ahead': daysAhead,
+      'include_past': includePast,
+    };
     if (country != null) params['country'] = country;
     final response = await _dio.get('/macro/calendar', queryParameters: params);
     return EconCalendarResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MacroMetadataResponse> getMacroMetadata() async {
+    final response = await _dio.get('/macro/metadata');
+    return MacroMetadataResponse.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  Future<MacroRegimeResponse> getMacroRegime({String? country}) async {
+    final params = <String, dynamic>{};
+    if (country != null && country.trim().isNotEmpty) {
+      params['country'] = country;
+    }
+    final response = await _dio.get('/macro/regime', queryParameters: params);
+    return MacroRegimeResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MacroSummaryResponse> getMacroSummary({String? country}) async {
+    final params = <String, dynamic>{};
+    if (country != null && country.trim().isNotEmpty) {
+      params['country'] = country;
+    }
+    final response = await _dio.get('/macro/summary', queryParameters: params);
+    return MacroSummaryResponse.fromJson(response.data as Map<String, dynamic>);
+  }
+
+  Future<MacroLinkagesResponse> getMacroLinkages({
+    required String country,
+    required String indicator,
+    int windowDays = 365,
+  }) async {
+    final response = await _dio.get(
+      '/macro/linkages',
+      queryParameters: {
+        'country': country,
+        'indicator': indicator,
+        'window_days': windowDays,
+      },
+    );
+    return MacroLinkagesResponse.fromJson(
+        response.data as Map<String, dynamic>);
+  }
+
+  Future<EconomicEventListResponse> getEvents({
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final response = await _dio.get(
+      '/events',
+      queryParameters: {
+        'limit': limit,
+        'offset': offset,
+      },
+    );
+    return EconomicEventListResponse.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   Future<bool> healthCheck() async {
@@ -367,13 +440,16 @@ class RemoteDataSource {
     if (minTradedValue != null) params['min_traded_value'] = minTradedValue;
     if (minMarketCap != null) params['min_market_cap'] = minMarketCap;
     if (maxMarketCap != null) params['max_market_cap'] = maxMarketCap;
-    if (minDividendYield != null) params['min_dividend_yield'] = minDividendYield;
+    if (minDividendYield != null) {
+      params['min_dividend_yield'] = minDividendYield;
+    }
     if (minPb != null) params['min_pb'] = minPb;
     if (maxPb != null) params['max_pb'] = maxPb;
     if (sourceStatus != null && sourceStatus.trim().isNotEmpty) {
       params['source_status'] = sourceStatus;
     }
-    final response = await _dio.get('/screener/stocks', queryParameters: params);
+    final response =
+        await _dio.get('/screener/stocks', queryParameters: params);
     return DiscoverStockListResponse.fromJson(
       response.data as Map<String, dynamic>,
     );
@@ -481,13 +557,17 @@ class RemoteDataSource {
   }
 
   Future<DiscoverStockItem> getDiscoverStockBySymbol(String symbol) async {
-    final response = await _dio.get('/screener/stocks/${Uri.encodeComponent(symbol)}/detail');
+    final response = await _dio
+        .get('/screener/stocks/${Uri.encodeComponent(symbol)}/detail');
     return DiscoverStockItem.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<DiscoverMutualFundItem> getDiscoverMfBySchemeCode(String schemeCode) async {
-    final response = await _dio.get('/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/detail');
-    return DiscoverMutualFundItem.fromJson(response.data as Map<String, dynamic>);
+  Future<DiscoverMutualFundItem> getDiscoverMfBySchemeCode(
+      String schemeCode) async {
+    final response = await _dio.get(
+        '/screener/mutual-funds/${Uri.encodeComponent(schemeCode)}/detail');
+    return DiscoverMutualFundItem.fromJson(
+        response.data as Map<String, dynamic>);
   }
 
   Future<List<DiscoverStockItem>> getDiscoverStockPeers({
@@ -501,7 +581,9 @@ class RemoteDataSource {
     final raw = response.data;
     final list = raw is List<dynamic>
         ? raw
-        : (raw is Map<String, dynamic> ? (raw['items'] as List<dynamic>? ?? const []) : const <dynamic>[]);
+        : (raw is Map<String, dynamic>
+            ? (raw['items'] as List<dynamic>? ?? const [])
+            : const <dynamic>[]);
     return list
         .map((e) => DiscoverStockItem.fromJson(e as Map<String, dynamic>))
         .toList();
@@ -518,7 +600,9 @@ class RemoteDataSource {
     final raw = response.data;
     final list = raw is List<dynamic>
         ? raw
-        : (raw is Map<String, dynamic> ? (raw['items'] as List<dynamic>? ?? const []) : const <dynamic>[]);
+        : (raw is Map<String, dynamic>
+            ? (raw['items'] as List<dynamic>? ?? const [])
+            : const <dynamic>[]);
     return list
         .map((e) => DiscoverMutualFundItem.fromJson(e as Map<String, dynamic>))
         .toList();

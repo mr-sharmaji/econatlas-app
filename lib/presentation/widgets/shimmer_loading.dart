@@ -276,6 +276,112 @@ class ShimmerInlineRow extends StatelessWidget {
   }
 }
 
+/// Shimmer skeleton for market detail screen (verdict + header + chart + range + tags).
+class ShimmerMarketDetail extends StatelessWidget {
+  const ShimmerMarketDetail({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final base = isDark ? const Color(0xFF21262D) : Colors.grey.shade300;
+    final highlight = isDark ? const Color(0xFF30363D) : Colors.grey.shade100;
+
+    Widget bar(double w, double h) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(h / 2),
+          ),
+        );
+
+    return Shimmer.fromColors(
+      baseColor: base,
+      highlightColor: highlight,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Verdict card
+            Container(
+              height: 72,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            const SizedBox(height: 12),
+            // Display name
+            bar(200, 22),
+            const SizedBox(height: 8),
+            // Chips row
+            Row(children: [
+              bar(60, 24),
+              const SizedBox(width: 8),
+              bar(80, 24),
+              const SizedBox(width: 8),
+              bar(40, 24),
+            ]),
+            const SizedBox(height: 16),
+            // Price + change
+            Row(children: [
+              bar(140, 28),
+              const SizedBox(width: 10),
+              bar(70, 24),
+            ]),
+            const SizedBox(height: 4),
+            bar(120, 12),
+            const SizedBox(height: 20),
+            // Period chips
+            Row(children: [
+              for (int i = 0; i < 8; i++) ...[
+                bar(36, 28),
+                if (i < 7) const SizedBox(width: 8),
+              ],
+            ]),
+            const SizedBox(height: 12),
+            // Chart placeholder
+            Container(
+              height: 180,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Range card
+            Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // Tags row
+            Row(children: [
+              bar(80, 28),
+              const SizedBox(width: 8),
+              bar(100, 28),
+              const SizedBox(width: 8),
+              bar(70, 28),
+            ]),
+            const SizedBox(height: 14),
+            // Score stats row
+            Row(children: [
+              for (int i = 0; i < 3; i++) ...[
+                Expanded(child: bar(double.infinity, 56)),
+                if (i < 2) const SizedBox(width: 12),
+              ],
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class ShimmerHorizontalList extends StatelessWidget {
   final int itemCount;
   final double itemWidth;

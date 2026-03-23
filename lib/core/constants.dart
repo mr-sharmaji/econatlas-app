@@ -1,10 +1,12 @@
 /// Time range for price/macro history charts.
 enum ChartRange {
   oneDay,
+  oneWeek,
   oneMonth,
   threeMonths,
   sixMonths,
   oneYear,
+  threeYears,
   fiveYears,
   all,
 }
@@ -14,6 +16,8 @@ extension ChartRangeExtension on ChartRange {
     switch (this) {
       case ChartRange.oneDay:
         return '1D';
+      case ChartRange.oneWeek:
+        return '1W';
       case ChartRange.oneMonth:
         return '1M';
       case ChartRange.threeMonths:
@@ -22,6 +26,8 @@ extension ChartRangeExtension on ChartRange {
         return '6M';
       case ChartRange.oneYear:
         return '1Y';
+      case ChartRange.threeYears:
+        return '3Y';
       case ChartRange.fiveYears:
         return '5Y';
       case ChartRange.all:
@@ -33,6 +39,8 @@ extension ChartRangeExtension on ChartRange {
     switch (this) {
       case ChartRange.oneDay:
         return const Duration(days: 1);
+      case ChartRange.oneWeek:
+        return const Duration(days: 7);
       case ChartRange.oneMonth:
         return const Duration(days: 30);
       case ChartRange.threeMonths:
@@ -41,6 +49,8 @@ extension ChartRangeExtension on ChartRange {
         return const Duration(days: 180);
       case ChartRange.oneYear:
         return const Duration(days: 365);
+      case ChartRange.threeYears:
+        return const Duration(days: 1095);
       case ChartRange.fiveYears:
         return const Duration(days: 365 * 5);
       case ChartRange.all:

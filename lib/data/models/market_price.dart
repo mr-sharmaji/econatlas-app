@@ -112,6 +112,56 @@ class MarketPrice {
 }
 
 @immutable
+class MarketStory {
+  final String asset;
+  final String instrumentType;
+  final String? verdict;
+  final String? actionTag;
+  final String? actionTagReasoning;
+  final double? scoreTrend;
+  final double? scoreVolatility;
+  final double? scoreMomentum;
+  final List<String> driverTags;
+  final Map<String, dynamic>? typeExtras;
+  final DateTime? computedAt;
+
+  const MarketStory({
+    required this.asset,
+    required this.instrumentType,
+    this.verdict,
+    this.actionTag,
+    this.actionTagReasoning,
+    this.scoreTrend,
+    this.scoreVolatility,
+    this.scoreMomentum,
+    this.driverTags = const [],
+    this.typeExtras,
+    this.computedAt,
+  });
+
+  factory MarketStory.fromJson(Map<String, dynamic> json) {
+    return MarketStory(
+      asset: json['asset'] as String,
+      instrumentType: json['instrument_type'] as String,
+      verdict: json['verdict'] as String?,
+      actionTag: json['action_tag'] as String?,
+      actionTagReasoning: json['action_tag_reasoning'] as String?,
+      scoreTrend: (json['score_trend'] as num?)?.toDouble(),
+      scoreVolatility: (json['score_volatility'] as num?)?.toDouble(),
+      scoreMomentum: (json['score_momentum'] as num?)?.toDouble(),
+      driverTags: (json['driver_tags'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          const [],
+      typeExtras: json['type_extras'] as Map<String, dynamic>?,
+      computedAt: json['computed_at'] != null
+          ? DateTime.tryParse(json['computed_at'] as String)
+          : null,
+    );
+  }
+}
+
+@immutable
 class MarketPriceResponse {
   final List<MarketPrice> prices;
   final int count;

@@ -232,6 +232,17 @@ class IpoAlertsNotifier extends StateNotifier<AsyncValue<Set<String>>> {
   }
 }
 
+final marketStoryProvider = FutureProvider.family<MarketStory,
+    ({String asset, String instrumentType})>(
+  (ref, params) async {
+    final repo = ref.watch(marketRepositoryProvider);
+    return repo.getMarketStory(
+      asset: params.asset,
+      instrumentType: params.instrumentType,
+    );
+  },
+);
+
 Future<List<MarketPrice>> _loadLatestMarketWithCache(
   Ref ref, {
   required String cacheKey,

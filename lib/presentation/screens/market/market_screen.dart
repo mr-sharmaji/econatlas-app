@@ -10,6 +10,7 @@ import '../../../data/models/intraday_response.dart';
 import '../../../data/models/market_price.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
+import '../discover/widgets/position_bar.dart';
 
 class MarketScreen extends ConsumerStatefulWidget {
   const MarketScreen({super.key});
@@ -1251,6 +1252,56 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     }
   }
 
+  // ── Market action tag color mapping ──
+  static Color _marketTagColor(String tag) {
+    switch (tag) {
+      case 'Bullish':
+        return AppTheme.accentGreen;
+      case 'Moderately Bullish':
+        return AppTheme.accentTeal;
+      case 'Neutral':
+        return AppTheme.accentGray;
+      case 'Moderately Bearish':
+        return AppTheme.accentOrange;
+      case 'Bearish':
+        return AppTheme.accentRed;
+      default:
+        return AppTheme.accentTeal;
+    }
+  }
+
+  // ── Market action tag icon mapping ──
+  static IconData _marketTagIcon(String tag) {
+    switch (tag) {
+      case 'Bullish':
+        return Icons.trending_up_rounded;
+      case 'Moderately Bullish':
+        return Icons.north_east_rounded;
+      case 'Neutral':
+        return Icons.pause_circle_outline_rounded;
+      case 'Moderately Bearish':
+        return Icons.south_east_rounded;
+      case 'Bearish':
+        return Icons.trending_down_rounded;
+      default:
+        return Icons.trending_flat_rounded;
+    }
+  }
+
+  static String _formatTag(String tag) {
+    return tag
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+        .join(' ');
+  }
+
+  static Color _scoreColor(double score) {
+    if (score >= 60) return AppTheme.accentGreen;
+    if (score >= 40) return Colors.white;
+    return AppTheme.accentRed;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -1317,27 +1368,16 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         ref.watch(watchlistProvider).valueOrNull ?? const <String>[];
     final inWatchlist = watchlistAssets.contains(widget.asset);
 
+    // Story data for verdict / driver tags / scores
+    final storyAsync = ref.watch(marketStoryProvider(
+        (asset: widget.asset, instrumentType: instType)));
+
     return Scaffold(
+      // ── 1. AppBar — simplified ──
       appBar: AppBar(
-        title: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            AssetLogoBadge(
-              asset: widget.asset,
-              instrumentType: instType,
-              size: 22,
-              borderRadius: 6,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                displayName(widget.asset),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(width: 6),
-            MarketStatusPill(phase: phase, showLabel: true),
-          ],
+        title: Text(
+          displayName(widget.asset),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
@@ -1355,6 +1395,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         onRefresh: () async {
           ref.invalidate(latestMarketPricesProvider);
           ref.invalidate(latestCommoditiesProvider);
+          ref.invalidate(marketStoryProvider(
+              (asset: widget.asset, instrumentType: instType)));
           if (isCommodity) {
             ref.invalidate(commodityHistoryProvider(widget.asset));
             ref.invalidate(commodityIntradayProvider(widget.asset));
@@ -1367,11 +1409,32 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // ── 1. Header ──
-            _buildHeader(theme, instType),
+            // ── a) Verdict Card ──
+            _buildVerdictCard(theme, storyAsync),
+            const SizedBox(height: 8),
+
+            // ── b) Header Section ──
+            Text(
+              displayName(widget.asset),
+              style: theme.textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                _buildChipLabel(theme, _typeBadge(instType)),
+                if (_contextForAsset(widget.asset, instType).isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  _buildChipLabel(
+                      theme, _contextForAsset(widget.asset, instType)),
+                ],
+                const SizedBox(width: 6),
+                MarketStatusPill(phase: phase, showLabel: true),
+              ],
+            ),
             const SizedBox(height: 12),
 
-            // ── 2. Price row ──
+            // ── c) Price + Change Badge ──
             if (currentPrice != null && display != null) ...[
               _buildPriceRow(
                 theme,
@@ -1389,11 +1452,11 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               const SizedBox(height: 20),
             ],
 
-            // ── 3. Period selector ──
+            // ── d) Period Selector ──
             _buildPeriodSelector(theme, oneDayLabel: oneDayLabel),
             const SizedBox(height: 10),
 
-            // ── 4. Chart + 5. Range card ──
+            // ── e) Chart + f) Range card ──
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
               error: (err, _) => ErrorView(
@@ -1526,9 +1589,24 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     ? statsPrices.last
                     : close;
 
+                final rangeLabel = is1D
+                    ? ((isCommodity || isCurrency)
+                        ? '24H Range'
+                        : 'Session Range')
+                    : 'Period Range';
+
+                String fmt(double v) {
+                  final u = chartUnit;
+                  final p = prefix ?? '';
+                  if (u == 'percent') return Formatters.price(v, unit: u);
+                  if (u == 'inr') return '$p${Formatters.fxInrPrice(v)}';
+                  return '$p${Formatters.fullPrice(v)}';
+                }
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // ── e) Chart ──
                     PriceLineChart(
                       prices: chartPrices,
                       timestamps: chartTimestamps,
@@ -1540,21 +1618,114 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       chartUnitHint: chartUnitHint,
                     ),
                     const SizedBox(height: 14),
-                    _SessionRangeCard(
-                      label: is1D
-                          ? ((isCommodity || isCurrency)
-                              ? '24H Range'
-                              : 'Session Range')
-                          : 'Period Range',
-                      low: low,
-                      high: high,
-                      current: currentVal,
-                      open: open,
-                      close: close,
-                      pricePrefix: prefix ?? '',
-                      unit: chartUnit,
+                    // ── f) Range Card ──
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              rangeLabel,
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 10),
+                            PositionBar(
+                              min: low,
+                              max: high,
+                              current: currentVal,
+                              minLabel: fmt(low),
+                              maxLabel: fmt(high),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _miniStat(theme, 'Open', fmt(open)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _miniStat(theme, 'Close', fmt(close)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ],
+                );
+              },
+            ),
+
+            // ── g) Driver Tags ──
+            storyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (story) {
+                if (story.driverTags.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: story.driverTags.map((tag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accentBlue.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          tag,
+                          style: theme.textTheme.bodySmall
+                              ?.copyWith(color: AppTheme.accentBlue),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+
+            // ── h) Score Stats ──
+            storyAsync.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (story) {
+                final hasTrend = story.scoreTrend != null;
+                final hasVol = story.scoreVolatility != null;
+                final hasMom = story.scoreMomentum != null;
+                if (!hasTrend && !hasVol && !hasMom) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: const EdgeInsets.only(top: 14),
+                  child: Row(
+                    children: [
+                      if (hasTrend)
+                        Expanded(
+                          child: _buildScoreCard(
+                              theme, 'Trend', story.scoreTrend!),
+                        ),
+                      if (hasTrend && (hasVol || hasMom))
+                        const SizedBox(width: 8),
+                      if (hasVol)
+                        Expanded(
+                          child: _buildScoreCard(
+                              theme, 'Volatility', story.scoreVolatility!),
+                        ),
+                      if (hasVol && hasMom) const SizedBox(width: 8),
+                      if (hasMom)
+                        Expanded(
+                          child: _buildScoreCard(
+                              theme, 'Momentum', story.scoreMomentum!),
+                        ),
+                    ],
+                  ),
                 );
               },
             ),
@@ -1564,31 +1735,139 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     );
   }
 
-  // ── Header ──────────────────────────────────────────────────────────
+  // ── Verdict Card ───────────────────────────────────────────────────
 
-  Widget _buildHeader(ThemeData theme, String instType) {
-    final badge = _typeBadge(instType);
-    final ctx = _contextForAsset(widget.asset, instType);
+  Widget _buildVerdictCard(ThemeData theme, AsyncValue<MarketStory> storyAsync) {
+    return storyAsync.when(
+      loading: () => const ShimmerCard(height: 72),
+      error: (_, __) => const SizedBox.shrink(),
+      data: (story) {
+        final actionTag = story.actionTag;
+        final verdict = story.verdict;
+        final reasoning = story.actionTagReasoning;
+        if (actionTag == null && verdict == null) {
+          return const SizedBox.shrink();
+        }
+
+        final color =
+            actionTag != null ? _marketTagColor(actionTag) : Colors.white54;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (actionTag != null)
+                Row(
+                  children: [
+                    Icon(_marketTagIcon(actionTag), size: 18, color: color),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _formatTag(actionTag),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (verdict != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  verdict,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: Colors.white.withValues(alpha: 0.9),
+                  ),
+                ),
+              ],
+              if (reasoning != null) ...[
+                const SizedBox(height: 6),
+                Text(
+                  reasoning,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: Colors.white70,
+                    height: 1.4,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // ── Chip label (matching stock detail) ─────────────────────────────
+
+  Widget _buildChipLabel(ThemeData theme, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+  }
+
+  // ── Score card helper ──────────────────────────────────────────────
+
+  Widget _buildScoreCard(ThemeData theme, String label, double score) {
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              score.toStringAsFixed(0),
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: _scoreColor(score),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Mini stat row helper ───────────────────────────────────────────
+
+  Widget _miniStat(ThemeData theme, String label, String value) {
     return Row(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            badge,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+        Text(
+          '$label: ',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+        ),
+        Text(
+          value,
+          style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: FontWeight.w600,
+            fontFeatures: const [FontFeature.tabularFigures()],
           ),
         ),
-        if (ctx.isNotEmpty) ...[
-          const SizedBox(width: 8),
-          Text(
-            ctx,
-            style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
-          ),
-        ],
       ],
     );
   }
@@ -1743,7 +2022,9 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: ChartRange.values.map((r) {
+        children: ChartRange.values
+            .where((r) => r != ChartRange.all)
+            .map((r) {
           final isSelected = r == _chartRange;
           final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
           return Padding(
@@ -1769,171 +2050,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           );
         }).toList(),
       ),
-    );
-  }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// Session Range Card (visual range bar)
-// ═══════════════════════════════════════════════════════════════════════
-
-class _SessionRangeCard extends StatelessWidget {
-  final String label;
-  final double low;
-  final double high;
-  final double current;
-  final double open;
-  final double close;
-  final String pricePrefix;
-  final String? unit;
-
-  const _SessionRangeCard({
-    required this.label,
-    required this.low,
-    required this.high,
-    required this.current,
-    required this.open,
-    required this.close,
-    this.pricePrefix = '',
-    this.unit,
-  });
-
-  String _fmt(double v) {
-    if (unit == 'percent') return Formatters.price(v, unit: unit);
-    if (unit == 'inr') return '$pricePrefix${Formatters.fxInrPrice(v)}';
-    return '$pricePrefix${Formatters.fullPrice(v)}';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final range = high - low;
-    final fraction =
-        range > 0 ? ((current - low) / range).clamp(0.0, 1.0) : 0.5;
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: theme.textTheme.titleSmall
-                  ?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 12),
-            // ── Visual range bar ──
-            Row(
-              children: [
-                Text(
-                  _fmt(low),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final barWidth = constraints.maxWidth;
-                      final markerPos = barWidth * fraction;
-                      return SizedBox(
-                        height: 24,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Positioned(
-                              left: 0,
-                              right: 0,
-                              top: 10,
-                              child: Container(
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(2),
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      AppTheme.accentRed.withValues(alpha: 0.4),
-                                      AppTheme.accentOrange
-                                          .withValues(alpha: 0.4),
-                                      AppTheme.accentGreen
-                                          .withValues(alpha: 0.4),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                            Positioned(
-                              left: markerPos - 6,
-                              top: 2,
-                              child: Container(
-                                width: 12,
-                                height: 20,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.accentBlue,
-                                  borderRadius: BorderRadius.circular(4),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: AppTheme.accentBlue
-                                          .withValues(alpha: 0.4),
-                                      blurRadius: 6,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _fmt(high),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: Colors.white54,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            // ── Open / Close row ──
-            Row(
-              children: [
-                Expanded(
-                  child: _miniStat(theme, 'Open', _fmt(open)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _miniStat(theme, 'Close', _fmt(close)),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _miniStat(ThemeData theme, String label, String value) {
-    return Row(
-      children: [
-        Text(
-          '$label: ',
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
-        ),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-        ),
-      ],
     );
   }
 }

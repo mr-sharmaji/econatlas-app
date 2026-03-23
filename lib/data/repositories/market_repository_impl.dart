@@ -48,4 +48,15 @@ class MarketRepositoryImpl implements MarketRepository {
   }) {
     return _remote.getLatestMarketPrices(instrumentType: instrumentType);
   }
+
+  @override
+  Future<MarketStory> getMarketStory({
+    required String asset,
+    required String instrumentType,
+  }) {
+    return _remote.getMarketStory(
+      asset: asset,
+      instrumentType: instrumentType,
+    );
+  }
 }

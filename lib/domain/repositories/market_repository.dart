@@ -24,4 +24,9 @@ abstract class MarketRepository {
   Future<MarketPriceResponse> getLatestMarketPrices({
     String? instrumentType,
   });
+
+  Future<MarketStory> getMarketStory({
+    required String asset,
+    required String instrumentType,
+  });
 }
