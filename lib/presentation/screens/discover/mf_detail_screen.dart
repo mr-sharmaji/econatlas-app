@@ -755,15 +755,25 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Expanded(
-                  child: _returnColumn(theme, '1Y', item.returns1y),
-                ),
-                Expanded(
-                  child: _returnColumn(theme, '3Y', item.returns3y),
-                ),
-                Expanded(
-                  child: _returnColumn(theme, '5Y', item.returns5y),
-                ),
+                for (final entry in [
+                  ('1M', item.returns1m),
+                  ('3M', item.returns3m),
+                  ('6M', item.returns6m),
+                  ('1Y', item.returns1y),
+                  ('3Y', item.returns3y),
+                  ('5Y', item.returns5y),
+                ])
+                  if (entry.$2 != null)
+                    Expanded(
+                      child: _returnColumn(theme, entry.$1, entry.$2),
+                    ),
+                // If no returns at all, show a placeholder
+                if ([item.returns1m, item.returns3m, item.returns6m,
+                     item.returns1y, item.returns3y, item.returns5y]
+                    .every((v) => v == null))
+                  Expanded(
+                    child: _returnColumn(theme, '1Y', null),
+                  ),
               ],
             ),
             // Returns vs category average (always XIRR-based from API)

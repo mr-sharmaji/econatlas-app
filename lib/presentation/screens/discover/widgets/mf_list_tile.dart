@@ -44,6 +44,7 @@ class MfListTile extends StatelessWidget {
   }
 
   /// Returns the display return value and label based on sort.
+  /// Falls back to best available return when the sorted field is null.
   ({double? value, String label}) get _displayReturn {
     switch (sortBy) {
       case 'returns_3y':
@@ -55,8 +56,17 @@ class MfListTile extends StatelessWidget {
       case 'aum':
         return (value: item.aumCr, label: 'AUM');
       default:
-        return (value: item.returns1y, label: '1Y');
+        return _bestAvailableReturn;
     }
+  }
+
+  /// Cascade: show the longest available return period.
+  ({double? value, String label}) get _bestAvailableReturn {
+    if (item.returns1y != null) return (value: item.returns1y, label: '1Y');
+    if (item.returns6m != null) return (value: item.returns6m, label: '6M');
+    if (item.returns3m != null) return (value: item.returns3m, label: '3M');
+    if (item.returns1m != null) return (value: item.returns1m, label: '1M');
+    return (value: null, label: '');
   }
 
   @override

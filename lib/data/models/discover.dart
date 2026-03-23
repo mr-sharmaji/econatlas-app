@@ -319,8 +319,10 @@ class DiscoverStockItem {
   final double? scoreValuation;
   final double? scoreEarningsQuality;
   final double? scoreSmartMoney;
-  final double? percentChange3m;
   final double? percentChange1w;
+  final double? percentChange1m;
+  final double? percentChange3m;
+  final double? percentChange6m;
   final double? percentChange1y;
   final double? percentChange3y;
   // Shareholding
@@ -433,8 +435,10 @@ class DiscoverStockItem {
     this.scoreValuation,
     this.scoreEarningsQuality,
     this.scoreSmartMoney,
-    this.percentChange3m,
     this.percentChange1w,
+    this.percentChange1m,
+    this.percentChange3m,
+    this.percentChange6m,
     this.percentChange1y,
     this.percentChange3y,
     this.promoterHolding,
@@ -541,8 +545,10 @@ class DiscoverStockItem {
       scoreEarningsQuality:
           (json['score_earnings_quality'] as num?)?.toDouble(),
       scoreSmartMoney: (json['score_smart_money'] as num?)?.toDouble(),
-      percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
       percentChange1w: (json['percent_change_1w'] as num?)?.toDouble(),
+      percentChange1m: (json['percent_change_1m'] as num?)?.toDouble(),
+      percentChange3m: (json['percent_change_3m'] as num?)?.toDouble(),
+      percentChange6m: (json['percent_change_6m'] as num?)?.toDouble(),
       percentChange1y: (json['percent_change_1y'] as num?)?.toDouble(),
       percentChange3y: (json['percent_change_3y'] as num?)?.toDouble(),
       promoterHolding: (json['promoter_holding'] as num?)?.toDouble(),
@@ -798,6 +804,9 @@ class DiscoverMutualFundItem {
   final double? expenseRatio;
   final double? aumCr;
   final String? riskLevel;
+  final double? returns1m;
+  final double? returns3m;
+  final double? returns6m;
   final double? returns1y;
   final double? returns3y;
   final double? returns5y;
@@ -861,6 +870,9 @@ class DiscoverMutualFundItem {
     required this.expenseRatio,
     required this.aumCr,
     required this.riskLevel,
+    this.returns1m,
+    this.returns3m,
+    this.returns6m,
     required this.returns1y,
     required this.returns3y,
     required this.returns5y,
@@ -926,6 +938,9 @@ class DiscoverMutualFundItem {
       expenseRatio: (json['expense_ratio'] as num?)?.toDouble(),
       aumCr: (json['aum_cr'] as num?)?.toDouble(),
       riskLevel: json['risk_level'] as String?,
+      returns1m: (json['returns_1m'] as num?)?.toDouble(),
+      returns3m: (json['returns_3m'] as num?)?.toDouble(),
+      returns6m: (json['returns_6m'] as num?)?.toDouble(),
       returns1y: (json['returns_1y'] as num?)?.toDouble(),
       returns3y: (json['returns_3y'] as num?)?.toDouble(),
       returns5y: (json['returns_5y'] as num?)?.toDouble(),
