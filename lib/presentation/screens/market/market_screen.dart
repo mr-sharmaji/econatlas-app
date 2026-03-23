@@ -1533,10 +1533,22 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             // ── 4. Chart + 5. Range card ──
             // On 1D: show shimmer while intraday loads
             if (is1D && intradayChartList.isEmpty && intradayAsync.isLoading)
-              const ShimmerCard(height: 200)
+              const Column(
+                children: [
+                  ShimmerCard(height: 200),
+                  SizedBox(height: 14),
+                  ShimmerCard(height: 100),
+                ],
+              )
             else
             historyAsync.when(
-              loading: () => const ShimmerCard(height: 200),
+              loading: () => const Column(
+                children: [
+                  ShimmerCard(height: 200),
+                  SizedBox(height: 14),
+                  ShimmerCard(height: 100),
+                ],
+              ),
               error: (err, _) => ErrorView(
                 message: friendlyErrorMessage(err),
                 onRetry: () {
