@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="fertilizers square badge">
+  <rect x="0" y="0" width="64" height="64" rx="12" fill="#2E7D5A"/>
+  <path d="M28 44V28L24 24" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36 44V30L40 26" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="24" cy="22" r="4" fill="#81C784" opacity="0.7"/>
+  <circle cx="40" cy="24" r="3.5" fill="#81C784" opacity="0.7"/>
+  <circle cx="32" cy="18" r="3" fill="#A5D6A7" opacity="0.6"/>
+  <path d="M26 44H38" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+  <rect x="0.5" y="0.5" width="63" height="63" rx="12" fill="none" stroke="#FFFFFF" stroke-opacity="0.12"/>
+</svg>
