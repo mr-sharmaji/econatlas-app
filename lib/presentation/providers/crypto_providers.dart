@@ -57,3 +57,14 @@ final cryptoHistoryProvider = FutureProvider.autoDispose
   );
   return response.prices;
 });
+
+final cryptoHistoryRangeProvider = FutureProvider.autoDispose
+    .family<List<MarketPrice>, ({String asset, int days})>((ref, key) async {
+  final repo = ref.watch(cryptoRepositoryProvider);
+  final limit = (key.days * 1.15).ceil();
+  final response = await repo.getCrypto(
+    asset: key.asset,
+    limit: limit,
+  );
+  return response.prices;
+});

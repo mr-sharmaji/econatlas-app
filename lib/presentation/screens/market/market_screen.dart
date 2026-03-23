@@ -1329,15 +1329,17 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final isCommodity = initialInstType == 'commodity';
     final isCrypto = initialInstType == 'crypto';
     final isRolling = isCommodity || isCrypto;
-    // Only fetch history when not on 1D — avoids 6s blocking call on initial load
-    final needsHistory = _chartRange != ChartRange.oneDay;
-    final historyAsync = needsHistory
-        ? (isCommodity
-            ? ref.watch(commodityHistoryProvider(widget.asset))
+    // Each period pill fetches only the rows it needs (1W=8, 1M=35, 1Y=420, etc.)
+    // 1D uses intraday provider instead
+    final rangeDays = _chartRange.isIntradayRange ? 1 : _chartRange.duration.inDays;
+    final historyKey = (asset: widget.asset, days: rangeDays);
+    final historyAsync = _chartRange.isIntradayRange
+        ? const AsyncValue<List<MarketPrice>>.data([])
+        : (isCommodity
+            ? ref.watch(commodityHistoryRangeProvider(historyKey))
             : isCrypto
-                ? ref.watch(cryptoHistoryProvider(widget.asset))
-                : ref.watch(marketHistoryProvider(widget.asset)))
-        : const AsyncValue<List<MarketPrice>>.data([]);
+                ? ref.watch(cryptoHistoryRangeProvider(historyKey))
+                : ref.watch(marketHistoryRangeProvider(historyKey)));
     final unitSystem = ref.watch(unitSystemProvider);
     final latestMarketAsync = ref.watch(latestMarketPricesProvider);
     final latestCommodityAsync = ref.watch(latestCommoditiesProvider);
@@ -1434,13 +1436,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           ref.invalidate(marketStoryProvider(
               (asset: widget.asset, instrumentType: instType)));
           if (isCommodity) {
-            ref.invalidate(commodityHistoryProvider(widget.asset));
+            ref.invalidate(commodityHistoryRangeProvider(historyKey));
             ref.invalidate(commodityIntradayProvider(widget.asset));
           } else if (isCrypto) {
-            ref.invalidate(cryptoHistoryProvider(widget.asset));
+            ref.invalidate(cryptoHistoryRangeProvider(historyKey));
             ref.invalidate(cryptoIntradayProvider(widget.asset));
           } else {
-            ref.invalidate(marketHistoryProvider(widget.asset));
+            ref.invalidate(marketHistoryRangeProvider(historyKey));
             ref.invalidate(marketIntradayProvider(
                 (asset: widget.asset, instrumentType: instType)));
           }
@@ -1529,7 +1531,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             const SizedBox(height: 12),
 
             // ── 4. Chart + 5. Range card ──
-            // On 1D: if intraday is still loading, show shimmer
+            // On 1D: show shimmer while intraday loads
             if (is1D && intradayChartList.isEmpty && intradayAsync.isLoading)
               const ShimmerCard(height: 200)
             else
@@ -1539,11 +1541,11 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 message: friendlyErrorMessage(err),
                 onRetry: () {
                   if (isCommodity) {
-                    ref.invalidate(commodityHistoryProvider(widget.asset));
+                    ref.invalidate(commodityHistoryRangeProvider(historyKey));
                   } else if (isCrypto) {
-                    ref.invalidate(cryptoHistoryProvider(widget.asset));
+                    ref.invalidate(cryptoHistoryRangeProvider(historyKey));
                   } else {
-                    ref.invalidate(marketHistoryProvider(widget.asset));
+                    ref.invalidate(marketHistoryRangeProvider(historyKey));
                   }
                 },
               ),
@@ -1596,25 +1598,9 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                           : null;
                 } else {
                   if (prices.isEmpty) {
-                    if (is1D) {
-                      // 1D selected but no intraday data and no history loaded
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 24),
-                        child: Center(
-                          child: Text(
-                            'No intraday data available\nMarket may be closed',
-                            textAlign: TextAlign.center,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurface
-                                  .withValues(alpha: 0.6),
-                            ),
-                          ),
-                        ),
-                      );
-                    }
                     return const EmptyView(
                         message:
-                            'No historical data yet.\nData builds up as the scraper runs.');
+                            'No data available for this range.');
                   }
                   final sorted = List.of(prices)
                     ..sort((a, b) => a.timestamp.compareTo(b.timestamp));

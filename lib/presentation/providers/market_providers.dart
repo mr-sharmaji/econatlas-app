@@ -58,6 +58,19 @@ final marketHistoryProvider = FutureProvider.autoDispose
   return response.prices;
 });
 
+/// Range-aware market history — fetches only the rows needed for the selected period.
+final marketHistoryRangeProvider = FutureProvider.autoDispose
+    .family<List<MarketPrice>, ({String asset, int days})>((ref, key) async {
+  final repo = ref.watch(marketRepositoryProvider);
+  // Add 10% buffer for weekends/holidays
+  final limit = (key.days * 1.15).ceil();
+  final response = await repo.getMarketPrices(
+    asset: key.asset,
+    limit: limit,
+  );
+  return response.prices;
+});
+
 final marketIntradayProvider = FutureProvider.autoDispose
     .family<IntradayResponse, ({String asset, String instrumentType})>(
         (ref, key) async {

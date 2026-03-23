@@ -57,3 +57,14 @@ final commodityHistoryProvider = FutureProvider.autoDispose
   );
   return response.prices;
 });
+
+final commodityHistoryRangeProvider = FutureProvider.autoDispose
+    .family<List<MarketPrice>, ({String asset, int days})>((ref, key) async {
+  final repo = ref.watch(commodityRepositoryProvider);
+  final limit = (key.days * 1.15).ceil();
+  final response = await repo.getCommodities(
+    asset: key.asset,
+    limit: limit,
+  );
+  return response.prices;
+});
