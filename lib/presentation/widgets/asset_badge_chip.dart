@@ -18,6 +18,9 @@ enum AssetBadgeStyle {
   currenciesOther,
   metals,
   energy,
+  agriculture,
+  softs,
+  fertilizers,
   crypto,
   fallback,
 }
@@ -79,15 +82,39 @@ class AssetBadgeResolver {
       case 'commodity':
         final normalizedAsset = asset.trim().toLowerCase();
         if (normalizedAsset == 'crude oil' ||
-            normalizedAsset == 'natural gas') {
+            normalizedAsset == 'brent crude' ||
+            normalizedAsset == 'natural gas' ||
+            normalizedAsset == 'gasoline' ||
+            normalizedAsset == 'heating oil') {
           return AssetBadgeStyle.energy;
         }
         if (normalizedAsset == 'gold' ||
             normalizedAsset == 'silver' ||
             normalizedAsset == 'copper' ||
+            normalizedAsset == 'aluminum' ||
             normalizedAsset == 'platinum' ||
             normalizedAsset == 'palladium') {
           return AssetBadgeStyle.metals;
+        }
+        if (normalizedAsset == 'wheat' ||
+            normalizedAsset == 'corn' ||
+            normalizedAsset == 'soybeans' ||
+            normalizedAsset == 'rice' ||
+            normalizedAsset == 'oats') {
+          return AssetBadgeStyle.agriculture;
+        }
+        if (normalizedAsset == 'cotton' ||
+            normalizedAsset == 'sugar' ||
+            normalizedAsset == 'coffee' ||
+            normalizedAsset == 'cocoa') {
+          return AssetBadgeStyle.softs;
+        }
+        if (normalizedAsset == 'urea' ||
+            normalizedAsset == 'dap fertilizer' ||
+            normalizedAsset == 'potash' ||
+            normalizedAsset == 'tsp fertilizer' ||
+            normalizedAsset == 'ammonia') {
+          return AssetBadgeStyle.fertilizers;
         }
         return AssetBadgeStyle.energy;
       case 'crypto':
@@ -284,6 +311,18 @@ class AssetBadgeResolver {
         return const LinearGradient(
           colors: [Color(0xFFFF9F0A), Color(0xFF1C1C1E)],
         );
+      case AssetBadgeStyle.agriculture:
+        return const LinearGradient(
+          colors: [Color(0xFF4CAF50), Color(0xFF8BC34A)],
+        );
+      case AssetBadgeStyle.softs:
+        return const LinearGradient(
+          colors: [Color(0xFF8D6E63), Color(0xFFD7CCC8)],
+        );
+      case AssetBadgeStyle.fertilizers:
+        return const LinearGradient(
+          colors: [Color(0xFF00897B), Color(0xFF4DB6AC)],
+        );
       case AssetBadgeStyle.crypto:
         return const LinearGradient(
           colors: [Color(0xFF3A2F5E), Color(0xFF7B61FF)],
@@ -401,6 +440,12 @@ class AssetBadgeChip extends StatelessWidget {
         return SquareBadgeAssets.categoryPathForKey('metals');
       case AssetBadgeStyle.energy:
         return SquareBadgeAssets.categoryPathForKey('energy');
+      case AssetBadgeStyle.agriculture:
+        return SquareBadgeAssets.categoryPathForKey('agriculture');
+      case AssetBadgeStyle.softs:
+        return SquareBadgeAssets.categoryPathForKey('softs');
+      case AssetBadgeStyle.fertilizers:
+        return SquareBadgeAssets.categoryPathForKey('fertilizers');
       case AssetBadgeStyle.fallback:
         return SquareBadgeAssets.categoryPathForKey('fallback');
       case AssetBadgeStyle.crypto:

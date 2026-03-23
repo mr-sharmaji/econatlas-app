@@ -96,6 +96,9 @@ class SquareBadgeAssets {
     'energy': 'assets/badge_svgs/categories/energy.svg',
     'crypto': 'assets/badge_svgs/categories/crypto.svg',
     'fallback': 'assets/badge_svgs/categories/fallback.svg',
+    'agriculture': 'assets/badge_svgs/categories/agriculture.svg',
+    'softs': 'assets/badge_svgs/categories/softs.svg',
+    'fertilizers': 'assets/badge_svgs/categories/fertilizers.svg',
   };
 
   static String flagPathForCountryCode(String? code) {
