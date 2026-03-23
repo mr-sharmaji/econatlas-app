@@ -1247,6 +1247,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         return 'FX';
       case 'commodity':
         return 'Commodity';
+      case 'crypto':
+        return 'Crypto';
       default:
         return 'Index';
     }
@@ -1307,19 +1309,28 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final theme = Theme.of(context);
     final initialInstType = widget.initialPrice?.instrumentType ?? 'index';
     final isCommodity = initialInstType == 'commodity';
+    final isCrypto = initialInstType == 'crypto';
+    final isRolling = isCommodity || isCrypto;
     final historyAsync = isCommodity
         ? ref.watch(commodityHistoryProvider(widget.asset))
-        : ref.watch(marketHistoryProvider(widget.asset));
+        : isCrypto
+            ? ref.watch(cryptoHistoryProvider(widget.asset))
+            : ref.watch(marketHistoryProvider(widget.asset));
     final unitSystem = ref.watch(unitSystemProvider);
     final latestMarketAsync = ref.watch(latestMarketPricesProvider);
     final latestCommodityAsync = ref.watch(latestCommoditiesProvider);
+    final latestCryptoAsync = ref.watch(latestCryptoProvider);
     final latestResolvedPrice = isCommodity
         ? latestCommodityAsync.valueOrNull
             ?.where((p) => p.asset == widget.asset)
             .firstOrNull
-        : latestMarketAsync.valueOrNull
-            ?.where((p) => p.asset == widget.asset)
-            .firstOrNull;
+        : isCrypto
+            ? latestCryptoAsync.valueOrNull
+                ?.where((p) => p.asset == widget.asset)
+                .firstOrNull
+            : latestMarketAsync.valueOrNull
+                ?.where((p) => p.asset == widget.asset)
+                .firstOrNull;
     final currentPrice = latestResolvedPrice ?? widget.initialPrice;
     final usdInrRate = latestMarketAsync.valueOrNull
         ?.where((p) => p.asset == 'USD/INR')
@@ -1344,11 +1355,13 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final is1D = _chartRange == ChartRange.oneDay;
     final intradayAsync = isCommodity
         ? ref.watch(commodityIntradayProvider(widget.asset))
-        : ref.watch(marketIntradayProvider(
-            (asset: widget.asset, instrumentType: instType)));
+        : isCrypto
+            ? ref.watch(cryptoIntradayProvider(widget.asset))
+            : ref.watch(marketIntradayProvider(
+                (asset: widget.asset, instrumentType: instType)));
     final intradayPayload = intradayAsync.valueOrNull;
     final intradayListRaw = intradayPayload?.prices ?? const [];
-    final intradayChartList = isCommodity
+    final intradayChartList = isRolling
         ? intradayListRaw
         : _prependSessionAnchor(
             intradayListRaw,
@@ -1361,7 +1374,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final chartTzId = ref.watch(chartTimezoneProvider).id;
     final displayUnit = display?.$2;
     final isCurrency = instType == 'currency';
-    final oneDayLabel = (isCommodity || isCurrency) ? '24H' : '1D';
+    final oneDayLabel = (isRolling || isCurrency) ? '24H' : '1D';
     final hasAuthoritativeTick =
         latestResolvedPrice != null || intradayChartList.isNotEmpty;
     final watchlistAssets =
@@ -1395,11 +1408,15 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         onRefresh: () async {
           ref.invalidate(latestMarketPricesProvider);
           ref.invalidate(latestCommoditiesProvider);
+          ref.invalidate(latestCryptoProvider);
           ref.invalidate(marketStoryProvider(
               (asset: widget.asset, instrumentType: instType)));
           if (isCommodity) {
             ref.invalidate(commodityHistoryProvider(widget.asset));
             ref.invalidate(commodityIntradayProvider(widget.asset));
+          } else if (isCrypto) {
+            ref.invalidate(cryptoHistoryProvider(widget.asset));
+            ref.invalidate(cryptoIntradayProvider(widget.asset));
           } else {
             ref.invalidate(marketHistoryProvider(widget.asset));
             ref.invalidate(marketIntradayProvider(
