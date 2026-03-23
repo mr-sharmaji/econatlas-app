@@ -192,10 +192,16 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
           ref.invalidate(econCalendarProvider);
         },
         child: macroAsync.when(
-          loading: () => const ShimmerList(itemCount: 8),
-          error: (err, _) => ErrorView(
-            message: friendlyErrorMessage(err),
-            onRetry: () => ref.invalidate(allMacroIndicatorsProvider),
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: const [ShimmerList(itemCount: 8)],
+          ),
+          error: (err, _) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            children: [ErrorView(
+              message: friendlyErrorMessage(err),
+              onRetry: () => ref.invalidate(allMacroIndicatorsProvider),
+            )],
           ),
           data: (indicators) {
             final filtered = indicators
