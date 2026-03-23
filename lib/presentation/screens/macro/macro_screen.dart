@@ -1,87 +1,193 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../../core/constants.dart';
 import '../../../core/error_utils.dart';
 import '../../../core/square_badge_assets.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
-import '../../../data/models/macro_indicator.dart';
-import '../../../data/models/macro_forecast.dart';
 import '../../../data/models/econ_calendar_event.dart';
+import '../../../data/models/macro_indicator.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
 // =============================================================================
-// Helpers & Config
+// Config & Helpers
 // =============================================================================
 
+const _countries = ['IN', 'US', 'EU', 'JP'];
+
 String _countryLabel(String code) {
-  switch (code.toUpperCase()) {
+  switch (code) {
     case 'IN': return 'India';
     case 'US': return 'United States';
+    case 'EU': return 'Euro Area';
+    case 'JP': return 'Japan';
     default: return code;
   }
 }
 
-Color _macroValueColor(String indicatorName, double value) {
-  switch (indicatorName) {
-    case 'inflation':
-    case 'inflation_cpi':
-    case 'core_inflation':
+String _countryShort(String code) {
+  switch (code) {
+    case 'IN': return 'India';
+    case 'US': return 'US';
+    case 'EU': return 'EU';
+    case 'JP': return 'Japan';
+    default: return code;
+  }
+}
+
+Color _valueColor(String name, double value) {
+  switch (name) {
+    case 'inflation': case 'core_inflation':
       return value > 6 ? AppTheme.accentRed : (value > 4 ? AppTheme.accentOrange : AppTheme.accentGreen);
     case 'unemployment':
       return value > 6 ? AppTheme.accentRed : (value > 4 ? AppTheme.accentOrange : AppTheme.accentGreen);
-    case 'gdp_growth':
-    case 'iip':
+    case 'gdp_growth': case 'iip': case 'bank_credit_growth':
       return value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-    case 'pmi_manufacturing':
-    case 'pmi_services':
+    case 'pmi_manufacturing': case 'pmi_services':
       return value >= 50 ? AppTheme.accentGreen : AppTheme.accentRed;
+    default: return Colors.white70;
+  }
+}
+
+/// Contextual label for a metric value (color-coded)
+(String label, Color color) _contextLabel(String name, double value, String country) {
+  switch (name) {
+    case 'gdp_growth':
+      if (value > 6) return ('Strong growth', AppTheme.accentGreen);
+      if (value > 3) return ('Moderate growth', AppTheme.accentGreen);
+      if (value > 0) return ('Slow growth', AppTheme.accentOrange);
+      return ('Contraction', AppTheme.accentRed);
+    case 'inflation':
+      final target = country == 'IN' ? 4.0 : 2.0;
+      if (value > target + 2) return ('Above target', AppTheme.accentRed);
+      if (value > target) return ('Near target', AppTheme.accentOrange);
+      if (value < 0) return ('Deflation', AppTheme.accentRed);
+      return ('Below target', AppTheme.accentGreen);
+    case 'core_inflation':
+      if (value > 5) return ('Sticky', AppTheme.accentRed);
+      if (value > 3) return ('Elevated', AppTheme.accentOrange);
+      return ('Moderate', AppTheme.accentGreen);
+    case 'unemployment':
+      if (value > 6) return ('High', AppTheme.accentRed);
+      if (value > 4) return ('Moderate', AppTheme.accentOrange);
+      return ('Low', AppTheme.accentGreen);
+    case 'pmi_manufacturing': case 'pmi_services':
+      if (value >= 55) return ('Strong expansion', AppTheme.accentGreen);
+      if (value >= 50) return ('Expansion', AppTheme.accentGreen);
+      if (value >= 48) return ('Near neutral', AppTheme.accentOrange);
+      return ('Contraction', AppTheme.accentRed);
+    case 'iip':
+      if (value > 5) return ('Strong output', AppTheme.accentGreen);
+      if (value > 0) return ('Positive', AppTheme.accentGreen);
+      return ('Declining', AppTheme.accentRed);
+    case 'repo_rate':
+      return ('Policy rate', Colors.white54);
+    case 'forex_reserves':
+      return ('External buffer', Colors.white54);
+    case 'trade_balance':
+      return value < 0 ? ('Trade deficit', AppTheme.accentOrange) : ('Trade surplus', AppTheme.accentGreen);
+    case 'fiscal_deficit':
+      if (value > 5) return ('Wide deficit', AppTheme.accentRed);
+      if (value > 3) return ('Moderate', AppTheme.accentOrange);
+      return ('Disciplined', AppTheme.accentGreen);
     default:
-      return Colors.white70;
+      return ('', Colors.white38);
   }
 }
 
 MacroIndicator? _latest(List<MacroIndicator> list, String name, String country) {
-  final matches = list
-      .where((i) => i.indicatorName == name && i.country == country)
-      .toList();
-  if (matches.isEmpty) return null;
-  matches.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-  return matches.first;
+  MacroIndicator? best;
+  for (final i in list) {
+    if (i.indicatorName == name && i.country == country) {
+      if (best == null || i.timestamp.isAfter(best.timestamp)) best = i;
+    }
+  }
+  return best;
 }
 
-/// Explainer text shown on tap
+Color _institutionColor(String inst) {
+  switch (inst) {
+    case 'RBI': return AppTheme.accentOrange;
+    case 'Fed': return AppTheme.accentBlue;
+    case 'ECB': return AppTheme.accentTeal;
+    case 'BoJ': return const Color(0xFF8A9EFF);
+    default: return Colors.white54;
+  }
+}
+
 const _explainers = {
-  'gdp_growth': 'Gross Domestic Product growth rate. Measures how fast the economy is expanding. Higher is better.',
-  'inflation': 'Consumer Price Index (CPI) year-over-year change. Measures how fast prices are rising. RBI targets 4%.',
-  'core_inflation': 'CPI excluding food and fuel. Shows underlying inflation trend without volatile components.',
+  'gdp_growth': 'Gross Domestic Product growth rate. Measures how fast the economy is expanding.',
+  'inflation': 'Consumer Price Index year-over-year change. Measures how fast prices are rising.',
+  'core_inflation': 'CPI excluding food and fuel. Shows underlying inflation trend.',
   'unemployment': 'Percentage of labor force actively looking for work but unable to find it.',
-  'repo_rate': 'Rate at which the central bank lends to commercial banks. Key tool for controlling inflation.',
-  'pmi_manufacturing': 'Purchasing Managers Index for manufacturing. Above 50 = expansion, below 50 = contraction.',
-  'pmi_services': 'Purchasing Managers Index for services sector. Above 50 = expansion.',
-  'iip': 'Index of Industrial Production. Measures factory output growth year-over-year.',
-  'forex_reserves': 'Foreign exchange reserves held by the central bank. Buffer against external shocks.',
-  'trade_balance': 'Difference between exports and imports. Negative = trade deficit.',
-  'current_account_deficit': 'Broadest measure of trade including services, income, and transfers.',
-  'fiscal_deficit': 'Government spending minus revenue as % of GDP. Lower = more disciplined fiscal policy.',
-  'bank_credit_growth': 'Rate at which banks are lending to the private sector. Proxy for credit demand.',
+  'repo_rate': 'Policy rate set by the central bank. Core lever for controlling inflation.',
+  'pmi_manufacturing': 'Purchasing Managers Index for manufacturing. Above 50 = expansion.',
+  'pmi_services': 'Purchasing Managers Index for services. Above 50 = expansion.',
+  'iip': 'Index of Industrial Production. Tracks factory output growth.',
+  'forex_reserves': 'Foreign exchange reserves as an external shock buffer.',
+  'trade_balance': 'Exports minus imports. Negative = trade deficit.',
+  'current_account_deficit': 'Broad external balance including goods, services, transfers.',
+  'fiscal_deficit': 'Government spending minus revenue as % of GDP.',
+  'bank_credit_growth': 'Rate at which banks are lending to the private sector.',
+  'gst_collection': 'Monthly GST collections. Proxy for formal economy activity.',
 };
 
-/// Ordered metrics per country
-const _indiaMetrics = [
-  'gdp_growth', 'inflation', 'core_inflation', 'repo_rate',
-  'pmi_manufacturing', 'pmi_services', 'iip', 'unemployment',
-  'forex_reserves', 'trade_balance', 'current_account_deficit',
-  'fiscal_deficit', 'bank_credit_growth',
-];
-
-const _usMetrics = [
-  'gdp_growth', 'inflation', 'core_inflation', 'repo_rate',
-  'pmi_manufacturing', 'pmi_services', 'iip', 'unemployment',
-  'trade_balance',
+/// Insight card definitions: (key, title, icon, metrics_per_country)
+const _insightCards = [
+  (
+    key: 'growth',
+    title: 'Growth & Activity',
+    icon: Icons.trending_up,
+    headline: 'gdp_growth',
+    metrics: {
+      'IN': ['gdp_growth', 'pmi_manufacturing', 'pmi_services', 'iip'],
+      'US': ['gdp_growth', 'pmi_manufacturing', 'pmi_services', 'iip'],
+      'EU': ['gdp_growth'],
+      'JP': ['gdp_growth'],
+    },
+  ),
+  (
+    key: 'prices',
+    title: 'Prices & Rates',
+    icon: Icons.price_change,
+    headline: 'inflation',
+    metrics: {
+      'IN': ['inflation', 'core_inflation', 'repo_rate'],
+      'US': ['inflation', 'core_inflation', 'repo_rate'],
+      'EU': ['inflation', 'repo_rate'],
+      'JP': ['inflation', 'repo_rate'],
+    },
+  ),
+  (
+    key: 'jobs',
+    title: 'Employment',
+    icon: Icons.people_outline,
+    headline: 'unemployment',
+    metrics: {
+      'IN': ['unemployment'],
+      'US': ['unemployment'],
+      'EU': ['unemployment'],
+      'JP': ['unemployment'],
+    },
+  ),
+  (
+    key: 'external',
+    title: 'External & Fiscal',
+    icon: Icons.public,
+    headline: 'trade_balance',
+    metrics: {
+      'IN': ['trade_balance', 'forex_reserves', 'current_account_deficit', 'fiscal_deficit', 'bank_credit_growth', 'gst_collection'],
+      'US': ['trade_balance'],
+      'EU': <String>[],
+      'JP': <String>[],
+    },
+  ),
 ];
 
 // =============================================================================
@@ -95,44 +201,47 @@ class MacroScreen extends ConsumerStatefulWidget {
   ConsumerState<MacroScreen> createState() => _MacroScreenState();
 }
 
-class _MacroScreenState extends ConsumerState<MacroScreen> {
+class _MacroScreenState extends ConsumerState<MacroScreen> with SingleTickerProviderStateMixin {
   late final ScrollController _scrollController;
+  late final TabController _tabController;
+  int? _expandedCard; // accordion: only one open
 
   @override
   void initState() {
     super.initState();
     _scrollController = ScrollController();
+    _tabController = TabController(length: _countries.length, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() => _expandedCard = null);
+        ref.read(selectedCountryProvider.notifier).state = _countries[_tabController.index];
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   void _scrollToTop() {
     if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-    );
+    _scrollController.animateTo(0, duration: const Duration(milliseconds: 260), curve: Curves.easeOutCubic);
   }
 
   void _openDetail(MacroIndicator ind) {
-    context.push(
-      '/macro/detail/${ind.country}/${ind.indicatorName}',
-      extra: ind,
-    );
+    context.push('/macro/detail/${ind.country}/${ind.indicatorName}', extra: ind);
   }
 
-  void _showExplainer(BuildContext context, String indicatorName) {
-    final text = _explainers[indicatorName];
+  void _showExplainer(String name) {
+    final text = _explainers[name];
     if (text == null) return;
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(displayName(indicatorName)),
+        title: Text(displayName(name)),
         content: Text(text),
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))],
       ),
@@ -147,13 +256,34 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
     });
 
     final macroAsync = ref.watch(allMacroIndicatorsProvider);
-    final forecastAsync = ref.watch(macroForecastsProvider);
     final calendarAsync = ref.watch(econCalendarProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Economy'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: _countries.map((c) => Tab(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SquareBadgeSvg(
+                  assetPath: SquareBadgeAssets.flagPathForCountryCode(c),
+                  size: 16,
+                  borderRadius: 3,
+                ),
+                const SizedBox(width: 6),
+                Flexible(child: Text(_countryLabel(c), overflow: TextOverflow.ellipsis, maxLines: 1)),
+              ],
+            ),
+          )).toList(),
+          indicatorColor: AppTheme.accentBlue,
+          labelStyle: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+          unselectedLabelStyle: theme.textTheme.labelMedium,
+          tabAlignment: TabAlignment.start,
+          isScrollable: true,
+        ),
         actions: [
           IconButton(
             onPressed: () => context.push('/settings'),
@@ -164,167 +294,87 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           ref.invalidate(allMacroIndicatorsProvider);
-          ref.invalidate(macroForecastsProvider);
           ref.invalidate(econCalendarProvider);
         },
         child: macroAsync.when(
           loading: () => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            children: const [ShimmerList(itemCount: 8)],
+            children: const [ShimmerList(itemCount: 6)],
           ),
           error: (err, _) => ListView(
             physics: const AlwaysScrollableScrollPhysics(),
-            children: [ErrorView(
-              message: friendlyErrorMessage(err),
-              onRetry: () => ref.invalidate(allMacroIndicatorsProvider),
-            )],
+            children: [ErrorView(message: friendlyErrorMessage(err), onRetry: () => ref.invalidate(allMacroIndicatorsProvider))],
           ),
           data: (indicators) {
-            final filtered = indicators
-                .where((i) =>
-                    i.indicatorName != 'interest_rate' &&
-                    i.indicatorName != 'fii_net_cash' &&
-                    i.indicatorName != 'dii_net_cash')
-                .toList();
-
-            if (filtered.isEmpty) {
-              return const EmptyView(
-                message: 'No macro data available',
-                icon: Icons.analytics_outlined,
-              );
-            }
-
-            // Get forecasts for inline display
-            final forecasts = forecastAsync.valueOrNull ?? [];
-            final forecastMap = <String, Map<int, double>>{};
-            for (final f in forecasts) {
-              final key = '${f.country}_${f.indicatorName}';
-              forecastMap.putIfAbsent(key, () => {})[f.forecastYear] = f.value;
-            }
+            final country = _countries[_tabController.index];
+            final filtered = indicators.where((i) => i.indicatorName != 'fii_net_cash' && i.indicatorName != 'dii_net_cash').toList();
 
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 112),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
               children: [
-                // ── Upcoming Events Banner ──
+                // ── Hero: 3 key numbers ──
+                _HeroRow(indicators: filtered, country: country, onTap: _openDetail),
+                const SizedBox(height: 10),
+
+                // ── Event banner ──
                 calendarAsync.when(
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
                   data: (events) {
-                    if (events.isEmpty) return const SizedBox.shrink();
-                    final next = events.first;
-                    final daysAway = next.eventDate.difference(DateTime.now()).inDays;
-                    final dateStr = DateFormat('dd MMM').format(next.eventDate);
-                    Color instColor;
-                    switch (next.institution) {
-                      case 'RBI': instColor = AppTheme.accentOrange; break;
-                      case 'Fed': instColor = AppTheme.accentBlue; break;
-                      default: instColor = Colors.white54;
-                    }
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: instColor.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: instColor.withValues(alpha: 0.2)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.event, size: 16, color: instColor),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              '${next.eventName} · $dateStr',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                                color: instColor,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: instColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              daysAway == 0 ? 'Today' : daysAway == 1 ? 'Tomorrow' : '${daysAway}d',
-                              style: theme.textTheme.labelSmall?.copyWith(
-                                color: instColor,
-                                fontWeight: FontWeight.w700,
-                                fontSize: 10,
-                              ),
-                            ),
-                          ),
-                        ],
+                    final countryEvents = events.where((e) => e.country == country || (country == 'IN' && e.country == 'US')).take(2).toList();
+                    if (countryEvents.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Column(
+                        children: countryEvents.map((e) => _EventBanner(event: e)).toList(),
                       ),
                     );
                   },
                 ),
 
-                // ── India Section ──
-                _CountryHeader(code: 'IN', label: 'India'),
-                const SizedBox(height: 8),
-                _MetricGrid(
-                  indicators: filtered,
-                  metricNames: _indiaMetrics,
-                  country: 'IN',
-                  forecastMap: forecastMap,
-                  onTap: _openDetail,
-                  onInfoTap: (name) => _showExplainer(context, name),
-                ),
-                const SizedBox(height: 20),
+                // ── Expandable insight cards (accordion) ──
+                ..._insightCards.asMap().entries.map((entry) {
+                  final idx = entry.key;
+                  final card = entry.value;
+                  final countryMetrics = card.metrics[country] ?? <String>[];
+                  // Hide card if no data for this country
+                  final hasData = countryMetrics.any((m) => _latest(filtered, m, country) != null);
+                  if (!hasData) return const SizedBox.shrink();
 
-                // ── US Section ──
-                _CountryHeader(code: 'US', label: 'United States'),
-                const SizedBox(height: 8),
-                _MetricGrid(
-                  indicators: filtered,
-                  metricNames: _usMetrics,
-                  country: 'US',
-                  forecastMap: forecastMap,
-                  onTap: _openDetail,
-                  onInfoTap: (name) => _showExplainer(context, name),
-                ),
-                const SizedBox(height: 20),
-
-                // ── Forecast Table ──
-                forecastAsync.when(
-                  loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
-                  data: (fcs) => fcs.isEmpty
-                      ? const SizedBox.shrink()
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _CountrySectionLabel(label: 'IMF Projections'),
-                            const SizedBox(height: 8),
-                            _ForecastSection(forecasts: fcs),
-                            const SizedBox(height: 20),
-                          ],
-                        ),
-                ),
+                  return _InsightCard(
+                    title: card.title,
+                    icon: card.icon,
+                    headlineMetric: card.headline,
+                    metrics: countryMetrics,
+                    country: country,
+                    indicators: filtered,
+                    isExpanded: _expandedCard == idx,
+                    onToggle: () => setState(() => _expandedCard = _expandedCard == idx ? null : idx),
+                    onMetricTap: _openDetail,
+                    onInfoTap: _showExplainer,
+                  );
+                }),
 
                 // ── Calendar ──
                 calendarAsync.when(
                   loading: () => const SizedBox.shrink(),
                   error: (_, __) => const SizedBox.shrink(),
-                  data: (events) => events.isEmpty
-                      ? const SizedBox.shrink()
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _CountrySectionLabel(label: 'Economic Calendar'),
-                            const SizedBox(height: 8),
-                            _CalendarSection(events: events),
-                          ],
-                        ),
+                  data: (events) {
+                    if (events.isEmpty) return const SizedBox.shrink();
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 10),
+                        Text('Economic Calendar', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 6),
+                        _CalendarCard(events: events.take(6).toList()),
+                      ],
+                    );
+                  },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
               ],
             );
           },
@@ -335,192 +385,79 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
 }
 
 // =============================================================================
-// Country Header
+// Hero Row — 3 key numbers
 // =============================================================================
 
-class _CountryHeader extends StatelessWidget {
-  final String code;
-  final String label;
-  const _CountryHeader({required this.code, required this.label});
+class _HeroRow extends StatelessWidget {
+  final List<MacroIndicator> indicators;
+  final String country;
+  final ValueChanged<MacroIndicator> onTap;
+
+  const _HeroRow({required this.indicators, required this.country, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final metrics = ['gdp_growth', 'inflation', 'repo_rate'];
+    final tiles = <Widget>[];
+
+    for (final name in metrics) {
+      final ind = _latest(indicators, name, country);
+      if (ind == null) continue;
+      tiles.add(Expanded(child: _HeroTile(indicator: ind, onTap: () => onTap(ind))));
+    }
+
+    if (tiles.isEmpty) {
+      return const SizedBox(height: 60, child: Center(child: Text('No headline data', style: TextStyle(color: Colors.white38))));
+    }
+
     return Row(
       children: [
-        SquareBadgeSvg(
-          assetPath: SquareBadgeAssets.flagPathForCountryCode(code),
-          size: 20,
-          borderRadius: 4,
-        ),
-        const SizedBox(width: 8),
-        Text(label, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+        for (int i = 0; i < tiles.length; i++) ...[
+          if (i > 0) const SizedBox(width: 8),
+          tiles[i],
+        ],
       ],
     );
   }
 }
 
-class _CountrySectionLabel extends StatelessWidget {
-  final String label;
-  const _CountrySectionLabel({required this.label});
+class _HeroTile extends StatelessWidget {
+  final MacroIndicator indicator;
+  final VoidCallback onTap;
+
+  const _HeroTile({required this.indicator, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-    );
-  }
-}
-
-// =============================================================================
-// 2-Column Metric Grid
-// =============================================================================
-
-class _MetricGrid extends StatelessWidget {
-  final List<MacroIndicator> indicators;
-  final List<String> metricNames;
-  final String country;
-  final Map<String, Map<int, double>> forecastMap;
-  final ValueChanged<MacroIndicator> onTap;
-  final ValueChanged<String> onInfoTap;
-
-  const _MetricGrid({
-    required this.indicators,
-    required this.metricNames,
-    required this.country,
-    required this.forecastMap,
-    required this.onTap,
-    required this.onInfoTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    // Filter to metrics that have data
-    final available = metricNames
-        .where((name) => _latest(indicators, name, country) != null)
-        .toList();
-
-    if (available.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text('No data available', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Colors.white38)),
-      );
-    }
-
-    // Build 2-column grid
-    final rows = <Widget>[];
-    for (int i = 0; i < available.length; i += 2) {
-      rows.add(Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _buildCard(context, available[i])),
-          const SizedBox(width: 8),
-          if (i + 1 < available.length)
-            Expanded(child: _buildCard(context, available[i + 1]))
-          else
-            const Expanded(child: SizedBox.shrink()),
-        ],
-      ));
-      if (i + 2 < available.length) rows.add(const SizedBox(height: 8));
-    }
-
-    return Column(children: rows);
-  }
-
-  Widget _buildCard(BuildContext context, String name) {
     final theme = Theme.of(context);
-    final ind = _latest(indicators, name, country)!;
-    final value = Formatters.macroValue(ind.value, ind.indicatorName);
-    final color = _macroValueColor(ind.indicatorName, ind.value);
-    final dateStr = DateFormat('MMM yyyy').format(ind.timestamp);
-
-    // Forecast inline
-    final forecastKey = '${country}_${name}';
-    final fcs = forecastMap[forecastKey];
-    String? forecastLabel;
-    if (fcs != null && fcs.isNotEmpty) {
-      final nextYear = fcs.keys.where((y) => y >= DateTime.now().year).toList()..sort();
-      if (nextYear.isNotEmpty) {
-        final y = nextYear.first;
-        forecastLabel = '${fcs[y]!.toStringAsFixed(1)}% ${y}F';
-      }
-    }
+    final value = Formatters.macroValue(indicator.value, indicator.indicatorName);
+    final color = _valueColor(indicator.indicatorName, indicator.value);
+    final (label, labelColor) = _contextLabel(indicator.indicatorName, indicator.value, indicator.country);
 
     return GestureDetector(
-      onTap: () => onTap(ind),
-      onLongPress: () => onInfoTap(name),
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Theme.of(context).cardColor,
-          borderRadius: BorderRadius.circular(10),
+          color: theme.cardColor,
+          borderRadius: BorderRadius.circular(12),
           border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Row 1: Indicator name + info icon
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    displayName(name),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: Colors.white54,
-                      fontWeight: FontWeight.w500,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => onInfoTap(name),
-                  child: Icon(Icons.info_outline, size: 14, color: Colors.white24),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Row 2: Big value
-            Text(
-              value,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+            Text(displayName(indicator.indicatorName),
+              style: theme.textTheme.labelSmall?.copyWith(color: Colors.white54, fontSize: 10)),
             const SizedBox(height: 4),
-            // Row 3: Date + forecast
-            Row(
-              children: [
-                Text(
-                  dateStr,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white38,
-                    fontSize: 10,
-                  ),
-                ),
-                if (forecastLabel != null) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                    decoration: BoxDecoration(
-                      color: AppTheme.accentBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                    child: Text(
-                      forecastLabel,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: AppTheme.accentBlue,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            Text(value, style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700, color: color,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            )),
+            if (label.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(label, style: theme.textTheme.labelSmall?.copyWith(color: labelColor, fontSize: 9)),
+            ],
           ],
         ),
       ),
@@ -529,117 +466,242 @@ class _MetricGrid extends StatelessWidget {
 }
 
 // =============================================================================
-// Forecast Section
+// Event Banner
 // =============================================================================
 
-class _ForecastSection extends StatelessWidget {
-  final List<MacroForecast> forecasts;
-
-  const _ForecastSection({required this.forecasts});
+class _EventBanner extends StatelessWidget {
+  final EconCalendarEvent event;
+  const _EventBanner({required this.event});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final gdpForecasts = forecasts.where((f) => f.indicatorName == 'gdp_growth').toList();
-    final inflForecasts = forecasts.where((f) => f.indicatorName == 'inflation').toList();
+    final daysAway = event.eventDate.difference(DateTime.now()).inDays;
+    final dateStr = DateFormat('dd MMM').format(event.eventDate);
+    final instColor = _institutionColor(event.institution);
+    final dayLabel = daysAway == 0 ? 'Today' : daysAway == 1 ? 'Tomorrow' : '${daysAway}d';
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(14),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: instColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: instColor.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.event, size: 14, color: instColor),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(color: instColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(3)),
+            child: Text(event.institution, style: theme.textTheme.labelSmall?.copyWith(color: instColor, fontWeight: FontWeight.w700, fontSize: 9)),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text('$dateStr · ${event.eventName}',
+              style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+              maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
+          Text(dayLabel, style: theme.textTheme.labelSmall?.copyWith(
+            color: daysAway <= 7 ? AppTheme.accentGreen : Colors.white38, fontWeight: FontWeight.w600, fontSize: 10)),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Expandable Insight Card (Accordion)
+// =============================================================================
+
+class _InsightCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final String headlineMetric;
+  final List<String> metrics;
+  final String country;
+  final List<MacroIndicator> indicators;
+  final bool isExpanded;
+  final VoidCallback onToggle;
+  final ValueChanged<MacroIndicator> onMetricTap;
+  final ValueChanged<String> onInfoTap;
+
+  const _InsightCard({
+    required this.title,
+    required this.icon,
+    required this.headlineMetric,
+    required this.metrics,
+    required this.country,
+    required this.indicators,
+    required this.isExpanded,
+    required this.onToggle,
+    required this.onMetricTap,
+    required this.onInfoTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final headline = _latest(indicators, headlineMetric, country);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Card(
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (gdpForecasts.isNotEmpty) ...[
-              Text('GDP Growth', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              _forecastTable(theme, gdpForecasts),
-              const SizedBox(height: 12),
+            // ── Collapsed header ──
+            InkWell(
+              onTap: onToggle,
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+                child: Row(
+                  children: [
+                    Icon(icon, size: 18, color: AppTheme.accentBlue),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700, fontSize: 13)),
+                          if (headline != null) ...[
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Text(
+                                  Formatters.macroValue(headline.value, headline.indicatorName),
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: _valueColor(headline.indicatorName, headline.value),
+                                    fontFeatures: const [FontFeature.tabularFigures()],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Builder(builder: (_) {
+                                  final (label, color) = _contextLabel(headline.indicatorName, headline.value, country);
+                                  return Text(label, style: theme.textTheme.labelSmall?.copyWith(color: color, fontSize: 10));
+                                }),
+                              ],
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      isExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                      size: 20,
+                      color: Colors.white38,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // ── Expanded content ──
+            if (isExpanded) ...[
+              Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+                child: Column(
+                  children: metrics.map((name) {
+                    final ind = _latest(indicators, name, country);
+                    if (ind == null) return const SizedBox.shrink();
+                    return _MetricRow(
+                      indicator: ind,
+                      country: country,
+                      onTap: () => onMetricTap(ind),
+                      onInfoTap: () => onInfoTap(name),
+                    );
+                  }).toList(),
+                ),
+              ),
             ],
-            if (inflForecasts.isNotEmpty) ...[
-              Text('Inflation', style: theme.textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              _forecastTable(theme, inflForecasts),
-            ],
-            const SizedBox(height: 8),
-            Text(
-              'Source: IMF World Economic Outlook',
-              style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38, fontSize: 9),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// Metric Row (inside expanded card)
+// =============================================================================
+
+class _MetricRow extends StatelessWidget {
+  final MacroIndicator indicator;
+  final String country;
+  final VoidCallback onTap;
+  final VoidCallback onInfoTap;
+
+  const _MetricRow({required this.indicator, required this.country, required this.onTap, required this.onInfoTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final value = Formatters.macroValue(indicator.value, indicator.indicatorName);
+    final color = _valueColor(indicator.indicatorName, indicator.value);
+    final (label, labelColor) = _contextLabel(indicator.indicatorName, indicator.value, country);
+    final dateStr = DateFormat('MMM yy').format(indicator.timestamp);
+
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(displayName(indicator.indicatorName),
+                        style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      GestureDetector(
+                        onTap: onInfoTap,
+                        child: const Icon(Icons.info_outline, size: 12, color: Colors.white24),
+                      ),
+                    ],
+                  ),
+                  if (label.isNotEmpty)
+                    Text(label, style: theme.textTheme.labelSmall?.copyWith(color: labelColor, fontSize: 9)),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(value, style: theme.textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w700, color: color,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                )),
+                Text(dateStr, style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38, fontSize: 9)),
+              ],
             ),
           ],
         ),
       ),
     );
   }
-
-  Widget _forecastTable(ThemeData theme, List<MacroForecast> data) {
-    final years = data.map((f) => f.forecastYear).toSet().toList()..sort();
-    final inData = {for (final f in data.where((f) => f.country == 'IN')) f.forecastYear: f.value};
-    final usData = {for (final f in data.where((f) => f.country == 'US')) f.forecastYear: f.value};
-
-    return Table(
-      columnWidths: {
-        0: const FlexColumnWidth(1.2),
-        for (int i = 1; i <= years.length; i++) i: const FlexColumnWidth(1),
-      },
-      children: [
-        TableRow(children: [
-          const SizedBox.shrink(),
-          ...years.map((y) => Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: Text('${y}F', textAlign: TextAlign.center,
-              style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600, color: Colors.white54)),
-          )),
-        ]),
-        _countryRow(theme, 'IN', 'India', years, inData),
-        _countryRow(theme, 'US', 'US', years, usData),
-      ],
-    );
-  }
-
-  TableRow _countryRow(ThemeData theme, String code, String label, List<int> years, Map<int, double> data) {
-    return TableRow(children: [
-      Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          SquareBadgeSvg(assetPath: SquareBadgeAssets.flagPathForCountryCode(code), size: 12, borderRadius: 2),
-          const SizedBox(width: 4),
-          Text(label, style: theme.textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600)),
-        ]),
-      ),
-      ...years.map((y) {
-        final val = data[y];
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            val != null ? '${val.toStringAsFixed(1)}%' : '—',
-            textAlign: TextAlign.center,
-            style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              fontFeatures: const [FontFeature.tabularFigures()],
-              color: val != null && val >= 0 ? AppTheme.accentGreen : AppTheme.accentRed,
-            ),
-          ),
-        );
-      }),
-    ]);
-  }
 }
 
 // =============================================================================
-// Calendar Section
+// Calendar Card
 // =============================================================================
 
-class _CalendarSection extends StatelessWidget {
+class _CalendarCard extends StatelessWidget {
   final List<EconCalendarEvent> events;
-
-  const _CalendarSection({required this.events});
+  const _CalendarCard({required this.events});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final now = DateTime.now();
-    final upcoming = events.take(6).toList();
 
     return Card(
       margin: EdgeInsets.zero,
@@ -647,10 +709,9 @@ class _CalendarSection extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
         child: Column(
           children: [
-            for (int i = 0; i < upcoming.length; i++) ...[
-              _eventRow(theme, upcoming[i], now),
-              if (i < upcoming.length - 1)
-                Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
+            for (int i = 0; i < events.length; i++) ...[
+              _calendarRow(theme, events[i], now),
+              if (i < events.length - 1) Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
             ],
           ],
         ),
@@ -658,54 +719,40 @@ class _CalendarSection extends StatelessWidget {
     );
   }
 
-  Widget _eventRow(ThemeData theme, EconCalendarEvent event, DateTime now) {
+  Widget _calendarRow(ThemeData theme, EconCalendarEvent event, DateTime now) {
     final daysAway = event.eventDate.difference(now).inDays;
-    final isThisWeek = daysAway <= 7 && daysAway >= 0;
+    final isThisWeek = daysAway >= 0 && daysAway <= 7;
     final dateStr = DateFormat('dd MMM').format(event.eventDate);
-    Color instColor;
-    switch (event.institution) {
-      case 'RBI': instColor = AppTheme.accentOrange; break;
-      case 'Fed': instColor = AppTheme.accentBlue; break;
-      case 'ECB': instColor = AppTheme.accentTeal; break;
-      case 'BoJ': instColor = AppTheme.accentRed; break;
-      default: instColor = Colors.white54;
-    }
+    final instColor = _institutionColor(event.institution);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          SizedBox(
-            width: 48,
-            child: Text(dateStr, style: theme.textTheme.labelSmall?.copyWith(
-              fontWeight: FontWeight.w600, color: isThisWeek ? AppTheme.accentGreen : Colors.white54)),
-          ),
-          const SizedBox(width: 8),
+          SizedBox(width: 48, child: Text(dateStr, style: theme.textTheme.labelSmall?.copyWith(
+            fontWeight: FontWeight.w600, color: isThisWeek ? AppTheme.accentGreen : Colors.white54))),
+          const SizedBox(width: 6),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-            decoration: BoxDecoration(
-              color: instColor.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: Text(event.institution, style: theme.textTheme.labelSmall?.copyWith(
-              color: instColor, fontWeight: FontWeight.w700, fontSize: 10)),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(color: instColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
+            child: Text(event.institution, style: theme.textTheme.labelSmall?.copyWith(color: instColor, fontWeight: FontWeight.w700, fontSize: 10)),
           ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(event.eventName, style: theme.textTheme.bodySmall?.copyWith(
-              fontWeight: isThisWeek ? FontWeight.w600 : FontWeight.w400),
-              maxLines: 1, overflow: TextOverflow.ellipsis),
-          ),
-          Text(
-            daysAway == 0 ? 'Today' : daysAway == 1 ? 'Tomorrow' : '${daysAway}d',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: isThisWeek ? AppTheme.accentGreen : Colors.white38, fontSize: 10),
-          ),
+          const SizedBox(width: 6),
+          Expanded(child: Text(event.eventName, style: theme.textTheme.bodySmall?.copyWith(
+            fontWeight: isThisWeek ? FontWeight.w600 : FontWeight.w400), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          SquareBadgeSvg(assetPath: SquareBadgeAssets.flagPathForCountryCode(event.country), size: 14, borderRadius: 2),
+          const SizedBox(width: 4),
+          Text(daysAway == 0 ? 'Today' : daysAway == 1 ? 'Tmrw' : '${daysAway}d',
+            style: theme.textTheme.labelSmall?.copyWith(color: isThisWeek ? AppTheme.accentGreen : Colors.white38, fontSize: 10)),
         ],
       ),
     );
   }
 }
+
+// =============================================================================
+// Detail Screen (preserved from previous implementation)
+// =============================================================================
 
 class MacroDetailScreen extends ConsumerStatefulWidget {
   final String indicatorName;
@@ -744,19 +791,14 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
 
   void _onRangeScroll() {
     if (!_rangeScrollController.hasClients) return;
-    final atEnd = _rangeScrollController.offset >=
-        _rangeScrollController.position.maxScrollExtent - 4;
-    if (_showRangeScrollHint == atEnd) {
-      setState(() => _showRangeScrollHint = !atEnd);
-    }
+    final atEnd = _rangeScrollController.offset >= _rangeScrollController.position.maxScrollExtent - 4;
+    if (_showRangeScrollHint == atEnd) setState(() => _showRangeScrollHint = !atEnd);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final String country = widget.initialIndicator?.country ??
-        widget.countryOverride ??
-        ref.watch(selectedCountryProvider);
+    final String country = widget.initialIndicator?.country ?? widget.countryOverride ?? ref.watch(selectedCountryProvider);
     final historyAsync = ref.watch(macroHistoryProvider(country));
 
     return Scaffold(
@@ -770,69 +812,41 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
               _buildTopCard(theme, historyAsync.valueOrNull),
               const SizedBox(height: 16),
             ],
-            Text('Historical Data',
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.w600)),
+            Text('Historical Data', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: 10),
             _chartRangeChips(context),
             const SizedBox(height: 12),
             historyAsync.when(
               loading: () => const ShimmerCard(height: 200),
-              error: (err, _) => ErrorView(
-                message: friendlyErrorMessage(err),
-                onRetry: () => ref.invalidate(macroHistoryProvider(country)),
-              ),
+              error: (err, _) => ErrorView(message: friendlyErrorMessage(err), onRetry: () => ref.invalidate(macroHistoryProvider(country))),
               data: (indicators) {
-                final byIndicator = indicators
-                    .where((i) => i.indicatorName == widget.indicatorName)
-                    .toList()
+                final byIndicator = indicators.where((i) => i.indicatorName == widget.indicatorName).toList()
                   ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
-                if (byIndicator.isEmpty) {
-                  return const EmptyView(message: 'No historical data');
-                }
+                if (byIndicator.isEmpty) return const EmptyView(message: 'No historical data');
                 final filtered = _filterByRange(byIndicator);
                 if (filtered.isEmpty) {
                   return Padding(
                     padding: const EdgeInsets.only(top: 24),
-                    child: Center(
-                      child: Text(
-                        'No data in this range',
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurface
-                              .withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
+                    child: Center(child: Text('No data in this range', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)))),
                   );
                 }
-                final isShortRange = _chartRange == ChartRange.oneMonth ||
-                    _chartRange == ChartRange.threeMonths;
                 final values = filtered.map((i) => i.value).toList();
                 final open = values.first;
                 final close = values.last;
                 final high = values.reduce((a, b) => a > b ? a : b);
                 final low = values.reduce((a, b) => a < b ? a : b);
-                final avg =
-                    values.fold<double>(0, (s, p) => s + p) / values.length;
-                final spreadPct =
-                    open != 0 ? ((high - low) / open) * 100 : null;
+                final avg = values.fold<double>(0, (s, p) => s + p) / values.length;
+                final spreadPct = open != 0 ? ((high - low) / open) * 100 : null;
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _MacroRangeStatsCard(
-                      open: open,
-                      high: high,
-                      low: low,
-                      close: close,
-                      avg: avg,
-                      spreadPct: spreadPct,
-                    ),
+                    _MacroRangeStatsCard(open: open, high: high, low: low, close: close, avg: avg, spreadPct: spreadPct),
                     const SizedBox(height: 12),
                     PriceLineChart(
                       prices: values,
                       timestamps: filtered.map((i) => i.timestamp).toList(),
                       unit: 'percent',
-                      isShortRange: isShortRange,
+                      isShortRange: _chartRange == ChartRange.oneMonth || _chartRange == ChartRange.threeMonths,
                       pricePrefix: null,
                       chartUnitHint: '%',
                     ),
@@ -850,9 +864,7 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
     final ind = widget.initialIndicator!;
     double? rangePct;
     if (history != null && history.isNotEmpty) {
-      final byIndicator = history
-          .where((i) => i.indicatorName == widget.indicatorName)
-          .toList()
+      final byIndicator = history.where((i) => i.indicatorName == widget.indicatorName).toList()
         ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
       final filtered = _filterByRange(byIndicator);
       if (filtered.length >= 2) {
@@ -861,39 +873,22 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
         if (first != 0) rangePct = ((last - first) / first) * 100;
       }
     }
-    final rangeLabel = _chartRange.label;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              Formatters.macroValue(ind.value, ind.indicatorName),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
+            Text(Formatters.macroValue(ind.value, ind.indicatorName),
+              style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w700, fontFeatures: const [FontFeature.tabularFigures()])),
             if (rangePct != null) ...[
               const SizedBox(height: 6),
-              Text(
-                '$rangeLabel change  ${Formatters.changeTag(rangePct)}',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: (rangePct >= 0)
-                      ? AppTheme.accentGreen
-                      : AppTheme.accentRed,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('${_chartRange.label} change  ${Formatters.changeTag(rangePct)}',
+                style: theme.textTheme.titleSmall?.copyWith(color: rangePct >= 0 ? AppTheme.accentGreen : AppTheme.accentRed, fontWeight: FontWeight.w600)),
             ],
             const SizedBox(height: 4),
-            Text(
-              '${_countryLabel(ind.country)} · Last updated ${Formatters.relativeTime(ind.timestamp)}',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              ),
-            ),
+            Text('${_countryLabel(ind.country)} · Last updated ${Formatters.relativeTime(ind.timestamp)}',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
           ],
         ),
       ),
@@ -919,23 +914,18 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ...ChartRange.values.map((r) {
-                  final selected = r == _chartRange;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: FilterChip(
-                      label: Text(r.label),
-                      selected: selected,
-                      onSelected: (_) => setState(() => _chartRange = r),
-                      selectedColor: theme.colorScheme.primaryContainer
-                          .withValues(alpha: 0.4),
-                      checkmarkColor: theme.colorScheme.primary,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                  );
-                }),
+                ...ChartRange.values.map((r) => Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: FilterChip(
+                    label: Text(r.label),
+                    selected: r == _chartRange,
+                    onSelected: (_) => setState(() => _chartRange = r),
+                    selectedColor: theme.colorScheme.primaryContainer.withValues(alpha: 0.4),
+                    checkmarkColor: theme.colorScheme.primary,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                )),
                 const SizedBox(width: 24),
               ],
             ),
@@ -943,25 +933,12 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
           if (_showRangeScrollHint)
             IgnorePointer(
               child: Container(
-                width: 32,
-                height: 40,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      theme.scaffoldBackgroundColor.withValues(alpha: 0),
-                      theme.scaffoldBackgroundColor,
-                    ],
-                  ),
-                ),
-                child: Center(
-                  child: Icon(
-                    Icons.chevron_right,
-                    size: 20,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                ),
+                width: 32, height: 40,
+                decoration: BoxDecoration(gradient: LinearGradient(
+                  begin: Alignment.centerLeft, end: Alignment.centerRight,
+                  colors: [theme.scaffoldBackgroundColor.withValues(alpha: 0), theme.scaffoldBackgroundColor],
+                )),
+                child: Center(child: Icon(Icons.chevron_right, size: 20, color: theme.colorScheme.onSurface.withValues(alpha: 0.4))),
               ),
             ),
         ],
@@ -971,100 +948,45 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
 }
 
 class _MacroRangeStatsCard extends StatelessWidget {
-  final double open;
-  final double high;
-  final double low;
-  final double close;
-  final double avg;
+  final double open, high, low, close, avg;
   final double? spreadPct;
-
-  const _MacroRangeStatsCard({
-    required this.open,
-    required this.high,
-    required this.low,
-    required this.close,
-    required this.avg,
-    this.spreadPct,
-  });
+  const _MacroRangeStatsCard({required this.open, required this.high, required this.low, required this.close, required this.avg, this.spreadPct});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                    child: _stat(theme, 'Open',
-                        Formatters.price(open, unit: 'percent'))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _stat(theme, 'High',
-                        Formatters.price(high, unit: 'percent'))),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                    child: _stat(
-                        theme, 'Low', Formatters.price(low, unit: 'percent'))),
-                const SizedBox(width: 12),
-                Expanded(
-                    child: _stat(theme, 'Close',
-                        Formatters.price(close, unit: 'percent'))),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                    child: _stat(
-                        theme, 'Avg', Formatters.price(avg, unit: 'percent'))),
-                if (spreadPct != null) ...[
-                  const SizedBox(width: 12),
-                  Expanded(
-                      child: _stat(theme, 'High–Low',
-                          Formatters.price(spreadPct!, unit: 'percent'))),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _stat(ThemeData theme, String label, String value) {
-    return Column(
+    Widget stat(String label, String value) => Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Text(
-          label,
-          style: theme.textTheme.labelSmall?.copyWith(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          ),
-        ),
+        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurface.withValues(alpha: 0.6))),
         const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w600,
-            fontFeatures: const [FontFeature.tabularFigures()],
-          ),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-          maxLines: 1,
-        ),
+        Text(value, style: theme.textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w600, fontFeatures: const [FontFeature.tabularFigures()]),
+          textAlign: TextAlign.center, overflow: TextOverflow.ellipsis, maxLines: 1),
       ],
+    );
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Expanded(child: stat('Open', Formatters.price(open, unit: 'percent'))),
+            const SizedBox(width: 12),
+            Expanded(child: stat('High', Formatters.price(high, unit: 'percent'))),
+          ]),
+          const SizedBox(height: 14),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Expanded(child: stat('Low', Formatters.price(low, unit: 'percent'))),
+            const SizedBox(width: 12),
+            Expanded(child: stat('Close', Formatters.price(close, unit: 'percent'))),
+          ]),
+          const SizedBox(height: 14),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Expanded(child: stat('Avg', Formatters.price(avg, unit: 'percent'))),
+            if (spreadPct != null) ...[const SizedBox(width: 12), Expanded(child: stat('High–Low', Formatters.price(spreadPct!, unit: 'percent')))],
+          ]),
+        ]),
+      ),
     );
   }
 }
