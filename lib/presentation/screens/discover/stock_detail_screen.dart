@@ -810,20 +810,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   ),
                 ),
               ),
-              if (item.scoreConfidence != null)
-                _miniIndicator(
-                    theme,
-                    item.scoreConfidence == 'high'
-                        ? Icons.verified_rounded
-                        : item.scoreConfidence == 'medium'
-                            ? Icons.check_circle_outline
-                            : Icons.info_outline,
-                    '${_capitalize(item.scoreConfidence!)} alignment',
-                    item.scoreConfidence == 'high'
-                        ? AppTheme.accentGreen
-                        : item.scoreConfidence == 'medium'
-                            ? Colors.amber
-                            : Colors.white38),
             ],
           ),
           if (narrative != null) ...[
@@ -895,20 +881,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   ),
                 ),
               ),
-              if (item.scoreConfidence != null)
-                _miniIndicator(
-                    theme,
-                    item.scoreConfidence == 'high'
-                        ? Icons.verified_rounded
-                        : item.scoreConfidence == 'medium'
-                            ? Icons.check_circle_outline
-                            : Icons.info_outline,
-                    '${_capitalize(item.scoreConfidence!)} alignment',
-                    item.scoreConfidence == 'high'
-                        ? AppTheme.accentGreen
-                        : item.scoreConfidence == 'medium'
-                            ? Colors.amber
-                            : Colors.white38),
             ],
           ),
 
