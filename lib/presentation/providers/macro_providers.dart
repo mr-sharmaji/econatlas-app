@@ -53,3 +53,19 @@ final econCalendarProvider =
   final response = await ds.getEconCalendar(daysAhead: 180);
   return response.events;
 });
+
+/// History for India — used by economy page sparklines
+final indiaHistoryProvider =
+    FutureProvider.autoDispose<List<MacroIndicator>>((ref) async {
+  final repo = ref.watch(macroRepositoryProvider);
+  final response = await repo.getMacroIndicators(country: 'IN', limit: 5000);
+  return response.indicators;
+});
+
+/// History for US — used by economy page sparklines
+final usHistoryProvider =
+    FutureProvider.autoDispose<List<MacroIndicator>>((ref) async {
+  final repo = ref.watch(macroRepositoryProvider);
+  final response = await repo.getMacroIndicators(country: 'US', limit: 5000);
+  return response.indicators;
+});
