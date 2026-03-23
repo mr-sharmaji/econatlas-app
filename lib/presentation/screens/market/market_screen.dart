@@ -819,14 +819,6 @@ class _MarketTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
-              if (actionTag != null) ...[
-                const SizedBox(width: 6),
-                Icon(
-                  _verdictIcon(actionTag!),
-                  size: 14,
-                  color: _verdictColor(actionTag!),
-                ),
-              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -836,6 +828,14 @@ class _MarketTile extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (actionTag != null) ...[
+                          Icon(
+                            _verdictIcon(actionTag!),
+                            size: 14,
+                            color: _verdictColor(actionTag!),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Flexible(
                           child: Text(
                             displayName(price.asset),
@@ -1059,14 +1059,6 @@ class _CryptoTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
-              if (actionTag != null) ...[
-                const SizedBox(width: 6),
-                Icon(
-                  _verdictIcon(actionTag!),
-                  size: 14,
-                  color: _verdictColor(actionTag!),
-                ),
-              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -1076,6 +1068,14 @@ class _CryptoTile extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (actionTag != null) ...[
+                          Icon(
+                            _verdictIcon(actionTag!),
+                            size: 14,
+                            color: _verdictColor(actionTag!),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Flexible(
                           child: Text(
                             displayName(price.asset),
@@ -1212,14 +1212,6 @@ class _CommodityTile extends StatelessWidget {
                 size: 20,
                 borderRadius: 6,
               ),
-              if (actionTag != null) ...[
-                const SizedBox(width: 6),
-                Icon(
-                  _verdictIcon(actionTag!),
-                  size: 14,
-                  color: _verdictColor(actionTag!),
-                ),
-              ],
               const SizedBox(width: 8),
               Expanded(
                 child: Column(
@@ -1229,6 +1221,14 @@ class _CommodityTile extends StatelessWidget {
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
+                        if (actionTag != null) ...[
+                          Icon(
+                            _verdictIcon(actionTag!),
+                            size: 14,
+                            color: _verdictColor(actionTag!),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
                         Flexible(
                           child: Text(
                             displayName(price.asset),
