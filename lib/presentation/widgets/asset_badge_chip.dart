@@ -112,8 +112,7 @@ class AssetBadgeResolver {
         if (normalizedAsset == 'urea' ||
             normalizedAsset == 'dap fertilizer' ||
             normalizedAsset == 'potash' ||
-            normalizedAsset == 'tsp fertilizer' ||
-            normalizedAsset == 'ammonia') {
+            normalizedAsset == 'tsp fertilizer') {
           return AssetBadgeStyle.fertilizers;
         }
         return AssetBadgeStyle.energy;
@@ -533,7 +532,7 @@ const Map<String, IconData> _assetIconOverrides = {
   'dap fertilizer': FontAwesomeIcons.vial,
   'potash': FontAwesomeIcons.mountain,
   'tsp fertilizer': FontAwesomeIcons.vials,
-  'ammonia': FontAwesomeIcons.droplet,
+
   'india 10y bond yield': FontAwesomeIcons.landmark,
   'us 10y treasury yield': FontAwesomeIcons.buildingColumns,
   'us 2y treasury yield': FontAwesomeIcons.scaleBalanced,
@@ -601,7 +600,7 @@ const Map<String, Color> _assetColorOverrides = {
   'dap fertilizer': Color(0xFF3A5A6A),
   'potash': Color(0xFF6A4A3A),
   'tsp fertilizer': Color(0xFF4A5A4A),
-  'ammonia': Color(0xFF2A4A6A),
+
   'india 10y bond yield': Color(0xFF3F546F),
   'us 10y treasury yield': Color(0xFF445872),
   'us 2y treasury yield': Color(0xFF4A5970),

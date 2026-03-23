@@ -332,7 +332,6 @@ class Entities {
     'dap fertilizer',
     'potash',
     'tsp fertilizer',
-    'ammonia',
   ];
 
   static const List<String> crypto = [
@@ -451,7 +450,7 @@ class Entities {
     'dap fertilizer': 'DAP Fertilizer',
     'potash': 'Potash',
     'tsp fertilizer': 'TSP Fertilizer',
-    'ammonia': 'Ammonia',
+
     'bitcoin': 'Bitcoin',
     'ethereum': 'Ethereum',
     'bnb': 'BNB',

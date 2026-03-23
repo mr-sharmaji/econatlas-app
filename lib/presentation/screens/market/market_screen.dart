@@ -431,7 +431,7 @@ class _CommoditiesTab extends ConsumerWidget {
               .where((p) => {'cotton', 'sugar', 'coffee', 'cocoa'}.contains(p.asset))
               .toList();
           final fertilizers = ordered
-              .where((p) => {'urea', 'dap fertilizer', 'potash', 'tsp fertilizer', 'ammonia'}.contains(p.asset))
+              .where((p) => {'urea', 'dap fertilizer', 'potash', 'tsp fertilizer'}.contains(p.asset))
               .toList();
           final others = ordered
               .where((p) => !{
@@ -440,7 +440,7 @@ class _CommoditiesTab extends ConsumerWidget {
                     'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil',
                     'wheat', 'corn', 'soybeans', 'rice', 'oats',
                     'cotton', 'sugar', 'coffee', 'cocoa',
-                    'urea', 'dap fertilizer', 'potash', 'tsp fertilizer', 'ammonia',
+                    'urea', 'dap fertilizer', 'potash', 'tsp fertilizer',
                   }.contains(p.asset))
               .toList();
 
@@ -1381,7 +1381,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         'dap fertilizer': 'OTC',
         'potash': 'OTC',
         'tsp fertilizer': 'OTC',
-        'ammonia': 'OTC',
       };
       return exchanges[asset.toLowerCase()] ?? 'Exchange';
     }
