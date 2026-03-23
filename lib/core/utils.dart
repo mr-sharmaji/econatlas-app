@@ -260,6 +260,48 @@ class Formatters {
   static double mmbtuToIndian(double usdPerMmbtu, double usdInrRate) {
     return usdPerMmbtu * usdInrRate;
   }
+
+  // Grains: USD/bushel → ₹/quintal (1 quintal = 100 kg)
+  static const double _kgPerBushelWheat = 27.216;
+  static const double _kgPerBushelCorn = 25.401;
+  static const double _kgPerBushelSoy = 27.216;
+  static const double _kgPerBushelOats = 14.515;
+  static const double _kgPerCwt = 45.359;
+  static const double _lbsPerKg = 2.20462;
+  static const double _litresPerGallon = 3.78541;
+
+  static double wheatToIndian(double usdPerBu, double r) =>
+      (usdPerBu / _kgPerBushelWheat) * 100 * r;
+  static double cornToIndian(double usdPerBu, double r) =>
+      (usdPerBu / _kgPerBushelCorn) * 100 * r;
+  static double soyToIndian(double usdPerBu, double r) =>
+      (usdPerBu / _kgPerBushelSoy) * 100 * r;
+  static double oatsToIndian(double usdPerBu, double r) =>
+      (usdPerBu / _kgPerBushelOats) * 100 * r;
+  static double riceToIndian(double usdPerCwt, double r) =>
+      (usdPerCwt / _kgPerCwt) * 100 * r;
+
+  // Softs
+  static double sugarToIndian(double usdPerLb, double r) =>
+      usdPerLb * _lbsPerKg * 100 * r;  // ₹/quintal
+  static double coffeeToIndian(double usdPerLb, double r) =>
+      usdPerLb * _lbsPerKg * r;  // ₹/kg
+  static double cottonToIndian(double usdPerLb, double r) =>
+      usdPerLb * 784 * r;  // ₹/candy (1 candy = 784 lbs)
+  static double perMtToQuintal(double usdPerMt, double r) =>
+      (usdPerMt / 10) * r;  // ₹/quintal (1 MT = 10 quintals)
+
+  // Metals
+  static double aluminumToIndian(double usdPerLb, double r) =>
+      usdPerLb * _lbsPerKg * r;  // ₹/kg
+  static double perMtToKg(double usdPerMt, double r) =>
+      (usdPerMt / 1000) * r;  // ₹/kg
+  static double perMtDirect(double usdPerMt, double r) =>
+      usdPerMt * r;  // ₹/MT
+
+  // Energy
+  static double gallonToLitre(double usdPerGal, double r) =>
+      (usdPerGal / _litresPerGallon) * r;  // ₹/litre
 }
 
 /// Converts raw price to display value for charts/lists (e.g. USD/oz -> ₹/10g for gold when Indian).
@@ -287,6 +329,41 @@ double assetDisplayValue({
       case 'platinum':
       case 'palladium':
         return Formatters.goldToIndian(rawPrice, usdInrRate);
+      case 'wheat':
+        return Formatters.wheatToIndian(rawPrice, usdInrRate);
+      case 'corn':
+        return Formatters.cornToIndian(rawPrice, usdInrRate);
+      case 'soybeans':
+        return Formatters.soyToIndian(rawPrice, usdInrRate);
+      case 'oats':
+        return Formatters.oatsToIndian(rawPrice, usdInrRate);
+      case 'rice':
+        return Formatters.riceToIndian(rawPrice, usdInrRate);
+      case 'sugar':
+        return Formatters.sugarToIndian(rawPrice, usdInrRate);
+      case 'coffee':
+        return Formatters.coffeeToIndian(rawPrice, usdInrRate);
+      case 'cotton':
+        return Formatters.cottonToIndian(rawPrice, usdInrRate);
+      case 'cocoa':
+      case 'palm oil':
+        return Formatters.perMtToQuintal(rawPrice, usdInrRate);
+      case 'aluminum':
+        return Formatters.aluminumToIndian(rawPrice, usdInrRate);
+      case 'zinc':
+        return Formatters.perMtToKg(rawPrice, usdInrRate);
+      case 'iron ore':
+      case 'coal':
+      case 'urea':
+      case 'dap fertilizer':
+      case 'potash':
+      case 'tsp fertilizer':
+        return Formatters.perMtDirect(rawPrice, usdInrRate);
+      case 'brent crude':
+        return Formatters.barrelToIndian(rawPrice, usdInrRate);
+      case 'gasoline':
+      case 'heating oil':
+        return Formatters.gallonToLitre(rawPrice, usdInrRate);
       default:
         return rawPrice * usdInrRate;
     }
@@ -343,19 +420,52 @@ double assetDisplayValue({
           '₹ ${Formatters.fullPrice(Formatters.goldToIndian(rawPrice, usdInrRate))}',
           ' /10g'
         );
+      // Grains → ₹/quintal
+      case 'wheat':
+        return ('₹ ${Formatters.fullPrice(Formatters.wheatToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      case 'corn':
+        return ('₹ ${Formatters.fullPrice(Formatters.cornToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      case 'soybeans':
+        return ('₹ ${Formatters.fullPrice(Formatters.soyToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      case 'oats':
+        return ('₹ ${Formatters.fullPrice(Formatters.oatsToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      case 'rice':
+        return ('₹ ${Formatters.fullPrice(Formatters.riceToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      // Softs
+      case 'sugar':
+        return ('₹ ${Formatters.fullPrice(Formatters.sugarToIndian(rawPrice, usdInrRate))}', ' /qtl');
+      case 'coffee':
+        return ('₹ ${Formatters.fullPrice(Formatters.coffeeToIndian(rawPrice, usdInrRate))}', ' /kg');
+      case 'cotton':
+        return ('₹ ${Formatters.fullPrice(Formatters.cottonToIndian(rawPrice, usdInrRate))}', ' /candy');
+      case 'cocoa':
+      case 'palm oil':
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtToQuintal(rawPrice, usdInrRate))}', ' /qtl');
+      // Metals
+      case 'aluminum':
+        return ('₹ ${Formatters.fullPrice(Formatters.aluminumToIndian(rawPrice, usdInrRate))}', ' /kg');
+      case 'zinc':
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtToKg(rawPrice, usdInrRate))}', ' /kg');
+      case 'iron ore':
+      case 'coal':
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /MT');
+      // Energy
+      case 'brent crude':
+        return ('₹ ${Formatters.fullPrice(Formatters.barrelToIndian(rawPrice, usdInrRate))}', ' /bbl');
+      case 'gasoline':
+      case 'heating oil':
+        return ('₹ ${Formatters.fullPrice(Formatters.gallonToLitre(rawPrice, usdInrRate))}', ' /L');
+      // Rubber
+      case 'rubber':
+        return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', ' /kg');
+      // Fertilizers → ₹/MT
+      case 'urea':
+      case 'dap fertilizer':
+      case 'potash':
+      case 'tsp fertilizer':
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /MT');
       default:
-        final indianUnit = switch (a) {
-          'wheat' || 'corn' || 'soybeans' || 'oats' => '/bu',
-          'rice' => '/cwt',
-          'cotton' || 'sugar' || 'coffee' || 'aluminum' => '/lb',
-          'cocoa' || 'iron ore' || 'coal' || 'palm oil' || 'urea' ||
-          'dap fertilizer' || 'potash' || 'tsp fertilizer' || 'zinc' => '/MT',
-          'rubber' => '/kg',
-          'brent crude' => '/bbl',
-          'gasoline' || 'heating oil' => '/gal',
-          _ => '',
-        };
-        return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', indianUnit.isEmpty ? '' : ' $indianUnit');
+        return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', '');
     }
   }
   if (instrumentType == 'commodity') {
