@@ -162,6 +162,7 @@ class RemoteDataSource {
     int limit = 50,
     int offset = 0,
     bool latestOnly = false,
+    int? cacheBust,
   }) async {
     final params = <String, dynamic>{
       'limit': limit,
@@ -169,6 +170,7 @@ class RemoteDataSource {
     };
     if (country != null) params['country'] = country;
     if (latestOnly) params['latest_only'] = true;
+    if (cacheBust != null) params['_refresh_nonce'] = cacheBust;
 
     final response = await _dio.get('/macro', queryParameters: params);
     return MacroResponse.fromJson(response.data);
@@ -202,20 +204,28 @@ class RemoteDataSource {
     int daysAhead = 90,
     String? country,
     bool includePast = false,
+    int? cacheBust,
   }) async {
     final params = <String, dynamic>{
       'days_ahead': daysAhead,
       'include_past': includePast,
     };
     if (country != null) params['country'] = country;
+    if (cacheBust != null) params['_refresh_nonce'] = cacheBust;
     final response = await _dio.get('/macro/calendar', queryParameters: params);
     return EconCalendarResponse.fromJson(response.data as Map<String, dynamic>);
   }
 
-  Future<MacroMetadataResponse> getMacroMetadata({String? country}) async {
+  Future<MacroMetadataResponse> getMacroMetadata({
+    String? country,
+    int? cacheBust,
+  }) async {
     final params = <String, dynamic>{};
     if (country != null && country.trim().isNotEmpty) {
       params['country'] = country;
+    }
+    if (cacheBust != null) {
+      params['_refresh_nonce'] = cacheBust;
     }
     final response = await _dio.get('/macro/metadata', queryParameters: params);
     return MacroMetadataResponse.fromJson(

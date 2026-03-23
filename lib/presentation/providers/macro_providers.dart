@@ -58,20 +58,29 @@ const _economyExtraOrder = <String>[
 ];
 
 final selectedCountryProvider = StateProvider<String>((ref) => 'IN');
+final macroRefreshNonceProvider = StateProvider<int>((ref) => 0);
 
 final allMacroIndicatorsProvider =
     FutureProvider.autoDispose<List<MacroIndicator>>((ref) async {
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final repo = ref.watch(macroRepositoryProvider);
-  final response = await repo.getMacroIndicators(latestOnly: true);
+  final response = await repo.getMacroIndicators(
+    latestOnly: true,
+    cacheBust: refreshNonce,
+  );
   return response.indicators;
 });
 
 final macroIndicatorsProvider =
     FutureProvider.autoDispose<List<MacroIndicator>>((ref) async {
   final country = ref.watch(selectedCountryProvider);
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final repo = ref.watch(macroRepositoryProvider);
-  final response =
-      await repo.getMacroIndicators(country: country, latestOnly: true);
+  final response = await repo.getMacroIndicators(
+    country: country,
+    latestOnly: true,
+    cacheBust: refreshNonce,
+  );
   return response.indicators;
 });
 
@@ -191,10 +200,12 @@ final economyWorldSnapshotProvider =
 
 final economyCountryFocusProvider = FutureProvider.autoDispose
     .family<EconomyCountryFocusData, String>((ref, country) async {
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final repo = ref.watch(macroRepositoryProvider);
   final response = await repo.getMacroIndicators(
     country: country,
     limit: AppConstants.chartDataLimit,
+    cacheBust: refreshNonce,
   );
   final rows = response.indicators
       .where((r) => !_economyHiddenIndicators.contains(r.indicatorName))
@@ -238,8 +249,12 @@ final macroForecastsProvider =
 
 final econCalendarProvider =
     FutureProvider.autoDispose<List<EconCalendarEvent>>((ref) async {
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final ds = ref.watch(remoteDataSourceProvider);
-  final response = await ds.getEconCalendar(daysAhead: 180);
+  final response = await ds.getEconCalendar(
+    daysAhead: 180,
+    cacheBust: refreshNonce,
+  );
   return response.events;
 });
 
@@ -252,15 +267,20 @@ final econCalendarWithHistoryProvider =
 
 final macroMetadataProvider =
     FutureProvider.autoDispose<List<MacroIndicatorMetadata>>((ref) async {
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final ds = ref.watch(remoteDataSourceProvider);
-  final response = await ds.getMacroMetadata();
+  final response = await ds.getMacroMetadata(cacheBust: refreshNonce);
   return response.items;
 });
 
 final macroMetadataByCountryProvider = FutureProvider.autoDispose
     .family<List<MacroIndicatorMetadata>, String>((ref, country) async {
+  final refreshNonce = ref.watch(macroRefreshNonceProvider);
   final ds = ref.watch(remoteDataSourceProvider);
-  final response = await ds.getMacroMetadata(country: country);
+  final response = await ds.getMacroMetadata(
+    country: country,
+    cacheBust: refreshNonce,
+  );
   return response.items;
 });
 

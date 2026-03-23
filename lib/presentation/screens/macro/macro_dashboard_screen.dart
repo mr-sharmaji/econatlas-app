@@ -441,15 +441,13 @@ class _MacroDashboardScreenState extends ConsumerState<MacroDashboardScreen> {
   }
 
   Future<void> _refresh() async {
-    ref.invalidate(allMacroIndicatorsProvider);
-    ref.invalidate(econCalendarProvider);
-    ref.invalidate(macroMetadataProvider);
-    for (final country in _focusCountries) {
-      ref.invalidate(macroMetadataByCountryProvider(country));
-    }
-    for (final country in _focusCountries) {
-      ref.invalidate(economyCountryFocusProvider(country));
-    }
+    ref.read(macroRefreshNonceProvider.notifier).state++;
+    await Future.wait([
+      ref.refresh(allMacroIndicatorsProvider.future),
+      ref.refresh(econCalendarProvider.future),
+      ref.refresh(macroMetadataByCountryProvider(_selectedCountry).future),
+      ref.refresh(economyCountryFocusProvider(_selectedCountry).future),
+    ]);
   }
 
   @override

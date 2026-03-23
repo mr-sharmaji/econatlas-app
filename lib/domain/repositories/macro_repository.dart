@@ -6,5 +6,6 @@ abstract class MacroRepository {
     int limit = 50,
     int offset = 0,
     bool latestOnly = false,
+    int? cacheBust,
   });
 }

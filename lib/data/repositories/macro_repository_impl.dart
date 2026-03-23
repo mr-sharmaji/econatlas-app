@@ -13,12 +13,14 @@ class MacroRepositoryImpl implements MacroRepository {
     int limit = 50,
     int offset = 0,
     bool latestOnly = false,
+    int? cacheBust,
   }) {
     return _remote.getMacroIndicators(
       country: country,
       limit: limit,
       offset: offset,
       latestOnly: latestOnly,
+      cacheBust: cacheBust,
     );
   }
 }
