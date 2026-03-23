@@ -78,6 +78,7 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen> {
           await ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]);
         },
         child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           controller: _scrollController,
           padding: const EdgeInsets.fromLTRB(12, 12, 12, 112),
           children: [
