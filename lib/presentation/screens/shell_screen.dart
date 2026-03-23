@@ -62,6 +62,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     ref.invalidate(marketIntradayProvider);
     ref.invalidate(commodityIntradayProvider);
     ref.invalidate(allMacroIndicatorsProvider);
+    ref.invalidate(macroRegimeProvider);
+    ref.invalidate(macroSummaryProvider);
+    ref.invalidate(macroMetadataProvider);
+    ref.invalidate(econCalendarWithHistoryProvider);
+    ref.invalidate(economicEventsProvider);
     ref.invalidate(institutionalFlowsOverviewProvider);
     ref.invalidate(newsProvider);
     final shouldRefreshDiscover = _lastDiscoverRefreshAt == null ||

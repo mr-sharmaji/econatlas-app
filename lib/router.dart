@@ -9,6 +9,7 @@ import 'presentation/screens/commodities/commodities_screen.dart';
 import 'presentation/screens/crypto/crypto_screen.dart';
 import 'presentation/screens/overview/overview_screen.dart';
 import 'presentation/screens/macro/macro_screen.dart';
+import 'presentation/screens/macro/macro_dashboard_screen.dart';
 import 'data/models/discover.dart';
 import 'presentation/screens/discover/discover_home_screen.dart';
 import 'presentation/screens/discover/stock_screener_screen.dart';
@@ -68,7 +69,7 @@ final router = GoRouter(
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/macro',
-            builder: (context, state) => const MacroScreen(),
+            builder: (context, state) => const MacroDashboardScreen(),
           ),
         ]),
       ],
@@ -132,7 +133,8 @@ final router = GoRouter(
       path: '/discover/stocks',
       builder: (context, state) {
         final extra = state.extra;
-        final params = extra is Map<String, String> ? extra : <String, String>{};
+        final params =
+            extra is Map<String, String> ? extra : <String, String>{};
         final initialSearch = extra is String ? extra : params['search'];
         return StockScreenerScreen(
           initialSearch: initialSearch,
@@ -147,7 +149,8 @@ final router = GoRouter(
       path: '/discover/mutual-funds',
       builder: (context, state) {
         final extra = state.extra;
-        final params = extra is Map<String, String> ? extra : <String, String>{};
+        final params =
+            extra is Map<String, String> ? extra : <String, String>{};
         final initialSearch = extra is String ? extra : params['search'];
         return MfScreenerScreen(
           initialSearch: initialSearch,
@@ -182,8 +185,11 @@ final router = GoRouter(
       parentNavigatorKey: _rootNavigatorKey,
       path: '/discover/mf/:schemeCode',
       builder: (context, state) {
-        final schemeCode = Uri.decodeComponent(state.pathParameters['schemeCode']!);
-        final item = state.extra is DiscoverMutualFundItem ? state.extra as DiscoverMutualFundItem : null;
+        final schemeCode =
+            Uri.decodeComponent(state.pathParameters['schemeCode']!);
+        final item = state.extra is DiscoverMutualFundItem
+            ? state.extra as DiscoverMutualFundItem
+            : null;
         return MfDetailScreen(schemeCode: schemeCode, initialItem: item);
       },
     ),

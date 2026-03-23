@@ -9,6 +9,12 @@ class EconCalendarEvent {
   final String eventType;
   final String? description;
   final String? source;
+  final String? importance;
+  final double? previous;
+  final double? consensus;
+  final double? actual;
+  final double? surprise;
+  final String? status;
 
   const EconCalendarEvent({
     required this.eventName,
@@ -18,6 +24,12 @@ class EconCalendarEvent {
     required this.eventType,
     this.description,
     this.source,
+    this.importance,
+    this.previous,
+    this.consensus,
+    this.actual,
+    this.surprise,
+    this.status,
   });
 
   factory EconCalendarEvent.fromJson(Map<String, dynamic> json) {
@@ -29,6 +41,12 @@ class EconCalendarEvent {
       eventType: json['event_type'] as String,
       description: json['description'] as String?,
       source: json['source'] as String?,
+      importance: json['importance'] as String?,
+      previous: (json['previous'] as num?)?.toDouble(),
+      consensus: (json['consensus'] as num?)?.toDouble(),
+      actual: (json['actual'] as num?)?.toDouble(),
+      surprise: (json['surprise'] as num?)?.toDouble(),
+      status: json['status'] as String?,
     );
   }
 }
