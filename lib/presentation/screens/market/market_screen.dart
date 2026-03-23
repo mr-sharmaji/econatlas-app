@@ -1329,11 +1329,15 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final isCommodity = initialInstType == 'commodity';
     final isCrypto = initialInstType == 'crypto';
     final isRolling = isCommodity || isCrypto;
-    final historyAsync = isCommodity
-        ? ref.watch(commodityHistoryProvider(widget.asset))
-        : isCrypto
-            ? ref.watch(cryptoHistoryProvider(widget.asset))
-            : ref.watch(marketHistoryProvider(widget.asset));
+    // Only fetch history when not on 1D — avoids 6s blocking call on initial load
+    final needsHistory = _chartRange != ChartRange.oneDay;
+    final historyAsync = needsHistory
+        ? (isCommodity
+            ? ref.watch(commodityHistoryProvider(widget.asset))
+            : isCrypto
+                ? ref.watch(cryptoHistoryProvider(widget.asset))
+                : ref.watch(marketHistoryProvider(widget.asset)))
+        : const AsyncValue<List<MarketPrice>>.data([]);
     final unitSystem = ref.watch(unitSystemProvider);
     final latestMarketAsync = ref.watch(latestMarketPricesProvider);
     final latestCommodityAsync = ref.watch(latestCommoditiesProvider);
