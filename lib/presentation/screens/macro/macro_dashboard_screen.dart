@@ -283,11 +283,8 @@ String _metricValueLabel(EconomyMetricData metric) {
 String _metricDeltaLabel(EconomyMetricData metric) {
   final delta = metric.delta;
   if (delta == null) return 'No prior release';
-  if (delta.abs() < 0.005) return 'Flat vs prev';
+  if (delta.abs() < 0.005) return 'Unchanged';
   final sign = delta >= 0 ? '+' : '';
-  if (_isPercentMetric(metric.indicator)) {
-    return '$sign${delta.toStringAsFixed(2)} pct pts';
-  }
   return '$sign${delta.toStringAsFixed(2)}';
 }
 
@@ -921,16 +918,6 @@ class _MetricRow extends StatelessWidget {
       ),
     );
   }
-}
-
-bool _isPercentMetric(String indicator) {
-  return indicator.contains('rate') ||
-      indicator.contains('inflation') ||
-      indicator.contains('gdp') ||
-      indicator.contains('unemployment') ||
-      indicator == 'iip' ||
-      indicator == 'fiscal_deficit' ||
-      indicator == 'bank_credit_growth';
 }
 
 class _EventsCard extends StatelessWidget {
