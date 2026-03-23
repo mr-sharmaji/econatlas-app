@@ -1733,15 +1733,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
             // ── 6. Verdict Card ──
             _buildVerdictCard(theme, storyAsync),
 
-            // ── 7. Score Stats ──
+            // ── 7. Score Stats (Trend + Momentum only) ──
             storyAsync.when(
               loading: () => const SizedBox.shrink(),
               error: (_, __) => const SizedBox.shrink(),
               data: (story) {
                 final hasTrend = story.scoreTrend != null;
-                final hasVol = story.scoreVolatility != null;
                 final hasMom = story.scoreMomentum != null;
-                if (!hasTrend && !hasVol && !hasMom) {
+                if (!hasTrend && !hasMom) {
                   return const SizedBox.shrink();
                 }
                 return Padding(
@@ -1753,14 +1752,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                           child: _buildScoreCard(
                               theme, 'Trend', story.scoreTrend!),
                         ),
-                      if (hasTrend && (hasVol || hasMom))
-                        const SizedBox(width: 8),
-                      if (hasVol)
-                        Expanded(
-                          child: _buildScoreCard(
-                              theme, 'Stability', story.scoreVolatility!),
-                        ),
-                      if (hasVol && hasMom) const SizedBox(width: 8),
+                      if (hasTrend && hasMom) const SizedBox(width: 8),
                       if (hasMom)
                         Expanded(
                           child: _buildScoreCard(
