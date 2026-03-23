@@ -1307,8 +1307,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                           if (experience.isNotEmpty)
                             Text(
                               experience,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.bodySmall?.copyWith(
                                 color: Colors.white54,
                               ),
