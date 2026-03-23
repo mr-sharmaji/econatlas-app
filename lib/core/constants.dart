@@ -418,9 +418,20 @@ class Entities {
     'chainlink': 'Chainlink',
     'inflation_cpi': 'Inflation (CPI)',
     'inflation': 'Inflation (CPI)',
+    'core_inflation': 'Core Inflation',
     'gdp_growth': 'GDP Growth',
     'unemployment': 'Unemployment',
     'repo_rate': 'Repo Rate',
+    'fed_rate': 'Fed Funds Rate',
+    'pmi_manufacturing': 'PMI Manufacturing',
+    'pmi_services': 'PMI Services',
+    'iip': 'Industrial Production',
+    'forex_reserves': 'Forex Reserves',
+    'trade_balance': 'Trade Balance',
+    'current_account_deficit': 'Current Account',
+    'fiscal_deficit': 'Fiscal Deficit',
+    'gst_collection': 'GST Collection',
+    'bank_credit_growth': 'Bank Credit Growth',
   };
 
   static const Map<String, String> unitLabelsIntl = {

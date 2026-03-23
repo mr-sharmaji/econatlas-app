@@ -205,11 +205,31 @@ class Formatters {
   static String confidence(double value) => '${(value * 100).toInt()}%';
 
   static String macroValue(double value, String indicator) {
+    // Percentage indicators
     if (indicator.contains('rate') ||
         indicator.contains('inflation') ||
         indicator.contains('gdp') ||
-        indicator.contains('unemployment')) {
+        indicator.contains('unemployment') ||
+        indicator == 'iip' ||
+        indicator == 'fiscal_deficit' ||
+        indicator == 'bank_credit_growth') {
       return '${_percentFormat.format(value)}%';
+    }
+    // PMI — index value, no unit
+    if (indicator.contains('pmi')) {
+      return _percentFormat.format(value);
+    }
+    // Forex reserves — USD Billion
+    if (indicator == 'forex_reserves') {
+      return '\$${_percentFormat.format(value)}B';
+    }
+    // Trade balance — USD Million
+    if (indicator == 'trade_balance' || indicator == 'current_account_deficit') {
+      return '\$${_percentFormat.format(value)}M';
+    }
+    // GST collection — INR Lakh Cr
+    if (indicator == 'gst_collection') {
+      return '${_percentFormat.format(value)}L Cr';
     }
     return _indianFormat(value);
   }
