@@ -123,6 +123,7 @@ class _IndicesTab extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(latestMarketPricesProvider);
         ref.invalidate(marketScoresProvider);
+        await ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 6),
@@ -229,6 +230,7 @@ class _CurrenciesTab extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(latestCurrenciesProvider);
         ref.invalidate(marketScoresProvider);
+        await ref.read(latestCurrenciesProvider.future).catchError((_) => <MarketPrice>[]);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 4),
@@ -392,6 +394,7 @@ class _CommoditiesTab extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(latestCommoditiesProvider);
+        await ref.read(latestCommoditiesProvider.future).catchError((_) => <MarketPrice>[]);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 5),
@@ -554,6 +557,7 @@ class _BondsTab extends ConsumerWidget {
       onRefresh: () async {
         ref.invalidate(latestBondsProvider);
         ref.invalidate(marketScoresProvider);
+        await ref.read(latestBondsProvider.future).catchError((_) => <MarketPrice>[]);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 3),
@@ -974,6 +978,7 @@ class _CryptoTab extends ConsumerWidget {
     return RefreshIndicator(
       onRefresh: () async {
         ref.invalidate(latestCryptoProvider);
+        await ref.read(latestCryptoProvider.future).catchError((_) => <MarketPrice>[]);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 6),

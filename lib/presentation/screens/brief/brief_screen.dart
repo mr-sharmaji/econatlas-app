@@ -71,6 +71,7 @@ class _BriefScreenState extends ConsumerState<BriefScreen> {
           ref.invalidate(briefTopLosersProvider(market));
           ref.invalidate(briefMostActiveProvider(market));
           ref.invalidate(briefSectorPulseProvider(market));
+          try { await ref.read(briefPostMarketProvider(market).future); } catch (_) {}
         },
         child: ListView(
           controller: _scrollController,

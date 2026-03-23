@@ -448,7 +448,7 @@ double assetDisplayValue({
         return ('₹ ${Formatters.fullPrice(Formatters.perMtToKg(rawPrice, usdInrRate))}', ' /kg');
       case 'iron ore':
       case 'coal':
-        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /tonne');
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /ton');
       // Energy
       case 'brent crude':
         return ('₹ ${Formatters.fullPrice(Formatters.barrelToIndian(rawPrice, usdInrRate))}', ' /bbl');
@@ -463,7 +463,7 @@ double assetDisplayValue({
       case 'dap fertilizer':
       case 'potash':
       case 'tsp fertilizer':
-        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /tonne');
+        return ('₹ ${Formatters.fullPrice(Formatters.perMtDirect(rawPrice, usdInrRate))}', ' /ton');
       default:
         return ('₹ ${Formatters.fullPrice(rawPrice * usdInrRate)}', '');
     }

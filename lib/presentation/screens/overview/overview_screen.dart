@@ -75,6 +75,7 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen> {
           ref.invalidate(ipoListProvider('upcoming'));
           ref.invalidate(ipoListProvider('closed'));
           ref.invalidate(ipoAlertsProvider);
+          await ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]);
         },
         child: ListView(
           controller: _scrollController,
