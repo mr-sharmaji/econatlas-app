@@ -1451,17 +1451,20 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
             ),
             const SizedBox(height: 6),
-            Row(
-              children: [
-                _buildChipLabel(theme, _typeBadge(instType)),
-                if (_contextForAsset(widget.asset, instType).isNotEmpty) ...[
-                  const SizedBox(width: 6),
-                  _buildChipLabel(
-                      theme, _contextForAsset(widget.asset, instType)),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildChipLabel(theme, _typeBadge(instType)),
+                  if (_contextForAsset(widget.asset, instType).isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    _buildChipLabel(
+                        theme, _contextForAsset(widget.asset, instType)),
+                  ],
+                  const SizedBox(width: 8),
+                  MarketStatusPill(phase: phase, showLabel: true),
                 ],
-                const SizedBox(width: 8),
-                MarketStatusPill(phase: phase, showLabel: true),
-              ],
+              ),
             ),
 
             // ── Driver Tags (below header) ──
@@ -1529,6 +1532,8 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 onRetry: () {
                   if (isCommodity) {
                     ref.invalidate(commodityHistoryProvider(widget.asset));
+                  } else if (isCrypto) {
+                    ref.invalidate(cryptoHistoryProvider(widget.asset));
                   } else {
                     ref.invalidate(marketHistoryProvider(widget.asset));
                   }
