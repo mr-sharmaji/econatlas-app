@@ -1614,44 +1614,40 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     ),
                     const SizedBox(height: 16),
                     // ── Range Card ──
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.08)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            rangeLabel,
-                            style: theme.textTheme.labelMedium
-                                ?.copyWith(color: Colors.white54),
-                          ),
-                          const SizedBox(height: 10),
-                          PositionBar(
-                            min: low,
-                            max: high,
-                            current: currentVal,
-                            minLabel: fmt(low),
-                            maxLabel: fmt(high),
-                          ),
-                          const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _miniStat(theme, 'Open', fmt(open)),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _miniStat(theme, 'Close', fmt(close)),
-                              ),
-                            ],
-                          ),
-                        ],
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              rangeLabel,
+                              style: theme.textTheme.titleSmall
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 12),
+                            PositionBar(
+                              min: low,
+                              max: high,
+                              current: currentVal,
+                              minLabel: fmt(low),
+                              maxLabel: fmt(high),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _miniStat(theme, 'Open', fmt(open)),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: _miniStat(theme, 'Close', fmt(close)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
