@@ -34,8 +34,7 @@ IconData _iconFor(String name) {
     case 'inflation_cpi':
     case 'inflation':
     case 'core_inflation': return Icons.trending_up;
-    case 'repo_rate':
-    case 'fed_rate': return Icons.account_balance;
+    case 'repo_rate': return Icons.account_balance;
     case 'gdp_growth': return Icons.bar_chart;
     case 'unemployment': return Icons.people_outline;
     case 'pmi_manufacturing':
@@ -71,7 +70,7 @@ const _kSections = [
     title: 'Prices & Rates',
     subtitle: 'Inflation and central bank rates',
     icon: Icons.price_change,
-    indicators: ['inflation', 'core_inflation', 'repo_rate', 'fed_rate'],
+    indicators: ['inflation', 'core_inflation', 'repo_rate'],
     countries: ['IN', 'US'],
   ),
   (
@@ -88,8 +87,6 @@ const _kSections = [
 
 /// Map indicator to the correct country (some are IN-only, some US-only)
 const _indicatorCountryMap = {
-  'repo_rate': ['IN'],
-  'fed_rate': ['US'],
   'forex_reserves': ['IN'],
   'current_account_deficit': ['IN'],
   'fiscal_deficit': ['IN'],
