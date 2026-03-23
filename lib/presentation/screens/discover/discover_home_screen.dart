@@ -1014,7 +1014,7 @@ class _MfCard extends StatelessWidget {
               style: theme.textTheme.labelMedium?.copyWith(
                 fontWeight: FontWeight.w700,
               ),
-              maxLines: 1,
+              maxLines: 4,
               overflow: TextOverflow.ellipsis,
             ),
             // Row 2: category label
