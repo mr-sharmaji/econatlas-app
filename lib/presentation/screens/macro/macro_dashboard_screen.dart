@@ -283,9 +283,10 @@ String _metricValueLabel(EconomyMetricData metric) {
 String _metricDeltaLabel(EconomyMetricData metric) {
   final delta = metric.delta;
   if (delta == null) return 'No prior release';
+  if (delta.abs() < 0.005) return 'Flat vs prev';
   final sign = delta >= 0 ? '+' : '';
   if (_isPercentMetric(metric.indicator)) {
-    return '$sign${delta.toStringAsFixed(2)} pp';
+    return '$sign${delta.toStringAsFixed(2)} pct pts';
   }
   return '$sign${delta.toStringAsFixed(2)}';
 }
@@ -306,47 +307,56 @@ void _showMetricHelper(
 
   showModalBottomSheet(
     context: context,
+    useRootNavigator: true,
+    isScrollControlled: true,
     backgroundColor: AppTheme.cardDark,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
     ),
-    builder: (_) => Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Center(
-            child: Container(
-              width: 32,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.white24,
-                borderRadius: BorderRadius.circular(2),
+    builder: (sheetContext) {
+      final media = MediaQuery.of(sheetContext);
+      final bottomClearance = media.padding.bottom + 96;
+      return SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(20, 16, 20, bottomClearance),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 32,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              Text(
+                metricName,
+                style: TextStyle(
+                  color: visual.color,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                resolvedHelper,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 16),
-          Text(
-            metricName,
-            style: TextStyle(
-              color: visual.color,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            resolvedHelper,
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-              height: 1.5,
-            ),
-          ),
-        ],
-      ),
-    ),
+        ),
+      );
+    },
   );
 }
 

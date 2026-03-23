@@ -221,11 +221,18 @@ class Formatters {
     }
     // Forex reserves — USD Billion
     if (indicator == 'forex_reserves') {
-      return '\$${_percentFormat.format(value)}B';
-    }
-    // Trade balance — USD Million
-    if (indicator == 'trade_balance' || indicator == 'current_account_deficit') {
+      final abs = value.abs();
+      if (abs >= 1000) {
+        final bn = value / 1000.0;
+        return '\$${_percentFormat.format(bn)}B';
+      }
       return '\$${_percentFormat.format(value)}M';
+    }
+    // Trade/current account balance — USD Billion (negative = deficit)
+    if (indicator == 'trade_balance' ||
+        indicator == 'current_account_deficit') {
+      final sign = value < 0 ? '-' : '';
+      return '$sign\$${_percentFormat.format(value.abs())}B';
     }
     // GST collection — INR Lakh Cr
     if (indicator == 'gst_collection') {
