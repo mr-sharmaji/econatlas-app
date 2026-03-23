@@ -418,20 +418,29 @@ class _CommoditiesTab extends ConsumerWidget {
               .where((p) =>
                   {'gold', 'silver', 'platinum', 'palladium'}.contains(p.asset))
               .toList();
-          final industrial =
-              ordered.where((p) => {'copper'}.contains(p.asset)).toList();
+          final industrial = ordered
+              .where((p) => {'copper', 'aluminum'}.contains(p.asset))
+              .toList();
           final energy = ordered
-              .where((p) => {'crude oil', 'natural gas'}.contains(p.asset))
+              .where((p) => {'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil'}.contains(p.asset))
+              .toList();
+          final agriculture = ordered
+              .where((p) => {'wheat', 'corn', 'soybeans', 'rice', 'oats'}.contains(p.asset))
+              .toList();
+          final softs = ordered
+              .where((p) => {'cotton', 'sugar', 'coffee', 'cocoa'}.contains(p.asset))
+              .toList();
+          final fertilizers = ordered
+              .where((p) => {'urea', 'dap fertilizer', 'potash', 'tsp fertilizer', 'ammonia'}.contains(p.asset))
               .toList();
           final others = ordered
               .where((p) => !{
-                    'gold',
-                    'silver',
-                    'platinum',
-                    'palladium',
-                    'copper',
-                    'crude oil',
-                    'natural gas',
+                    'gold', 'silver', 'platinum', 'palladium',
+                    'copper', 'aluminum',
+                    'crude oil', 'brent crude', 'natural gas', 'gasoline', 'heating oil',
+                    'wheat', 'corn', 'soybeans', 'rice', 'oats',
+                    'cotton', 'sugar', 'coffee', 'cocoa',
+                    'urea', 'dap fertilizer', 'potash', 'tsp fertilizer', 'ammonia',
                   }.contains(p.asset))
               .toList();
 
@@ -472,6 +481,45 @@ class _CommoditiesTab extends ConsumerWidget {
                   prices: energy,
                 ),
                 ...energy.map((p) => _CommodityTile(
+                      price: p,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
+                    )),
+              ],
+              if (agriculture.isNotEmpty) ...[
+                _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.agriculture,
+                  title: 'Agriculture',
+                  prices: agriculture,
+                ),
+                ...agriculture.map((p) => _CommodityTile(
+                      price: p,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
+                    )),
+              ],
+              if (softs.isNotEmpty) ...[
+                _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.softs,
+                  title: 'Softs',
+                  prices: softs,
+                ),
+                ...softs.map((p) => _CommodityTile(
+                      price: p,
+                      usdInrRate: effectiveUsdInrRate,
+                      useIndianCommodityUnits: useIndianCommodityUnits,
+                      actionTag: scores[p.asset],
+                    )),
+              ],
+              if (fertilizers.isNotEmpty) ...[
+                _RegionBanner(
+                  badgeStyle: AssetBadgeStyle.fertilizers,
+                  title: 'Fertilizers',
+                  prices: fertilizers,
+                ),
+                ...fertilizers.map((p) => _CommodityTile(
                       price: p,
                       usdInrRate: effectiveUsdInrRate,
                       useIndianCommodityUnits: useIndianCommodityUnits,
@@ -1316,6 +1364,24 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
         'copper': 'COMEX',
         'crude oil': 'NYMEX',
         'natural gas': 'NYMEX',
+        'wheat': 'CBOT',
+        'corn': 'CBOT',
+        'soybeans': 'CBOT',
+        'rice': 'CBOT',
+        'oats': 'CBOT',
+        'cotton': 'ICE',
+        'sugar': 'ICE',
+        'coffee': 'ICE',
+        'cocoa': 'ICE',
+        'aluminum': 'COMEX',
+        'brent crude': 'ICE',
+        'gasoline': 'NYMEX',
+        'heating oil': 'NYMEX',
+        'urea': 'OTC',
+        'dap fertilizer': 'OTC',
+        'potash': 'OTC',
+        'tsp fertilizer': 'OTC',
+        'ammonia': 'OTC',
       };
       return exchanges[asset.toLowerCase()] ?? 'Exchange';
     }
