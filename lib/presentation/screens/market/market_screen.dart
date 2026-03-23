@@ -1316,11 +1316,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     return AppTheme.accentBlue;
   }
 
-  static Color _scoreColor(double score) {
-    if (score >= 60) return AppTheme.accentGreen;
-    if (score >= 40) return Colors.white;
-    return AppTheme.accentRed;
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -1435,26 +1430,46 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
           ref.invalidate(latestCryptoProvider);
           ref.invalidate(marketStoryProvider(
               (asset: widget.asset, instrumentType: instType)));
+          // Always invalidate intraday
           if (isCommodity) {
-            ref.invalidate(commodityHistoryRangeProvider(historyKey));
             ref.invalidate(commodityIntradayProvider(widget.asset));
+            if (!_chartRange.isIntradayRange) {
+              ref.invalidate(commodityHistoryRangeProvider(historyKey));
+            }
           } else if (isCrypto) {
-            ref.invalidate(cryptoHistoryRangeProvider(historyKey));
             ref.invalidate(cryptoIntradayProvider(widget.asset));
+            if (!_chartRange.isIntradayRange) {
+              ref.invalidate(cryptoHistoryRangeProvider(historyKey));
+            }
           } else {
-            ref.invalidate(marketHistoryRangeProvider(historyKey));
             ref.invalidate(marketIntradayProvider(
                 (asset: widget.asset, instrumentType: instType)));
+            if (!_chartRange.isIntradayRange) {
+              ref.invalidate(marketHistoryRangeProvider(historyKey));
+            }
           }
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // ── 1. Header: Name + Chips + Status ──
-            Text(
-              displayName(widget.asset),
-              style: theme.textTheme.headlineSmall
-                  ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5),
+            // ── 1. Verdict Card (top) ──
+            _buildVerdictCard(theme, storyAsync),
+            const SizedBox(height: 12),
+
+            // ── 2. Header: Name + Status + Chips ──
+            Row(
+              children: [
+                Flexible(
+                  child: Text(
+                    displayName(widget.asset),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                MarketStatusPill(phase: phase, showLabel: true),
+              ],
             ),
             const SizedBox(height: 6),
             SingleChildScrollView(
@@ -1467,45 +1482,10 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     _buildChipLabel(
                         theme, _contextForAsset(widget.asset, instType)),
                   ],
-                  const SizedBox(width: 8),
-                  MarketStatusPill(phase: phase, showLabel: true),
                 ],
               ),
             ),
 
-            // ── Driver Tags (below header) ──
-            storyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (story) {
-                if (story.driverTags.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: const EdgeInsets.only(top: 10),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: story.driverTags.map((tag) {
-                      final tagColor = _driverTagColor(tag);
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: tagColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Text(
-                          tag,
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: tagColor,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
             const SizedBox(height: 16),
 
             // ── 2. Price + Change Badge ──
@@ -1751,42 +1731,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               },
             ),
             const SizedBox(height: 16),
-
-            // ── 6. Verdict Card ──
-            _buildVerdictCard(theme, storyAsync),
-
-            // ── 7. Score Stats (Trend + Momentum only) ──
-            storyAsync.when(
-              loading: () => const SizedBox.shrink(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (story) {
-                final hasTrend = story.scoreTrend != null;
-                final hasMom = story.scoreMomentum != null;
-                if (!hasTrend && !hasMom) {
-                  return const SizedBox.shrink();
-                }
-                return Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Row(
-                    children: [
-                      if (hasTrend)
-                        Expanded(
-                          child: _buildScoreCard(
-                              theme, 'Trend', story.scoreTrend!),
-                        ),
-                      if (hasTrend && hasMom) const SizedBox(width: 8),
-                      if (hasMom)
-                        Expanded(
-                          child: _buildScoreCard(
-                              theme, 'Momentum', story.scoreMomentum!),
-                        ),
-                    ],
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 16),
           ],
         ),
       ),
@@ -1873,6 +1817,31 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   ),
                 ),
               ],
+              if (story.driverTags.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: story.driverTags.map((tag) {
+                    final tagColor = _driverTagColor(tag);
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: tagColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        tag,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: tagColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
             ],
           ),
         );
@@ -1900,45 +1869,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
 
   // ── Score card helper ──────────────────────────────────────────────
 
-  Widget _buildScoreCard(ThemeData theme, String label, double score) {
-    final color = _scoreColor(score);
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style:
-                  theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: [
-                Text(
-                  score.toStringAsFixed(0),
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-                ),
-                Text(
-                  '/100',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: Colors.white24,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   // ── Mini stat row helper ───────────────────────────────────────────
 
