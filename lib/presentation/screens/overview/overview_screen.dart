@@ -431,9 +431,9 @@ class _InstitutionalFlowSection extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _legendDot(AppTheme.accentGreen.withValues(alpha: 0.85), 'FII'),
+                        _legendDot(const Color(0xFFFF9800), 'FII'),
                         const SizedBox(width: 12),
-                        _legendDot(Colors.blueAccent.withValues(alpha: 0.85), 'DII'),
+                        _legendDot(Colors.blueAccent, 'DII'),
                       ],
                     ),
                   ),
@@ -526,24 +526,20 @@ class _InstitutionalFlowSection extends StatelessWidget {
           barRods: [
             BarChartRodData(
               toY: fii,
-              color: fii >= 0
-                  ? AppTheme.accentGreen.withValues(alpha: 0.85)
-                  : AppTheme.accentRed.withValues(alpha: 0.85),
+              color: const Color(0xFFFF9800).withValues(alpha: 0.9),
               width: trend.length > 20 ? 3 : 5,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(1.5),
-                bottom: Radius.circular(1.5),
+              borderRadius: BorderRadius.vertical(
+                top: fii >= 0 ? const Radius.circular(1.5) : Radius.zero,
+                bottom: fii < 0 ? const Radius.circular(1.5) : Radius.zero,
               ),
             ),
             BarChartRodData(
               toY: dii,
-              color: dii >= 0
-                  ? Colors.blueAccent.withValues(alpha: 0.85)
-                  : Colors.blueAccent.withValues(alpha: 0.4),
+              color: Colors.blueAccent.withValues(alpha: 0.85),
               width: trend.length > 20 ? 3 : 5,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(1.5),
-                bottom: Radius.circular(1.5),
+              borderRadius: BorderRadius.vertical(
+                top: dii >= 0 ? const Radius.circular(1.5) : Radius.zero,
+                bottom: dii < 0 ? const Radius.circular(1.5) : Radius.zero,
               ),
             ),
           ],
@@ -619,7 +615,7 @@ class _InstitutionalFlowSection extends StatelessWidget {
               final val = rod.toY;
               final sign = val >= 0 ? '+' : '';
               return BarTooltipItem(
-                '$label: $sign${Formatters.fullPrice(val)} Cr',
+                '$label: $sign₹${Formatters.fullPrice(val)} Cr',
                 TextStyle(
                   color: rod.color,
                   fontSize: 11,
