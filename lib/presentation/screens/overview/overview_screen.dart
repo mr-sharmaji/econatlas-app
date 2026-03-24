@@ -367,9 +367,9 @@ class _InstitutionalFlowSection extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
         child: flowAsync.when(
-          loading: () => const ShimmerCard(height: 118),
+          loading: () => const ShimmerCard(height: 140),
           error: (err, _) => Text(
             friendlyErrorMessage(err),
             style: theme.textTheme.bodySmall,
@@ -384,12 +384,12 @@ class _InstitutionalFlowSection extends StatelessWidget {
             final netFlow =
                 overview.combinedValue ?? ((fiiValue ?? 0) + (diiValue ?? 0));
             final lastTs = overview.asOf;
-            final fiiTrend = _trendSeries(overview.trend, isFii: true);
-            final diiTrend = _trendSeries(overview.trend, isFii: false);
+            final trend = overview.trend;
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Header row
                 Row(
                   children: [
                     Text(
@@ -400,28 +400,43 @@ class _InstitutionalFlowSection extends StatelessWidget {
                     const Spacer(),
                     if (lastTs != null)
                       Text(
-                        'Last published ${Formatters.asOfDate(lastTs)}',
+                        Formatters.asOfDate(lastTs),
                         style: theme.textTheme.labelSmall
                             ?.copyWith(color: Colors.white54),
                       ),
                   ],
                 ),
+                const SizedBox(height: 6),
+                // Summary chips
+                Row(
+                  children: [
+                    _flowChip(context, 'FII', fiiValue),
+                    const SizedBox(width: 8),
+                    _flowChip(context, 'DII', diiValue),
+                    const SizedBox(width: 8),
+                    _flowChip(context, 'Net', netFlow),
+                  ],
+                ),
                 const SizedBox(height: 10),
-                _flowRow(
-                  context,
-                  'Foreign (FII)',
-                  fiiValue,
-                  trendValues: fiiTrend,
-                ),
-                const SizedBox(height: 8),
-                _flowRow(
-                  context,
-                  'Domestic (DII)',
-                  diiValue,
-                  trendValues: diiTrend,
-                ),
-                const SizedBox(height: 8),
-                _flowRow(context, 'Net', netFlow),
+                // 30-day bar chart
+                if (trend.length >= 2)
+                  SizedBox(
+                    height: 100,
+                    child: _flowBarChart(context, trend),
+                  ),
+                // Legend
+                if (trend.length >= 2)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _legendDot(AppTheme.accentGreen.withValues(alpha: 0.85), 'FII'),
+                        const SizedBox(width: 12),
+                        _legendDot(Colors.blueAccent.withValues(alpha: 0.85), 'DII'),
+                      ],
+                    ),
+                  ),
               ],
             );
           },
@@ -430,94 +445,189 @@ class _InstitutionalFlowSection extends StatelessWidget {
     );
   }
 
-  Widget _flowRow(
-    BuildContext context,
-    String label,
-    double? value, {
-    List<double>? trendValues,
-  }) {
+  Widget _flowChip(BuildContext context, String label, double? value) {
     final theme = Theme.of(context);
     final color = (value ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            label,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
+    final formatted = value != null
+        ? '₹${Formatters.fullPrice(value)} Cr'
+        : 'N/A';
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Column(
+          children: [
+            Text(
+              label,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: Colors.white54,
+                fontSize: 10,
+              ),
             ),
+            Text(
+              formatted,
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w700,
+                fontSize: 11,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _legendDot(Color color, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
           ),
         ),
-        if (trendValues != null && trendValues.length >= 2) ...[
-          _miniFlowSparkline(trendValues, color),
-          const SizedBox(width: 8),
-        ],
+        const SizedBox(width: 4),
         Text(
-          _flowValue(value),
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: color,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
+          label,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
           ),
         ),
       ],
     );
   }
 
-  String _flowValue(double? value) {
-    if (value == null) return 'N/A';
-    return '₹ ${Formatters.fullPrice(value)} Cr';
-  }
+  Widget _flowBarChart(
+    BuildContext context,
+    List<InstitutionalFlowTrendPoint> trend,
+  ) {
+    // Build bar groups — each day has FII and DII side by side
+    final barGroups = <BarChartGroupData>[];
+    double maxAbs = 0;
 
-  List<double> _trendSeries(
-    List<InstitutionalFlowTrendPoint> trend, {
-    required bool isFii,
-  }) {
-    return trend
-        .map((point) => isFii ? point.fiiValue : point.diiValue)
-        .whereType<double>()
-        .toList();
-  }
+    for (int i = 0; i < trend.length; i++) {
+      final fii = trend[i].fiiValue ?? 0;
+      final dii = trend[i].diiValue ?? 0;
+      if (fii.abs() > maxAbs) maxAbs = fii.abs();
+      if (dii.abs() > maxAbs) maxAbs = dii.abs();
 
-  Widget _miniFlowSparkline(List<double> values, Color color) {
-    if (values.length < 2) {
-      return const SizedBox(width: 64, height: 18);
-    }
-
-    final points = values
-        .asMap()
-        .entries
-        .map((e) => FlSpot(e.key.toDouble(), e.value))
-        .toList();
-    final minY = values.reduce((a, b) => a < b ? a : b);
-    final maxY = values.reduce((a, b) => a > b ? a : b);
-    final span = (maxY - minY).abs();
-    final pad = span == 0 ? (maxY.abs() * 0.05 + 1) : span * 0.22;
-
-    return SizedBox(
-      width: 64,
-      height: 18,
-      child: LineChart(
-        LineChartData(
-          minX: 0,
-          maxX: (points.length - 1).toDouble(),
-          minY: minY - pad,
-          maxY: maxY + pad,
-          gridData: const FlGridData(show: false),
-          titlesData: const FlTitlesData(show: false),
-          borderData: FlBorderData(show: false),
-          lineTouchData: const LineTouchData(enabled: false),
-          lineBarsData: [
-            LineChartBarData(
-              spots: points,
-              isCurved: true,
-              barWidth: 1.8,
-              color: color,
-              dotData: const FlDotData(show: false),
-              belowBarData: BarAreaData(show: false),
+      barGroups.add(
+        BarChartGroupData(
+          x: i,
+          barRods: [
+            BarChartRodData(
+              toY: fii,
+              color: fii >= 0
+                  ? AppTheme.accentGreen.withValues(alpha: 0.85)
+                  : AppTheme.accentRed.withValues(alpha: 0.85),
+              width: trend.length > 20 ? 3 : 5,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(1.5),
+                bottom: Radius.circular(1.5),
+              ),
+            ),
+            BarChartRodData(
+              toY: dii,
+              color: dii >= 0
+                  ? Colors.blueAccent.withValues(alpha: 0.85)
+                  : Colors.blueAccent.withValues(alpha: 0.4),
+              width: trend.length > 20 ? 3 : 5,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(1.5),
+                bottom: Radius.circular(1.5),
+              ),
             ),
           ],
+          barsSpace: 1,
+        ),
+      );
+    }
+
+    if (maxAbs == 0) maxAbs = 1;
+    final yPad = maxAbs * 0.15;
+
+    return BarChart(
+      BarChartData(
+        alignment: BarChartAlignment.spaceEvenly,
+        maxY: maxAbs + yPad,
+        minY: -(maxAbs + yPad),
+        barGroups: barGroups,
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxAbs,
+          getDrawingHorizontalLine: (value) {
+            if (value == 0) {
+              return FlLine(
+                color: Colors.white24,
+                strokeWidth: 0.8,
+              );
+            }
+            return FlLine(color: Colors.transparent);
+          },
+        ),
+        titlesData: FlTitlesData(
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 16,
+              getTitlesWidget: (value, meta) {
+                final idx = value.toInt();
+                if (idx < 0 || idx >= trend.length) {
+                  return const SizedBox.shrink();
+                }
+                // Show labels at start, middle, end only
+                if (idx != 0 &&
+                    idx != trend.length - 1 &&
+                    idx != trend.length ~/ 2) {
+                  return const SizedBox.shrink();
+                }
+                final d = trend[idx].sessionDate;
+                return Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    '${d.day}/${d.month}',
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 9,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+        borderData: FlBorderData(show: false),
+        barTouchData: BarTouchData(
+          touchTooltipData: BarTouchTooltipData(
+            tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            tooltipMargin: 4,
+            getTooltipItem: (group, groupIndex, rod, rodIndex) {
+              final label = rodIndex == 0 ? 'FII' : 'DII';
+              final val = rod.toY;
+              final sign = val >= 0 ? '+' : '';
+              return BarTooltipItem(
+                '$label: $sign${Formatters.fullPrice(val)} Cr',
+                TextStyle(
+                  color: rod.color,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
