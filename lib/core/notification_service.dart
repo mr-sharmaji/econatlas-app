@@ -1,7 +1,12 @@
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'constants.dart';
 
 /// Top-level handler for background messages (must be top-level function).
 @pragma('vm:entry-point')
@@ -60,10 +65,13 @@ class NotificationService {
     // Get FCM token
     _token = await _fcm.getToken();
 
+    // Register token with backend
+    await _registerTokenWithBackend(_token);
+
     // Listen for token refresh
     _fcm.onTokenRefresh.listen((newToken) {
       _token = newToken;
-      // TODO: send updated token to backend
+      _registerTokenWithBackend(newToken);
     });
 
     // Foreground message handler — only show local notification
@@ -80,6 +88,32 @@ class NotificationService {
 
     // Subscribe to default topic
     await _fcm.subscribeToTopic('market_alerts');
+  }
+
+  /// Register the FCM token with the backend so per-device notifications work.
+  Future<void> _registerTokenWithBackend(String? fcmToken) async {
+    if (fcmToken == null || fcmToken.isEmpty) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final deviceId = prefs.getString(AppConstants.prefDeviceId);
+      if (deviceId == null || deviceId.trim().isEmpty) return;
+
+      final baseUrl =
+          prefs.getString(AppConstants.prefBaseUrl) ?? AppConstants.defaultBaseUrl;
+      final dio = Dio(BaseOptions(
+        baseUrl: baseUrl,
+        connectTimeout: const Duration(seconds: 6),
+        sendTimeout: const Duration(seconds: 6),
+        receiveTimeout: const Duration(seconds: 8),
+      ));
+      await dio.post('/ipos/register-device', data: {
+        'device_id': deviceId,
+        'fcm_token': fcmToken,
+        'platform': Platform.isIOS ? 'ios' : 'android',
+      });
+    } catch (_) {
+      // Non-fatal — token registration is best-effort
+    }
   }
 
   /// Show a local notification from an FCM message.

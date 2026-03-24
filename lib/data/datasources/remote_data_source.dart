@@ -820,4 +820,17 @@ class RemoteDataSource {
     final response = await _dio.get('/tax/config');
     return TaxConfig.fromJson(response.data as Map<String, dynamic>);
   }
+
+  /// Register (upsert) a device FCM token for per-device push notifications.
+  Future<void> registerDevice({
+    required String deviceId,
+    required String fcmToken,
+    String platform = 'android',
+  }) async {
+    await _dio.post('/ipos/register-device', data: {
+      'device_id': deviceId,
+      'fcm_token': fcmToken,
+      'platform': platform,
+    });
+  }
 }
