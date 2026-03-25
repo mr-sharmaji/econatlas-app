@@ -139,26 +139,25 @@ class _IndicesTab extends ConsumerWidget {
                   p.instrumentType == 'index' && !vixAssets.contains(p.asset))
               .toList();
 
-          final inIndices = <MarketPrice>[];
-          for (final name in Entities.indicesIndia) {
-            final match = indices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) inIndices.add(match.first);
-          }
-          final usIndices = <MarketPrice>[];
-          for (final name in Entities.indicesUS) {
-            final match = indices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) usIndices.add(match.first);
-          }
-          final europeIndices = <MarketPrice>[];
-          for (final name in Entities.indicesEurope) {
-            final match = indices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) europeIndices.add(match.first);
-          }
-          final japanIndices = <MarketPrice>[];
-          for (final name in Entities.indicesJapan) {
-            final match = indices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) japanIndices.add(match.first);
-          }
+          // Build a lookup map for O(1) access instead of O(n) per name.
+          final indexByAsset = {for (final p in indices) p.asset: p};
+
+          final inIndices = <MarketPrice>[
+            for (final name in Entities.indicesIndia)
+              if (indexByAsset[name] case final p?) p,
+          ];
+          final usIndices = <MarketPrice>[
+            for (final name in Entities.indicesUS)
+              if (indexByAsset[name] case final p?) p,
+          ];
+          final europeIndices = <MarketPrice>[
+            for (final name in Entities.indicesEurope)
+              if (indexByAsset[name] case final p?) p,
+          ];
+          final japanIndices = <MarketPrice>[
+            for (final name in Entities.indicesJapan)
+              if (indexByAsset[name] case final p?) p,
+          ];
 
           if (indices.isEmpty) {
             return const EmptyView(
@@ -239,11 +238,12 @@ class _CurrenciesTab extends ConsumerWidget {
           onRetry: () => ref.invalidate(latestCurrenciesProvider),
         ),
         data: (prices) {
-          final filtered = <MarketPrice>[];
-          for (final name in Entities.fx) {
-            final match = prices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) filtered.add(match.first);
-          }
+          // Build a lookup map for O(1) access instead of O(n) per name.
+          final priceByAsset = {for (final p in prices) p.asset: p};
+          final filtered = <MarketPrice>[
+            for (final name in Entities.fx)
+              if (priceByAsset[name] case final p?) p,
+          ];
           if (filtered.isEmpty) {
             return const EmptyView(
                 message: 'No currency data', icon: Icons.currency_exchange);
@@ -408,13 +408,15 @@ class _CommoditiesTab extends ConsumerWidget {
                 message: 'No commodity data', icon: Icons.diamond_outlined);
           }
 
-          final ordered = <MarketPrice>[];
-          for (final name in Entities.commodities) {
-            final match = prices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) ordered.add(match.first);
-          }
+          // Build a lookup map for O(1) access instead of O(n) per name.
+          final commodityByAsset = {for (final p in prices) p.asset: p};
+          final ordered = <MarketPrice>[
+            for (final name in Entities.commodities)
+              if (commodityByAsset[name] case final p?) p,
+          ];
+          final orderedAssets = {for (final p in ordered) p.asset};
           for (final p in prices) {
-            if (!ordered.any((o) => o.asset == p.asset)) ordered.add(p);
+            if (!orderedAssets.contains(p.asset)) ordered.add(p);
           }
 
           final precious = ordered
@@ -570,13 +572,15 @@ class _BondsTab extends ConsumerWidget {
             return const EmptyView(
                 message: 'No bond data', icon: Icons.account_balance);
           }
-          final ordered = <MarketPrice>[];
-          for (final name in Entities.bonds) {
-            final match = prices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) ordered.add(match.first);
-          }
+          // Build a lookup map for O(1) access instead of O(n) per name.
+          final bondByAsset = {for (final p in prices) p.asset: p};
+          final ordered = <MarketPrice>[
+            for (final name in Entities.bonds)
+              if (bondByAsset[name] case final p?) p,
+          ];
+          final orderedAssets = {for (final p in ordered) p.asset};
           for (final p in prices) {
-            if (!ordered.any((o) => o.asset == p.asset)) ordered.add(p);
+            if (!orderedAssets.contains(p.asset)) ordered.add(p);
           }
 
           final inBonds =
@@ -992,13 +996,15 @@ class _CryptoTab extends ConsumerWidget {
                 message: 'No crypto data', icon: Icons.currency_bitcoin);
           }
 
-          final ordered = <MarketPrice>[];
-          for (final name in Entities.crypto) {
-            final match = prices.where((p) => p.asset == name).toList();
-            if (match.isNotEmpty) ordered.add(match.first);
-          }
+          // Build a lookup map for O(1) access instead of O(n) per name.
+          final cryptoByAsset = {for (final p in prices) p.asset: p};
+          final ordered = <MarketPrice>[
+            for (final name in Entities.crypto)
+              if (cryptoByAsset[name] case final p?) p,
+          ];
+          final orderedAssets = {for (final p in ordered) p.asset};
           for (final p in prices) {
-            if (!ordered.any((o) => o.asset == p.asset)) ordered.add(p);
+            if (!orderedAssets.contains(p.asset)) ordered.add(p);
           }
 
           final layer1 =

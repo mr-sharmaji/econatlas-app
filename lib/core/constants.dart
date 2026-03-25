@@ -106,6 +106,9 @@ class AppConstants {
   static const String prefCacheLatestBonds = 'cache_latest_bonds';
   static const String prefCacheLatestCommodities = 'cache_latest_commodities';
   static const String prefCacheLatestCrypto = 'cache_latest_crypto';
+  static const String prefCacheAssetCatalog = 'cache_asset_catalog';
+  static const String prefCacheAssetCatalogTs = 'cache_asset_catalog_ts';
+  static const String prefCacheWatchlist = 'cache_watchlist';
   static const String prefTaxSalary = 'tax_salary';
   static const String prefTaxDeductions = 'tax_deductions';
   static const String prefTaxRegime = 'tax_regime';

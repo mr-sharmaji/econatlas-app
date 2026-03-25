@@ -42,6 +42,20 @@ class AssetCatalogItem {
         defaultWatchlist: json['default_watchlist'] as bool? ?? false,
         benchmarkAsset: json['benchmark_asset'] as String?,
       );
+
+  Map<String, dynamic> toJson() => {
+        'asset': asset,
+        'instrument_type': instrumentType,
+        'symbol': symbol,
+        'region': region,
+        'exchange': exchange,
+        'session_policy': sessionPolicy,
+        'priority_rank': priorityRank,
+        'tradable_type': tradableType,
+        'unit': unit,
+        'default_watchlist': defaultWatchlist,
+        'benchmark_asset': benchmarkAsset,
+      };
 }
 
 @immutable
@@ -58,4 +72,9 @@ class AssetCatalogResponse {
             .toList(),
         count: json['count'] as int,
       );
+
+  Map<String, dynamic> toJson() => {
+        'assets': assets.map((a) => a.toJson()).toList(),
+        'count': count,
+      };
 }

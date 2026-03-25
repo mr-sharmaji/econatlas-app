@@ -106,7 +106,59 @@ final marketByTypeProvider = FutureProvider.autoDispose
 final assetCatalogProvider =
     FutureProvider.autoDispose<AssetCatalogResponse>((ref) async {
   final ds = ref.watch(remoteDataSourceProvider);
-  return ds.getAssetCatalog();
+  final prefs = ref.watch(sharedPreferencesProvider);
+
+  // Try to load from local cache (24hr TTL).
+  AssetCatalogResponse? loadCached() {
+    final raw = prefs.getString(AppConstants.prefCacheAssetCatalog);
+    final tsStr = prefs.getString(AppConstants.prefCacheAssetCatalogTs);
+    if (raw == null || raw.isEmpty) return null;
+    // Check TTL — 24 hours.
+    if (tsStr != null) {
+      final ts = int.tryParse(tsStr) ?? 0;
+      final age = DateTime.now().millisecondsSinceEpoch - ts;
+      if (age > 24 * 60 * 60 * 1000) return null; // Expired
+    }
+    try {
+      final decoded = jsonDecode(raw) as Map<String, dynamic>;
+      return AssetCatalogResponse.fromJson(decoded);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  final cached = loadCached();
+  if (cached != null) {
+    // Return cached immediately, refresh in background.
+    Future.microtask(() async {
+      try {
+        final fresh = await ds.getAssetCatalog();
+        prefs.setString(
+          AppConstants.prefCacheAssetCatalog,
+          jsonEncode(fresh.toJson()),
+        );
+        prefs.setString(
+          AppConstants.prefCacheAssetCatalogTs,
+          DateTime.now().millisecondsSinceEpoch.toString(),
+        );
+      } catch (_) {
+        // Background refresh failed — cached data still valid.
+      }
+    });
+    return cached;
+  }
+
+  // No cache — fetch from server.
+  final fresh = await ds.getAssetCatalog();
+  prefs.setString(
+    AppConstants.prefCacheAssetCatalog,
+    jsonEncode(fresh.toJson()),
+  );
+  prefs.setString(
+    AppConstants.prefCacheAssetCatalogTs,
+    DateTime.now().millisecondsSinceEpoch.toString(),
+  );
+  return fresh;
 });
 
 final dataHealthProvider =
@@ -124,31 +176,67 @@ final watchlistProvider =
 class WatchlistNotifier extends StateNotifier<AsyncValue<List<String>>> {
   final Ref _ref;
 
+  /// Exposed so the UI can show a snackbar / retry indicator on sync errors.
+  Object? lastSyncError;
+
   WatchlistNotifier(this._ref) : super(const AsyncValue.loading()) {
-    Future.microtask(load);
+    Future.microtask(_loadLocalThenSync);
   }
 
   String get _deviceId => _ref.read(deviceIdProvider);
+
+  /// Load from SharedPreferences first (instant), then sync from server in background.
+  Future<void> _loadLocalThenSync() async {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    final raw = prefs.getString(AppConstants.prefCacheWatchlist);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        final decoded = (jsonDecode(raw) as List<dynamic>).cast<String>();
+        state = AsyncValue.data(decoded);
+      } catch (_) {
+        // Corrupted cache — fall through to server load.
+      }
+    }
+    // Sync from server in background.
+    await load(silent: true);
+  }
 
   Future<void> load({bool silent = false}) async {
     final previous = state.valueOrNull;
     if (!silent || previous == null) {
       state = const AsyncValue.loading();
     }
+    lastSyncError = null;
     final next = await AsyncValue.guard(() async {
       final ds = _ref.read(remoteDataSourceProvider);
       final response = await ds.getWatchlist(deviceId: _deviceId);
       return response.assets;
     });
+    if (next.hasError) {
+      lastSyncError = next.error;
+    }
     if (silent && next.hasError && previous != null) {
       state = AsyncValue.data(previous);
       return;
     }
+    if (next.hasValue) {
+      _persistLocal(next.value!);
+    }
     state = next;
   }
 
+  void _persistLocal(List<String> assets) {
+    try {
+      final prefs = _ref.read(sharedPreferencesProvider);
+      prefs.setString(AppConstants.prefCacheWatchlist, jsonEncode(assets));
+    } catch (_) {
+      // Best-effort local persistence.
+    }
+  }
+
   Future<void> save(List<String> assets) async {
-    state = await AsyncValue.guard(() async {
+    lastSyncError = null;
+    final result = await AsyncValue.guard(() async {
       final ds = _ref.read(remoteDataSourceProvider);
       final response = await ds.putWatchlist(
         deviceId: _deviceId,
@@ -156,6 +244,13 @@ class WatchlistNotifier extends StateNotifier<AsyncValue<List<String>>> {
       );
       return response.assets;
     });
+    if (result.hasError) {
+      lastSyncError = result.error;
+    }
+    if (result.hasValue) {
+      _persistLocal(result.value!);
+    }
+    state = result;
   }
 
   Future<void> toggle(String asset) async {
