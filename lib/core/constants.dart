@@ -109,6 +109,13 @@ class AppConstants {
   static const String prefCacheAssetCatalog = 'cache_asset_catalog';
   static const String prefCacheAssetCatalogTs = 'cache_asset_catalog_ts';
   static const String prefCacheWatchlist = 'cache_watchlist';
+  static const String prefCacheLatestMarketAllTs = 'cache_latest_market_all_ts';
+  static const String prefCacheLatestIndicesTs = 'cache_latest_indices_ts';
+  static const String prefCacheLatestCurrenciesTs = 'cache_latest_currencies_ts';
+  static const String prefCacheLatestBondsTs = 'cache_latest_bonds_ts';
+  static const String prefCacheLatestCommoditiesTs =
+      'cache_latest_commodities_ts';
+  static const String prefCacheLatestCryptoTs = 'cache_latest_crypto_ts';
   static const String prefTaxSalary = 'tax_salary';
   static const String prefTaxDeductions = 'tax_deductions';
   static const String prefTaxRegime = 'tax_regime';

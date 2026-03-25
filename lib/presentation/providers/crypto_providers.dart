@@ -11,9 +11,11 @@ final latestCryptoProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   final prefs = ref.watch(sharedPreferencesProvider);
   final repo = ref.watch(cryptoRepositoryProvider);
+  const cacheKey = AppConstants.prefCacheLatestCrypto;
+  const tsKey = AppConstants.prefCacheLatestCryptoTs;
 
   List<MarketPrice> loadCached() {
-    final raw = prefs.getString(AppConstants.prefCacheLatestCrypto);
+    final raw = prefs.getString(cacheKey);
     if (raw == null || raw.trim().isEmpty) return const <MarketPrice>[];
     try {
       final decoded = jsonDecode(raw) as List<dynamic>;
@@ -25,25 +27,56 @@ final latestCryptoProvider =
     }
   }
 
+  void saveCacheTimestamp() {
+    prefs.setString(
+      tsKey,
+      DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+    );
+  }
+
   if (await isOffline()) {
     final cached = loadCached();
     if (cached.isNotEmpty) return cached;
     throw StateError('No internet connection and no cached crypto data.');
   }
 
+  // Return cached data immediately, then refresh from server in background.
+  final cached = loadCached();
+  if (cached.isNotEmpty) {
+    Future.microtask(() async {
+      try {
+        final response = await repo
+            .getLatestCrypto()
+            .timeout(const Duration(seconds: 8));
+        if (response.prices.isNotEmpty) {
+          prefs.setString(
+            cacheKey,
+            jsonEncode(response.prices.map((e) => e.toJson()).toList()),
+          );
+          saveCacheTimestamp();
+        }
+      } catch (_) {
+        // Background refresh failed — cached data still valid.
+      }
+    });
+    return cached;
+  }
+
+  // No cache — fetch from server.
   try {
     final response =
         await repo.getLatestCrypto().timeout(const Duration(seconds: 8));
     if (response.prices.isNotEmpty) {
       prefs.setString(
-        AppConstants.prefCacheLatestCrypto,
+        cacheKey,
         jsonEncode(response.prices.map((e) => e.toJson()).toList()),
       );
+      saveCacheTimestamp();
     }
     return response.prices;
   } catch (_) {
-    final cached = loadCached();
-    if (cached.isNotEmpty) return cached;
+    final fallback = loadCached();
+    if (fallback.isNotEmpty) return fallback;
     rethrow;
   }
 });

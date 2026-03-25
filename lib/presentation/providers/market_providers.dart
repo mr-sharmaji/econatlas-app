@@ -357,6 +357,50 @@ final marketScoresProvider = FutureProvider<Map<String, String>>((ref) async {
   return remote.getMarketScores();
 });
 
+/// Maps data cache keys to their corresponding timestamp keys.
+const _cacheTimestampKeys = <String, String>{
+  AppConstants.prefCacheLatestMarketAll: AppConstants.prefCacheLatestMarketAllTs,
+  AppConstants.prefCacheLatestIndices: AppConstants.prefCacheLatestIndicesTs,
+  AppConstants.prefCacheLatestCurrencies:
+      AppConstants.prefCacheLatestCurrenciesTs,
+  AppConstants.prefCacheLatestBonds: AppConstants.prefCacheLatestBondsTs,
+  AppConstants.prefCacheLatestCommodities:
+      AppConstants.prefCacheLatestCommoditiesTs,
+  AppConstants.prefCacheLatestCrypto: AppConstants.prefCacheLatestCryptoTs,
+};
+
+/// Provider that exposes the cache timestamp for a given cache key.
+/// Returns null if the cache has never been written or the data came live.
+final cacheTimestampProvider =
+    Provider.family<DateTime?, String>((ref, cacheKey) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final tsKey = _cacheTimestampKeys[cacheKey];
+  if (tsKey == null) return null;
+  final tsStr = prefs.getString(tsKey);
+  if (tsStr == null || tsStr.isEmpty) return null;
+  final ms = int.tryParse(tsStr);
+  if (ms == null) return null;
+  return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true);
+});
+
+/// Whether cached data for [cacheKey] is stale (older than 5 minutes).
+final isCacheStaleProvider = Provider.family<bool, String>((ref, cacheKey) {
+  final cachedAt = ref.watch(cacheTimestampProvider(cacheKey));
+  if (cachedAt == null) return false; // live data or no cache
+  final age = DateTime.now().toUtc().difference(cachedAt);
+  return age.inMinutes >= 5;
+});
+
+/// Whether the most recent load for [cacheKey] was served from cache
+/// (i.e. the server was unreachable).
+final _servedFromCacheKeys = StateProvider.family<bool, String>((ref, _) => false);
+
+/// True when the latest data for [cacheKey] came from local cache, not server.
+final isServedFromCacheProvider =
+    Provider.family<bool, String>((ref, cacheKey) {
+  return ref.watch(_servedFromCacheKeys(cacheKey));
+});
+
 Future<List<MarketPrice>> _loadLatestMarketWithCache(
   Ref ref, {
   required String cacheKey,
@@ -364,6 +408,7 @@ Future<List<MarketPrice>> _loadLatestMarketWithCache(
 }) async {
   final repo = ref.watch(marketRepositoryProvider);
   final prefs = ref.watch(sharedPreferencesProvider);
+  final tsKey = _cacheTimestampKeys[cacheKey];
 
   List<MarketPrice> loadCached() {
     final raw = prefs.getString(cacheKey);
@@ -378,12 +423,58 @@ Future<List<MarketPrice>> _loadLatestMarketWithCache(
     }
   }
 
+  void saveCacheTimestamp() {
+    if (tsKey != null) {
+      prefs.setString(
+        tsKey,
+        DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+      );
+    }
+  }
+
+  void markServedFromCache(bool value) {
+    try {
+      ref.read(_servedFromCacheKeys(cacheKey).notifier).state = value;
+    } catch (_) {
+      // Provider may already be disposed in autoDispose scenarios.
+    }
+  }
+
   if (await isOffline()) {
     final cached = loadCached();
-    if (cached.isNotEmpty) return cached;
+    if (cached.isNotEmpty) {
+      markServedFromCache(true);
+      return cached;
+    }
     throw StateError('No internet connection and no cached market data.');
   }
 
+  // Return cached data immediately, then refresh from server in background.
+  final cached = loadCached();
+  if (cached.isNotEmpty) {
+    // Fire background refresh and return cached data immediately.
+    Future.microtask(() async {
+      try {
+        final response = await repo
+            .getLatestMarketPrices(instrumentType: instrumentType)
+            .timeout(const Duration(seconds: 8));
+        if (response.prices.isNotEmpty) {
+          prefs.setString(
+            cacheKey,
+            jsonEncode(response.prices.map((e) => e.toJson()).toList()),
+          );
+          saveCacheTimestamp();
+          markServedFromCache(false);
+        }
+      } catch (_) {
+        // Background refresh failed — cached data still valid.
+      }
+    });
+    markServedFromCache(true);
+    return cached;
+  }
+
+  // No cache — fetch from server.
   try {
     final response = await repo
         .getLatestMarketPrices(instrumentType: instrumentType)
@@ -393,11 +484,16 @@ Future<List<MarketPrice>> _loadLatestMarketWithCache(
         cacheKey,
         jsonEncode(response.prices.map((e) => e.toJson()).toList()),
       );
+      saveCacheTimestamp();
     }
+    markServedFromCache(false);
     return response.prices;
   } catch (_) {
-    final cached = loadCached();
-    if (cached.isNotEmpty) return cached;
+    final fallback = loadCached();
+    if (fallback.isNotEmpty) {
+      markServedFromCache(true);
+      return fallback;
+    }
     rethrow;
   }
 }
