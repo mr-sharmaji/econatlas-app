@@ -75,7 +75,9 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen> {
           ref.invalidate(ipoListProvider('upcoming'));
           ref.invalidate(ipoListProvider('closed'));
           ref.invalidate(ipoAlertsProvider);
-          await ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]);
+          await ref
+              .read(latestMarketPricesProvider.future)
+              .catchError((_) => <MarketPrice>[]);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -421,7 +423,7 @@ class _InstitutionalFlowSection extends StatelessWidget {
                 // 30-day bar chart
                 if (trend.length >= 2)
                   SizedBox(
-                    height: 100,
+                    height: 112,
                     child: _flowBarChart(context, trend),
                   ),
                 // Legend
@@ -448,9 +450,8 @@ class _InstitutionalFlowSection extends StatelessWidget {
   Widget _flowChip(BuildContext context, String label, double? value) {
     final theme = Theme.of(context);
     final color = (value ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-    final formatted = value != null
-        ? '₹${Formatters.fullPrice(value)} Cr'
-        : 'N/A';
+    final formatted =
+        value != null ? '₹${Formatters.fullPrice(value)} Cr' : 'N/A';
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
@@ -563,22 +564,57 @@ class _InstitutionalFlowSection extends StatelessWidget {
           horizontalInterval: maxAbs,
           getDrawingHorizontalLine: (value) {
             if (value == 0) {
-              return FlLine(
+              return const FlLine(
                 color: Colors.white24,
                 strokeWidth: 0.8,
               );
             }
-            return FlLine(color: Colors.transparent);
+            return const FlLine(color: Colors.transparent);
           },
         ),
         titlesData: FlTitlesData(
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles:
+              const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          leftTitles: AxisTitles(
+            axisNameWidget: const Text(
+              '₹ Cr',
+              style: TextStyle(
+                color: Colors.white38,
+                fontSize: 9,
+              ),
+            ),
+            axisNameSize: 14,
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 42,
+              interval: maxAbs,
+              getTitlesWidget: (value, meta) {
+                final show = value.abs() < 0.001 ||
+                    (value - maxAbs).abs() < 0.001 ||
+                    (value + maxAbs).abs() < 0.001;
+                if (!show) return const SizedBox.shrink();
+                final label =
+                    value.abs() < 0.001 ? '0' : Formatters.compactNumber(value);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 4),
+                  child: Text(
+                    label,
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 9,
+                    ),
+                    textAlign: TextAlign.right,
+                  ),
+                );
+              },
+            ),
+          ),
           bottomTitles: AxisTitles(
             sideTitles: SideTitles(
               showTitles: true,
-              reservedSize: 16,
+              reservedSize: 22,
               getTitlesWidget: (value, meta) {
                 final idx = value.toInt();
                 if (idx < 0 || idx >= trend.length) {
@@ -594,7 +630,7 @@ class _InstitutionalFlowSection extends StatelessWidget {
                 return Padding(
                   padding: const EdgeInsets.only(top: 4),
                   child: Text(
-                    '${d.day}/${d.month}',
+                    Formatters.chartAxisDate(d, isShortRange: true),
                     style: const TextStyle(
                       color: Colors.white38,
                       fontSize: 9,
@@ -608,7 +644,8 @@ class _InstitutionalFlowSection extends StatelessWidget {
         borderData: FlBorderData(show: false),
         barTouchData: BarTouchData(
           touchTooltipData: BarTouchTooltipData(
-            tooltipPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            tooltipPadding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             tooltipMargin: 4,
             getTooltipItem: (group, groupIndex, rod, rodIndex) {
               final label = rodIndex == 0 ? 'FII' : 'DII';
