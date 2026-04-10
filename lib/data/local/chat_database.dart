@@ -10,7 +10,7 @@ import '../datasources/artha_data_source.dart';
 class ChatLocalDatabase {
   static Database? _db;
   static const _dbName = 'artha_chat.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 2;
 
   static Future<Database> get database async {
     _db ??= await _initDb();
@@ -40,6 +40,7 @@ class ChatLocalDatabase {
             session_id TEXT NOT NULL,
             role TEXT NOT NULL,
             content TEXT NOT NULL,
+            thinking_text TEXT,
             stock_cards TEXT,
             mf_cards TEXT,
             feedback INTEGER,
@@ -53,6 +54,17 @@ class ChatLocalDatabase {
         await db.execute(
           'CREATE INDEX idx_sessions_device ON chat_sessions(device_id)',
         );
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          try {
+            await db.execute(
+              'ALTER TABLE chat_messages ADD COLUMN thinking_text TEXT',
+            );
+          } catch (_) {
+            // Ignore duplicate-column upgrades on dev/test builds.
+          }
+        }
       },
     );
   }
@@ -86,19 +98,22 @@ class ChatLocalDatabase {
       orderBy: 'updated_at DESC',
       limit: 50,
     );
-    return rows.map((r) => ChatSession(
-      id: r['id'] as String,
-      deviceId: r['device_id'] as String,
-      title: r['title'] as String?,
-      createdAt: DateTime.parse(r['created_at'] as String),
-      updatedAt: DateTime.parse(r['updated_at'] as String),
-      messageCount: (r['message_count'] as int?) ?? 0,
-    )).toList();
+    return rows
+        .map((r) => ChatSession(
+              id: r['id'] as String,
+              deviceId: r['device_id'] as String,
+              title: r['title'] as String?,
+              createdAt: DateTime.parse(r['created_at'] as String),
+              updatedAt: DateTime.parse(r['updated_at'] as String),
+              messageCount: (r['message_count'] as int?) ?? 0,
+            ))
+        .toList();
   }
 
   static Future<void> deleteSession(String sessionId) async {
     final db = await database;
-    await db.delete('chat_messages', where: 'session_id = ?', whereArgs: [sessionId]);
+    await db.delete('chat_messages',
+        where: 'session_id = ?', whereArgs: [sessionId]);
     await db.delete('chat_sessions', where: 'id = ?', whereArgs: [sessionId]);
   }
 
@@ -115,7 +130,9 @@ class ChatLocalDatabase {
         'session_id': msg.sessionId,
         'role': msg.role,
         'content': msg.content,
-        'stock_cards': msg.stockCards.isNotEmpty ? jsonEncode(msg.stockCards) : null,
+        'thinking_text': msg.thinkingText,
+        'stock_cards':
+            msg.stockCards.isNotEmpty ? jsonEncode(msg.stockCards) : null,
         'mf_cards': msg.mfCards.isNotEmpty ? jsonEncode(msg.mfCards) : null,
         'feedback': msg.feedback,
         'created_at': msg.createdAt.toIso8601String(),
@@ -150,6 +167,7 @@ class ChatLocalDatabase {
         sessionId: r['session_id'] as String,
         role: r['role'] as String,
         content: r['content'] as String,
+        thinkingText: r['thinking_text'] as String?,
         stockCards: stockCards,
         mfCards: mfCards,
         feedback: r['feedback'] as int?,
