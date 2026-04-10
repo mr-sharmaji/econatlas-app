@@ -577,16 +577,19 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   }
 
   Widget _buildWelcomeView() {
+    // Single source of truth: the /chat/greeting response already
+    // contains the suggestions, so we don't separately watch
+    // arthaSuggestionsProvider here — that would double-hit the LLM.
     final greetingAsync = ref.watch(arthaGreetingProvider);
-    final suggestionsAsync = ref.watch(arthaSuggestionsProvider);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         children: [
-          const SizedBox(height: 40),
-          const Text('✨', style: TextStyle(fontSize: 56)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 32),
+          // Centered app logo with a subtle gradient backdrop.
+          _buildLogo(),
+          const SizedBox(height: 20),
           greetingAsync.when(
             loading: () => _buildGreetingShimmer(),
             error: (_, __) => const Text(
@@ -606,15 +609,77 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             ),
           ),
           const SizedBox(height: 32),
-          suggestionsAsync.when(
-            loading: () => const SizedBox.shrink(),
+          greetingAsync.when(
+            loading: () => _buildSuggestionsShimmer(),
             error: (_, __) => const SizedBox.shrink(),
-            data: (suggestions) => SuggestionChips(
-              suggestions: suggestions,
-              onTap: _onSuggestionTap,
-            ),
+            data: (data) {
+              final raw = data['suggestions'] as List<dynamic>? ?? const [];
+              final suggestions = raw.map((e) => e.toString()).toList();
+              if (suggestions.isEmpty) return const SizedBox.shrink();
+              return SuggestionChips(
+                suggestions: suggestions,
+                onTap: _onSuggestionTap,
+              );
+            },
           ),
         ],
+      ),
+    );
+  }
+
+  /// Centered logo used on the Artha welcome screen. Uses the bundled
+  /// app_icon.png asset inside a subtle gradient ring.
+  Widget _buildLogo() {
+    return Container(
+      width: 96,
+      height: 96,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: RadialGradient(
+          colors: [
+            AppTheme.accentBlue.withValues(alpha: 0.25),
+            AppTheme.accentBlue.withValues(alpha: 0.02),
+          ],
+        ),
+        border: Border.all(
+          color: AppTheme.accentBlue.withValues(alpha: 0.3),
+          width: 1.5,
+        ),
+      ),
+      padding: const EdgeInsets.all(18),
+      child: Image.asset(
+        'assets/app_icon.png',
+        fit: BoxFit.contain,
+        errorBuilder: (_, __, ___) => const Text(
+          '✨',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 44),
+        ),
+      ),
+    );
+  }
+
+  /// Shimmer placeholder for the suggestion card stack. Matches the
+  /// new full-width multi-line layout so the welcome screen doesn't
+  /// visually "jump" when suggestions finish loading.
+  Widget _buildSuggestionsShimmer() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFF21262D),
+      highlightColor: const Color(0xFF30363D),
+      child: Column(
+        children: List.generate(
+          4,
+          (i) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

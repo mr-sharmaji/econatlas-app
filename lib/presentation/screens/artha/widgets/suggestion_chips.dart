@@ -5,18 +5,20 @@ import '../../../../core/theme.dart';
 /// Dynamic suggested prompt chips with staggered slide-up animation.
 ///
 /// Two layouts are supported:
-///   * `SuggestionChips.wrap` (default) — multi-line `Wrap`, used for
-///     the welcome screen where space is abundant.
-///   * `SuggestionChips.horizontal` — single horizontally-scrollable row,
-///     used for follow-up suggestions under a chat message so they never
-///     take more than ~48px vertical space regardless of how long each
-///     suggestion is.
+///   * `SuggestionChips` (default) — vertical list of full-width cards
+///     with wrapping text. Used for the welcome screen where each
+///     suggestion is shown in its entirety, no truncation.
+///   * `SuggestionChips.horizontal` — single horizontally-scrollable
+///     row of compact single-line chips. Used for follow-up
+///     suggestions under a chat message so they never take more than
+///     ~48px vertical space regardless of chip count or length.
 class SuggestionChips extends StatefulWidget {
   final List<String> suggestions;
   final void Function(String) onTap;
 
-  /// If true, chips lay out in a single horizontally-scrollable row.
-  /// If false (default), chips wrap across multiple lines.
+  /// If true, chips lay out in a single horizontally-scrollable row
+  /// with single-line truncation-free text. If false (default), chips
+  /// are full-width stacked cards with wrapping text.
   final bool horizontal;
 
   const SuggestionChips({
@@ -101,26 +103,31 @@ class _SuggestionChipsState extends State<SuggestionChips>
     if (widget.horizontal) {
       return _buildHorizontal();
     }
-    return _buildWrap();
+    return _buildStackedCards();
   }
 
-  Widget _buildWrap() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
+  /// Welcome-screen layout: vertical stack of full-width cards with
+  /// wrapping text. No truncation — long suggestions wrap to multiple
+  /// lines and the card expands vertically.
+  Widget _buildStackedCards() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: List.generate(widget.suggestions.length, (i) {
-        return SlideTransition(
-          position: _slideAnimations[i],
-          child: FadeTransition(
-            opacity: _fadeAnimations[i],
-            child: _chip(context, widget.suggestions[i]),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: SlideTransition(
+            position: _slideAnimations[i],
+            child: FadeTransition(
+              opacity: _fadeAnimations[i],
+              child: _fullWidthCard(context, widget.suggestions[i]),
+            ),
           ),
         );
       }),
     );
   }
 
+  /// Follow-up layout: horizontally scrollable single-line chips.
   Widget _buildHorizontal() {
     return SizedBox(
       height: 40,
@@ -133,21 +140,71 @@ class _SuggestionChipsState extends State<SuggestionChips>
           position: _slideAnimations[i],
           child: FadeTransition(
             opacity: _fadeAnimations[i],
-            child: _chip(context, widget.suggestions[i], compact: true),
+            child: _compactChip(context, widget.suggestions[i]),
           ),
         ),
       ),
     );
   }
 
-  Widget _chip(BuildContext context, String text, {bool compact = false}) {
+  /// Full-width card used for welcome-screen stacked layout. Text wraps
+  /// across lines instead of being truncated, and a leading icon hints
+  /// that the card is tappable.
+  Widget _fullWidthCard(BuildContext context, String text) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onTap(text),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppTheme.cardDark,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: AppTheme.accentBlue.withValues(alpha: 0.22),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.auto_awesome,
+                size: 16,
+                color: AppTheme.accentBlue.withValues(alpha: 0.7),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  text,
+                  softWrap: true,
+                  style: TextStyle(
+                    color: AppTheme.accentBlue.withValues(alpha: 0.9),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 12,
+                color: AppTheme.accentBlue.withValues(alpha: 0.35),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Compact chip used for horizontal follow-up layout.
+  Widget _compactChip(BuildContext context, String text) {
     return GestureDetector(
       onTap: () => widget.onTap(text),
       child: Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: compact ? 14 : 16,
-          vertical: compact ? 8 : 10,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(20),
