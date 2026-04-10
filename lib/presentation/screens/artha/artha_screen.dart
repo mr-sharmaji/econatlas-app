@@ -499,9 +499,14 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         ),
         if (chatState.thinkingStatus != null && chatState.isLoading)
           ThinkingIndicator(status: chatState.thinkingStatus!),
+        // Retry banner — shown when the last stream aborted. Tapping
+        // re-sends the last user message in the same session.
+        if (chatState.lastResponseFailed && !chatState.isLoading)
+          _buildRetryBanner(chatState),
         // Follow-up suggestion chips from LLM — horizontal scroll so they
         // never occupy more than ~48px vertical regardless of count/length.
         if (!chatState.isLoading &&
+            !chatState.lastResponseFailed &&
             chatState.messages.isNotEmpty &&
             chatState.messages.last.role == 'assistant' &&
             chatState.followUpSuggestions.isNotEmpty)
@@ -626,6 +631,82 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     );
   }
 
+  /// Retry banner shown above the input bar when the last stream aborted.
+  /// Tapping fires retryLastMessage() which re-sends the last user text.
+  Widget _buildRetryBanner(ArthaChatState chatState) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () =>
+              ref.read(arthaChatProvider.notifier).retryLastMessage(),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.accentRed.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppTheme.accentRed.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 18,
+                  color: AppTheme.accentRed,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    chatState.error ?? 'Something went wrong',
+                    style: TextStyle(
+                      color: AppTheme.accentRed.withValues(alpha: 0.95),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accentRed.withValues(alpha: 0.25),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.refresh,
+                        size: 14,
+                        color: AppTheme.accentRed,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Retry',
+                        style: TextStyle(
+                          color: AppTheme.accentRed,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   /// Shimmer placeholder for the suggestion card stack. Matches the
   /// new full-width multi-line layout so the welcome screen doesn't
   /// visually "jump" when suggestions finish loading.
@@ -738,8 +819,13 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   }
 
   Widget _buildInputBar(ArthaChatState chatState) {
-    final hasText = _controller.text.trim().isNotEmpty;
-
+    // CRITICAL: do NOT call setState() on every keystroke here. The
+    // old code did `onChanged: (_) => setState(() {})` which rebuilt
+    // the entire Artha screen (including the welcome view's suggestion
+    // cards) on every letter typed, causing the animated chips to
+    // flicker/reload. Instead, we use ValueListenableBuilder against
+    // the TextEditingController so only the send button + mic icon
+    // rebuild when text changes — nothing else.
     return Container(
       padding: EdgeInsets.only(
         left: 12,
@@ -797,56 +883,72 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                     width: 1.5,
                   ),
                 ),
-                suffixIcon: hasText
-                    ? null
-                    : GestureDetector(
-                        onTap: _speechAvailable ? _toggleVoiceInput : null,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: Icon(
-                            _isListening ? Icons.mic : Icons.mic_none,
-                            color: _isListening
-                                ? AppTheme.accentBlue
-                                : _speechAvailable
-                                    ? Colors.white38
-                                    : Colors.white12,
-                            size: 22,
-                          ),
+                // Mic icon: rebuild only when text state changes from
+                // empty→non-empty or vice versa, via ValueListenableBuilder.
+                suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _controller,
+                  builder: (context, value, _) {
+                    final hasText = value.text.trim().isNotEmpty;
+                    if (hasText) return const SizedBox.shrink();
+                    return GestureDetector(
+                      onTap: _speechAvailable ? _toggleVoiceInput : null,
+                      child: Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening
+                              ? AppTheme.accentBlue
+                              : _speechAvailable
+                                  ? Colors.white38
+                                  : Colors.white12,
+                          size: 22,
                         ),
                       ),
+                    );
+                  },
+                ),
               ),
               onSubmitted: (_) => _sendMessage(),
-              onChanged: (_) => setState(() {}),
+              // Intentionally NO onChanged setState — see class docstring
+              // on _buildInputBar for why.
             ),
           ),
           const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(
-              gradient: chatState.isLoading || !hasText
-                  ? null
-                  : LinearGradient(
-                      colors: [
-                        AppTheme.accentBlue,
-                        AppTheme.accentBlue.withValues(alpha: 0.7),
-                      ],
-                    ),
-              color: chatState.isLoading || !hasText ? Colors.white10 : null,
-              shape: BoxShape.circle,
-            ),
-            child: IconButton(
-              icon: chatState.isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white54,
-                      ),
-                    )
-                  : const Icon(Icons.arrow_upward, size: 22),
-              color: Colors.white,
-              onPressed: chatState.isLoading || !hasText ? null : _sendMessage,
-            ),
+          // Send button rebuilds only when text value changes.
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) {
+              final hasText = value.text.trim().isNotEmpty;
+              final disabled = chatState.isLoading || !hasText;
+              return Container(
+                decoration: BoxDecoration(
+                  gradient: disabled
+                      ? null
+                      : LinearGradient(
+                          colors: [
+                            AppTheme.accentBlue,
+                            AppTheme.accentBlue.withValues(alpha: 0.7),
+                          ],
+                        ),
+                  color: disabled ? Colors.white10 : null,
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: chatState.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white54,
+                          ),
+                        )
+                      : const Icon(Icons.arrow_upward, size: 22),
+                  color: Colors.white,
+                  onPressed: disabled ? null : _sendMessage,
+                ),
+              );
+            },
           ),
         ],
       ),

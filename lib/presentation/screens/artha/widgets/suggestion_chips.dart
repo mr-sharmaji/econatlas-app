@@ -54,10 +54,23 @@ class _SuggestionChipsState extends State<SuggestionChips>
   @override
   void didUpdateWidget(SuggestionChips oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.suggestions != widget.suggestions) {
+    // Compare by CONTENT, not reference. Parent widgets often rebuild
+    // and pass a fresh list with the same items — without this check
+    // the chip animations would re-trigger on every keystroke, causing
+    // a visible flicker/reload effect on the welcome screen.
+    if (!_listEqual(oldWidget.suggestions, widget.suggestions)) {
       _disposeAnimations();
       _initAnimations();
     }
+  }
+
+  static bool _listEqual(List<String> a, List<String> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (int i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   void _initAnimations() {

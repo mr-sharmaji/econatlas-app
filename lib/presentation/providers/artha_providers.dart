@@ -42,6 +42,13 @@ class ArthaChatState {
   final String? thinkingStatus;
   final String? error;
   final List<String> followUpSuggestions;
+  // The last user message text — kept so we can retry it if the
+  // assistant response fails mid-stream.
+  final String? lastUserMessage;
+  // True when the last assistant message is a failure placeholder
+  // (stream aborted, backend error). The UI shows a retry affordance
+  // on that message bubble while this is true.
+  final bool lastResponseFailed;
 
   const ArthaChatState({
     this.sessionId,
@@ -50,6 +57,8 @@ class ArthaChatState {
     this.thinkingStatus,
     this.error,
     this.followUpSuggestions = const [],
+    this.lastUserMessage,
+    this.lastResponseFailed = false,
   });
 
   ArthaChatState copyWith({
@@ -59,6 +68,8 @@ class ArthaChatState {
     String? thinkingStatus,
     String? error,
     List<String>? followUpSuggestions,
+    String? lastUserMessage,
+    bool? lastResponseFailed,
   }) {
     return ArthaChatState(
       sessionId: sessionId ?? this.sessionId,
@@ -67,6 +78,8 @@ class ArthaChatState {
       thinkingStatus: thinkingStatus,
       error: error,
       followUpSuggestions: followUpSuggestions ?? this.followUpSuggestions,
+      lastUserMessage: lastUserMessage ?? this.lastUserMessage,
+      lastResponseFailed: lastResponseFailed ?? this.lastResponseFailed,
     );
   }
 }
@@ -133,6 +146,8 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       isLoading: true,
       thinkingStatus: 'Artha is thinking...',
       followUpSuggestions: [],
+      lastUserMessage: text.trim(),
+      lastResponseFailed: false,
     );
 
     try {
@@ -204,6 +219,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               state = state.copyWith(
                 isLoading: false,
                 error: errorMsg,
+                lastResponseFailed: true,
               );
               break;
           }
@@ -214,6 +230,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
           state = state.copyWith(
             isLoading: false,
             error: 'Connection error.',
+            lastResponseFailed: true,
           );
         },
         onDone: () {
@@ -228,8 +245,36 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       state = state.copyWith(
         isLoading: false,
         error: 'Connection failed.',
+        lastResponseFailed: true,
       );
     }
+  }
+
+  /// Resend the last user message in the same session. Used by the
+  /// "retry" affordance on a failed assistant bubble. Removes the
+  /// failed assistant placeholder from the messages list before
+  /// re-invoking sendMessage so the user sees a fresh thinking spinner.
+  Future<void> retryLastMessage() async {
+    final text = state.lastUserMessage;
+    if (text == null || text.isEmpty) return;
+    if (state.isLoading) return;
+
+    // Drop the most recent assistant failure placeholder AND the
+    // matching user bubble — sendMessage re-adds them fresh.
+    final msgs = [...state.messages];
+    while (msgs.isNotEmpty && msgs.last.role == 'assistant') {
+      msgs.removeLast();
+    }
+    while (msgs.isNotEmpty && msgs.last.role == 'user') {
+      msgs.removeLast();
+      break;
+    }
+    state = state.copyWith(
+      messages: msgs,
+      lastResponseFailed: false,
+      error: null,
+    );
+    await sendMessage(text);
   }
 
   void _updateAssistantMessage(
