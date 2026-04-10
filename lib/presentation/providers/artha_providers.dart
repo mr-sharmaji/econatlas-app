@@ -158,6 +158,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       );
 
       String fullContent = '';
+      String fullThinking = '';
       String? finalSessionId = state.sessionId;
       String? finalMessageId;
       final stockCards = <Map<String, dynamic>>[];
@@ -170,6 +171,17 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               state = state.copyWith(
                 thinkingStatus: event.data['status'] as String?,
               );
+              break;
+
+            case ArthaEventType.thinkingText:
+              // Live reasoning chunk — accumulate on the in-flight
+              // assistant message. Rendered as a collapsible pill above
+              // the answer bubble.
+              final chunk = event.data['text'] as String? ?? '';
+              if (chunk.isNotEmpty) {
+                fullThinking += chunk;
+                _updateAssistantThinking(fullThinking);
+              }
               break;
 
             case ArthaEventType.token:
@@ -277,6 +289,18 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
     await sendMessage(text);
   }
 
+  /// Accumulate live reasoning chunks onto the current streaming
+  /// assistant message. Called on each [ArthaEventType.thinkingText]
+  /// event. The thinking text is shown in a collapsible pill above
+  /// the answer bubble.
+  void _updateAssistantThinking(String thinkingText) {
+    final msgs = [...state.messages];
+    if (msgs.isNotEmpty && msgs.last.role == 'assistant') {
+      msgs.last.thinkingText = thinkingText;
+    }
+    state = state.copyWith(messages: msgs);
+  }
+
   void _updateAssistantMessage(
     String content,
     List<Map<String, dynamic>> stockCards,
@@ -296,6 +320,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
           sessionId: last.sessionId,
           role: 'assistant',
           content: content,
+          thinkingText: last.thinkingText,  // preserve accumulated thinking
           stockCards: stockCards,
           mfCards: mfCards,
           createdAt: last.createdAt,

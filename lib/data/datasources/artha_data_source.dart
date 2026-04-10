@@ -4,7 +4,16 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 /// SSE event types from the Artha chat backend.
-enum ArthaEventType { thinking, token, stockCard, mfCard, suggestions, done, error }
+enum ArthaEventType {
+  thinking,       // status pings ("Artha is thinking...", "Querying data...")
+  thinkingText,   // live content of the <thinking>...</thinking> reasoning block
+  token,          // answer text chunks
+  stockCard,
+  mfCard,
+  suggestions,
+  done,
+  error,
+}
 
 /// A single SSE event from the chat stream.
 class ArthaEvent {
@@ -48,6 +57,11 @@ class ChatMessage {
   final String sessionId;
   final String role; // 'user' or 'assistant'
   String content;
+  // Live-streamed reasoning from <thinking>...</thinking>. Displayed in a
+  // collapsible pill above the answer bubble — not part of the main
+  // content. Null for user messages and for old messages that pre-date
+  // the thinking channel.
+  String? thinkingText;
   final List<Map<String, dynamic>> stockCards;
   final List<Map<String, dynamic>> mfCards;
   int? feedback;
@@ -61,6 +75,7 @@ class ChatMessage {
     required this.sessionId,
     required this.role,
     required this.content,
+    this.thinkingText,
     this.stockCards = const [],
     this.mfCards = const [],
     this.feedback,
@@ -73,6 +88,7 @@ class ChatMessage {
         sessionId: json['session_id'] as String,
         role: json['role'] as String,
         content: json['content'] as String,
+        thinkingText: json['thinking_text'] as String?,
         stockCards: (json['stock_cards'] as List<dynamic>?)
                 ?.map((e) => Map<String, dynamic>.from(e as Map))
                 .toList() ??
@@ -165,6 +181,7 @@ class ArthaDataSource {
             final data = json.decode(eventData) as Map<String, dynamic>;
             final type = switch (eventType) {
               'thinking' => ArthaEventType.thinking,
+              'thinking_text' => ArthaEventType.thinkingText,
               'token' => ArthaEventType.token,
               'stock_card' => ArthaEventType.stockCard,
               'mf_card' => ArthaEventType.mfCard,

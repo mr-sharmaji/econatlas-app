@@ -11,7 +11,7 @@ import 'package:markdown/markdown.dart' as md;
 import '../../../../core/theme.dart';
 import '../../../../data/datasources/artha_data_source.dart';
 
-class ChatBubble extends StatelessWidget {
+class ChatBubble extends StatefulWidget {
   final ChatMessage message;
   final void Function(int feedback)? onFeedback;
   final VoidCallback? onShare;
@@ -24,8 +24,28 @@ class ChatBubble extends StatelessWidget {
   });
 
   @override
+  State<ChatBubble> createState() => _ChatBubbleState();
+}
+
+class _ChatBubbleState extends State<ChatBubble> {
+  bool _thinkingExpanded = false;
+
+  ChatMessage get message => widget.message;
+  VoidCallback? get onShare => widget.onShare;
+  void Function(int feedback)? get onFeedback => widget.onFeedback;
+
+  @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
+    final hasThinking = !isUser &&
+        (message.thinkingText?.isNotEmpty ?? false);
+    // Auto-expand the thinking pill while the message is streaming so
+    // the user can watch the reasoning live. Collapse it automatically
+    // once the final answer starts flowing in (content > 0).
+    final autoExpand = message.isStreaming &&
+        hasThinking &&
+        (message.content.isEmpty);
+    final showThinkingBody = _thinkingExpanded || autoExpand;
 
     return Padding(
       padding: EdgeInsets.only(
@@ -56,6 +76,10 @@ class ChatBubble extends StatelessWidget {
                 ],
               ),
             ),
+          // Collapsible "Thinking" pill — shown above the answer bubble
+          // whenever we have reasoning content for this message.
+          if (hasThinking)
+            _buildThinkingPill(context, showThinkingBody),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -282,11 +306,107 @@ class ChatBubble extends StatelessWidget {
   Widget _buildStreamingCursor() {
     return const _BlinkingCursor();
   }
+
+  /// Collapsible pill shown above the assistant bubble. While the
+  /// message is still streaming and has no content yet, the pill is
+  /// auto-expanded so the user can watch the reasoning flow live.
+  /// Once the actual answer starts, the pill auto-collapses to a
+  /// small tappable chip.
+  Widget _buildThinkingPill(BuildContext context, bool expanded) {
+    final thinking = message.thinkingText ?? "";
+    final isLive = message.isStreaming && message.content.isEmpty;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceDark.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: AppTheme.accentBlue.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: () {
+            setState(() => _thinkingExpanded = !_thinkingExpanded);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Pill header row
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (isLive) ...[
+                      _PulseDot(
+                        delay: Duration.zero,
+                        color: AppTheme.accentBlue,
+                      ),
+                      const SizedBox(width: 6),
+                    ] else
+                      Icon(
+                        Icons.psychology_outlined,
+                        size: 14,
+                        color: AppTheme.accentBlue.withValues(alpha: 0.8),
+                      ),
+                    const SizedBox(width: 6),
+                    Text(
+                      isLive ? 'Thinking…' : 'Reasoning',
+                      style: TextStyle(
+                        color: AppTheme.accentBlue.withValues(alpha: 0.85),
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Icon(
+                      expanded
+                          ? Icons.keyboard_arrow_up_rounded
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 16,
+                      color: AppTheme.accentBlue.withValues(alpha: 0.6),
+                    ),
+                  ],
+                ),
+                // Expanded body — reasoning text
+                if (expanded && thinking.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 240),
+                    child: SingleChildScrollView(
+                      child: SelectableText(
+                        thinking,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12.5,
+                          height: 1.45,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _PulseDot extends StatefulWidget {
   final Duration delay;
-  const _PulseDot({required this.delay});
+  final Color? color;
+  const _PulseDot({required this.delay, this.color});
 
   @override
   State<_PulseDot> createState() => _PulseDotState();
@@ -326,7 +446,7 @@ class _PulseDotState extends State<_PulseDot>
         width: 6,
         height: 6,
         decoration: BoxDecoration(
-          color: AppTheme.accentBlue,
+          color: widget.color ?? AppTheme.accentBlue,
           shape: BoxShape.circle,
         ),
       ),
