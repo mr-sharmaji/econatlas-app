@@ -18,11 +18,12 @@ final arthaGreetingProvider =
   return ds.getGreeting();
 });
 
-/// Suggestions provider.
+/// Suggestions provider — passes device_id for watchlist-aware suggestions.
 final arthaSuggestionsProvider =
     FutureProvider.autoDispose<List<String>>((ref) async {
   final ds = ref.read(arthaDataSourceProvider);
-  return ds.getSuggestions();
+  final deviceId = ref.read(deviceIdProvider);
+  return ds.getSuggestions(deviceId: deviceId);
 });
 
 /// Sessions list provider.
@@ -40,6 +41,7 @@ class ArthaChatState {
   final bool isLoading;
   final String? thinkingStatus;
   final String? error;
+  final List<String> followUpSuggestions;
 
   const ArthaChatState({
     this.sessionId,
@@ -47,6 +49,7 @@ class ArthaChatState {
     this.isLoading = false,
     this.thinkingStatus,
     this.error,
+    this.followUpSuggestions = const [],
   });
 
   ArthaChatState copyWith({
@@ -55,6 +58,7 @@ class ArthaChatState {
     bool? isLoading,
     String? thinkingStatus,
     String? error,
+    List<String>? followUpSuggestions,
   }) {
     return ArthaChatState(
       sessionId: sessionId ?? this.sessionId,
@@ -62,6 +66,7 @@ class ArthaChatState {
       isLoading: isLoading ?? this.isLoading,
       thinkingStatus: thinkingStatus,
       error: error,
+      followUpSuggestions: followUpSuggestions ?? this.followUpSuggestions,
     );
   }
 }
@@ -127,6 +132,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       messages: [...state.messages, userMsg, assistantMsg],
       isLoading: true,
       thinkingStatus: 'Artha is thinking...',
+      followUpSuggestions: [],
     );
 
     try {
@@ -164,6 +170,19 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
             case ArthaEventType.mfCard:
               mfCards.add(event.data);
               _updateAssistantMessage(fullContent, stockCards, mfCards, true);
+              break;
+
+            case ArthaEventType.suggestions:
+              final rawSuggestions = event.data['suggestions'] as List<dynamic>?;
+              if (rawSuggestions != null) {
+                state = state.copyWith(
+                  followUpSuggestions: rawSuggestions
+                      .map((e) => e.toString())
+                      .where((s) => s.isNotEmpty)
+                      .take(4)
+                      .toList(),
+                );
+              }
               break;
 
             case ArthaEventType.done:

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme.dart';
+
 /// Mini stock card rendered inside chat messages.
 class StockMiniCard extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -29,8 +31,8 @@ class StockMiniCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFF141829),
-              const Color(0xFF1A1F36).withValues(alpha: 0.8),
+              AppTheme.cardDark,
+              AppTheme.surfaceDark.withValues(alpha: 0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(12),
@@ -43,7 +45,7 @@ class StockMiniCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+                color: AppTheme.accentBlue.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
@@ -100,7 +102,7 @@ class StockMiniCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isPositive ? Colors.green[400] : Colors.red[400],
+                      color: isPositive ? AppTheme.accentGreen : AppTheme.accentRed,
                     ),
                   ),
               ],
@@ -140,8 +142,8 @@ class StockMiniCard extends StatelessWidget {
   }
 
   Color _scoreColor(double score) {
-    if (score >= 70) return Colors.green[400]!;
-    if (score >= 50) return Colors.amber[400]!;
-    return Colors.red[400]!;
+    if (score >= 70) return AppTheme.accentGreen;
+    if (score >= 50) return AppTheme.accentOrange;
+    return AppTheme.accentRed;
   }
 }

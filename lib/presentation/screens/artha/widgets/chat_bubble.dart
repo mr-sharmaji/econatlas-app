@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme.dart';
 import '../../../../data/datasources/artha_data_source.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -51,13 +54,19 @@ class ChatBubble extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               gradient: isUser
-                  ? const LinearGradient(
-                      colors: [Color(0xFF4F46E5), Color(0xFF6366F1)],
+                  ? LinearGradient(
+                      colors: [
+                        AppTheme.accentBlue.withValues(alpha: 0.7),
+                        AppTheme.accentBlue.withValues(alpha: 0.5),
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     )
-                  : const LinearGradient(
-                      colors: [Color(0xFF1A1F36), Color(0xFF1E2440)],
+                  : LinearGradient(
+                      colors: [
+                        AppTheme.cardDark,
+                        AppTheme.surfaceDark,
+                      ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                     ),
@@ -76,13 +85,106 @@ class ChatBubble extends StatelessWidget {
               children: [
                 if (message.content.isEmpty && message.isStreaming)
                   _buildStreamingDots()
-                else
+                else if (isUser)
+                  // User messages: plain text
                   SelectableText(
                     message.content,
                     style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withValues(alpha: 0.95),
                       fontSize: 14.5,
                       height: 1.55,
+                    ),
+                  )
+                else
+                  // Assistant messages: markdown rendered
+                  MarkdownBody(
+                    data: message.content,
+                    selectable: true,
+                    onTapLink: (text, href, title) {
+                      if (href != null && href.startsWith('/discover/stock/')) {
+                        context.push(href);
+                      }
+                    },
+                    styleSheet: MarkdownStyleSheet(
+                      p: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 14.5,
+                        height: 1.6,
+                      ),
+                      strong: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      em: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 14.5,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      listBullet: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        fontSize: 14.5,
+                      ),
+                      h1: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      h2: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      h3: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      code: TextStyle(
+                        color: AppTheme.accentTeal,
+                        fontSize: 13,
+                        backgroundColor: Colors.white.withValues(alpha: 0.06),
+                      ),
+                      codeblockDecoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.04),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.08),
+                        ),
+                      ),
+                      blockquoteDecoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(
+                            color: AppTheme.accentBlue.withValues(alpha: 0.5),
+                            width: 3,
+                          ),
+                        ),
+                      ),
+                      blockquotePadding: const EdgeInsets.only(left: 12),
+                      tableBorder: TableBorder.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        width: 0.5,
+                      ),
+                      tableHead: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      tableBody: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.8),
+                        fontSize: 13,
+                      ),
+                      tableCellsPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      horizontalRuleDecoration: BoxDecoration(
+                        border: Border(
+                          top: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.1),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 if (message.isStreaming && message.content.isNotEmpty)
@@ -146,7 +248,7 @@ class ChatBubble extends StatelessWidget {
         child: Icon(
           isActive ? activeIcon : icon,
           size: 16,
-          color: isActive ? const Color(0xFF6366F1) : Colors.white30,
+          color: isActive ? AppTheme.accentBlue : Colors.white30,
         ),
       ),
     );
@@ -214,8 +316,8 @@ class _PulseDotState extends State<_PulseDot>
       child: Container(
         width: 6,
         height: 6,
-        decoration: const BoxDecoration(
-          color: Color(0xFF6366F1),
+        decoration: BoxDecoration(
+          color: AppTheme.accentBlue,
           shape: BoxShape.circle,
         ),
       ),
@@ -256,7 +358,7 @@ class _BlinkingCursorState extends State<_BlinkingCursor>
       child: Container(
         width: 2,
         height: 14,
-        color: const Color(0xFF6366F1),
+        color: AppTheme.accentBlue,
       ),
     );
   }

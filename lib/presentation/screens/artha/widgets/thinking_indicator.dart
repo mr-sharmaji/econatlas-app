@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme.dart';
+
 /// "Artha is thinking..." pulse animation.
 class ThinkingIndicator extends StatefulWidget {
   final String status;
@@ -47,7 +49,7 @@ class _ThinkingIndicatorState extends State<ThinkingIndicator>
             Text(
               widget.status,
               style: TextStyle(
-                color: const Color(0xFF9CA3F1),
+                color: AppTheme.accentBlue.withValues(alpha: 0.7),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 fontStyle: FontStyle.italic,

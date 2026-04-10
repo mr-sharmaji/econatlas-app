@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import '../../../core/connectivity.dart';
+import '../../../core/theme.dart';
 import '../../../data/datasources/artha_data_source.dart';
 import '../../../data/local/chat_database.dart';
 import '../../providers/artha_providers.dart';
@@ -79,13 +81,10 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   Future<void> _syncLocalHistory() async {
     try {
       final deviceId = ref.read(deviceIdProvider);
-      // Load from server and cache locally
       final ds = ref.read(arthaDataSourceProvider);
       final sessions = await ds.listSessions(deviceId);
       await ChatLocalDatabase.syncFromServer(sessions);
-    } catch (_) {
-      // Silent — local cache still available
-    }
+    } catch (_) {}
   }
 
   void _scrollToBottom() {
@@ -141,21 +140,21 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     }
   }
 
-  // --- Autocomplete ---
+  // --- Autocomplete (triggered by @) ---
   void _onTextChanged() {
     final text = _controller.text;
     final cursorPos = _controller.selection.baseOffset;
 
-    // Check if user just typed '$' or is typing after '$'
     if (cursorPos > 0) {
-      // Find the last '$' before cursor
       final beforeCursor = text.substring(0, cursorPos);
-      final dollarIdx = beforeCursor.lastIndexOf('\$');
-      if (dollarIdx >= 0) {
-        final query = beforeCursor.substring(dollarIdx + 1).trim();
-        if (query.length >= 2) {
+      final atIdx = beforeCursor.lastIndexOf('@');
+      if (atIdx >= 0) {
+        // Make sure there's no whitespace between @ and cursor (so @TCS triggers
+        // but "@ hello world" doesn't keep triggering after the word)
+        final query = beforeCursor.substring(atIdx + 1);
+        if (!query.contains(' ') && !query.contains('\n') && query.length >= 1) {
           _autocompleteDebounce?.cancel();
-          _autocompleteDebounce = Timer(const Duration(milliseconds: 300), () {
+          _autocompleteDebounce = Timer(const Duration(milliseconds: 250), () {
             _fetchAutocomplete(query);
           });
           return;
@@ -181,24 +180,23 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           _showAutocomplete = results.isNotEmpty;
         });
       }
-    } catch (_) {
-      // Silent
-    }
+    } catch (_) {}
   }
 
   void _insertAutocomplete(AutocompleteItem item) {
     final text = _controller.text;
     final cursorPos = _controller.selection.baseOffset;
     final beforeCursor = text.substring(0, cursorPos);
-    final dollarIdx = beforeCursor.lastIndexOf('\$');
-    if (dollarIdx >= 0) {
+    final atIdx = beforeCursor.lastIndexOf('@');
+    if (atIdx >= 0) {
       final name = item.type == 'stock'
           ? (item.symbol ?? item.name)
           : item.name;
-      final newText = text.substring(0, dollarIdx) + name + text.substring(cursorPos);
+      // Replace "@query" with the name and add a trailing space for convenience
+      final newText = text.substring(0, atIdx) + name + ' ' + text.substring(cursorPos);
       _controller.text = newText;
       _controller.selection = TextSelection.fromPosition(
-        TextPosition(offset: dollarIdx + name.length),
+        TextPosition(offset: atIdx + name.length + 1),
       );
     }
     setState(() {
@@ -219,24 +217,22 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           next.isLoading != (prev?.isLoading ?? false)) {
         _scrollToBottom();
       }
-      // Cache completed messages locally
       if (!next.isLoading && prev?.isLoading == true && next.sessionId != null) {
         _cacheMessagesLocally(next);
       }
     });
 
-    // Offline check
     if (_isOffline) {
       return _buildOfflineScreen(theme);
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: AppTheme.scaffoldDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0E1A),
+        backgroundColor: AppTheme.scaffoldDark,
         title: Row(
           children: [
-            const Text('\u2728 ', style: TextStyle(fontSize: 20)),
+            const Text('✨ ', style: TextStyle(fontSize: 20)),
             Text(
               'Artha',
               style: theme.textTheme.titleLarge?.copyWith(
@@ -271,12 +267,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
 
   Widget _buildOfflineScreen(ThemeData theme) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0E1A),
+      backgroundColor: AppTheme.scaffoldDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0E1A),
+        backgroundColor: AppTheme.scaffoldDark,
         title: Row(
           children: [
-            const Text('\u2728 ', style: TextStyle(fontSize: 20)),
+            const Text('✨ ', style: TextStyle(fontSize: 20)),
             Text(
               'Artha',
               style: theme.textTheme.titleLarge?.copyWith(
@@ -316,8 +312,8 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                 icon: const Icon(Icons.refresh, size: 18),
                 label: const Text('Retry'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF6366F1),
-                  side: const BorderSide(color: Color(0xFF6366F1)),
+                  foregroundColor: AppTheme.accentBlue,
+                  side: BorderSide(color: AppTheme.accentBlue),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -333,7 +329,6 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   void _cacheMessagesLocally(ArthaChatState state) async {
     if (state.sessionId == null) return;
     try {
-      // Cache the session
       await ChatLocalDatabase.upsertSession(ChatSession(
         id: state.sessionId!,
         deviceId: ref.read(deviceIdProvider),
@@ -342,15 +337,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         updatedAt: DateTime.now(),
         messageCount: state.messages.length,
       ));
-      // Cache messages
       for (final msg in state.messages) {
         if (!msg.id.startsWith('temp-')) {
           await ChatLocalDatabase.upsertMessage(msg);
         }
       }
-    } catch (_) {
-      // Silent
-    }
+    } catch (_) {}
   }
 
   Widget _buildHistoryView() {
@@ -365,7 +357,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text('\u2728', style: TextStyle(fontSize: 48)),
+                const Text('✨', style: TextStyle(fontSize: 48)),
                 const SizedBox(height: 16),
                 Text(
                   'No conversations yet',
@@ -396,8 +388,8 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
               background: Container(
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.only(right: 16),
-                color: Colors.red.withValues(alpha: 0.3),
-                child: const Icon(Icons.delete, color: Colors.red),
+                color: AppTheme.accentRed.withValues(alpha: 0.3),
+                child: Icon(Icons.delete, color: AppTheme.accentRed),
               ),
               onDismissed: (_) async {
                 final deviceId = ref.read(deviceIdProvider);
@@ -409,12 +401,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                 ref.invalidate(arthaSessionsProvider);
               },
               child: Card(
-                color: const Color(0xFF141829),
+                color: AppTheme.cardDark,
                 margin: const EdgeInsets.only(bottom: 8),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(14)),
                 child: ListTile(
-                  leading: const Text('\u2728', style: TextStyle(fontSize: 24)),
+                  leading: const Text('✨', style: TextStyle(fontSize: 24)),
                   title: Text(
                     session.title ?? 'New chat',
                     maxLines: 1,
@@ -440,7 +432,6 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     );
   }
 
-  /// Fall back to local SQLite when server is unreachable.
   Widget _buildLocalHistoryFallback() {
     return FutureBuilder<List<ChatSession>>(
       future: ChatLocalDatabase.getSessions(ref.read(deviceIdProvider)),
@@ -460,12 +451,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           itemBuilder: (context, index) {
             final session = sessions[index];
             return Card(
-              color: const Color(0xFF141829),
+              color: AppTheme.cardDark,
               margin: const EdgeInsets.only(bottom: 8),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(14)),
               child: ListTile(
-                leading: const Text('\u2728', style: TextStyle(fontSize: 24)),
+                leading: const Text('✨', style: TextStyle(fontSize: 24)),
                 title: Text(
                   session.title ?? 'New chat',
                   maxLines: 1,
@@ -508,30 +499,22 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         ),
         if (chatState.thinkingStatus != null && chatState.isLoading)
           ThinkingIndicator(status: chatState.thinkingStatus!),
-        // Suggestion chips after response
+        // Follow-up suggestion chips from LLM
         if (!chatState.isLoading &&
             chatState.messages.isNotEmpty &&
-            chatState.messages.last.role == 'assistant')
-          _buildFollowUpSuggestions(),
+            chatState.messages.last.role == 'assistant' &&
+            chatState.followUpSuggestions.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            child: SuggestionChips(
+              suggestions: chatState.followUpSuggestions,
+              onTap: _onSuggestionTap,
+            ),
+          ),
         // Autocomplete dropdown
         if (_showAutocomplete) _buildAutocompleteOverlay(),
         _buildInputBar(chatState),
       ],
-    );
-  }
-
-  Widget _buildFollowUpSuggestions() {
-    final suggestionsAsync = ref.watch(arthaSuggestionsProvider);
-    return suggestionsAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (suggestions) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: SuggestionChips(
-          suggestions: suggestions.take(3).toList(),
-          onTap: _onSuggestionTap,
-        ),
-      ),
     );
   }
 
@@ -540,9 +523,9 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       constraints: const BoxConstraints(maxHeight: 200),
       margin: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F36),
+        color: AppTheme.cardDark,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+        border: Border.all(color: AppTheme.accentBlue.withValues(alpha: 0.3)),
       ),
       child: ListView.builder(
         shrinkWrap: true,
@@ -556,8 +539,8 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
               item.type == 'stock' ? Icons.show_chart : Icons.account_balance,
               size: 18,
               color: item.type == 'stock'
-                  ? const Color(0xFF6366F1)
-                  : const Color(0xFF8B5CF6),
+                  ? AppTheme.accentBlue
+                  : AppTheme.accentTeal,
             ),
             title: Text(
               item.name,
@@ -578,10 +561,10 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
                       color: item.score! >= 70
-                          ? Colors.green[400]
+                          ? AppTheme.accentGreen
                           : item.score! >= 50
-                              ? Colors.amber[400]
-                              : Colors.red[400],
+                              ? AppTheme.accentOrange
+                              : AppTheme.accentRed,
                     ),
                   )
                 : null,
@@ -601,18 +584,10 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       child: Column(
         children: [
           const SizedBox(height: 40),
-          const Text('\u2728', style: TextStyle(fontSize: 56)),
+          const Text('✨', style: TextStyle(fontSize: 56)),
           const SizedBox(height: 16),
           greetingAsync.when(
-            loading: () => const Text(
-              'Namaste! I\'m Artha, your market analyst.',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Colors.white70,
-                fontSize: 16,
-                height: 1.5,
-              ),
-            ),
+            loading: () => _buildGreetingShimmer(),
             error: (_, __) => const Text(
               'Namaste! I\'m Artha. Ask me anything about Indian markets.',
               textAlign: TextAlign.center,
@@ -643,6 +618,35 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     );
   }
 
+  /// Shimmer placeholder while greeting loads — prevents "Namaste" flash.
+  Widget _buildGreetingShimmer() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFF21262D),
+      highlightColor: const Color(0xFF30363D),
+      child: Column(
+        children: [
+          Container(
+            width: 260,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: 200,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageList(ArthaChatState chatState) {
     return ListView.builder(
       controller: _scrollController,
@@ -650,49 +654,51 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       itemCount: chatState.messages.length,
       itemBuilder: (context, index) {
         final msg = chatState.messages[index];
-        return Column(
-          crossAxisAlignment: msg.role == 'user'
-              ? CrossAxisAlignment.end
-              : CrossAxisAlignment.start,
-          children: [
-            ChatBubble(
-              message: msg,
-              onFeedback: msg.role == 'assistant' && !msg.isStreaming
-                  ? (feedback) {
-                      ref
-                          .read(arthaChatProvider.notifier)
-                          .submitFeedback(msg.id, feedback);
-                      // Cache feedback locally
-                      ChatLocalDatabase.updateFeedback(msg.id, feedback);
-                    }
-                  : null,
-              onShare: msg.role == 'assistant' &&
-                      !msg.isStreaming &&
-                      msg.content.isNotEmpty
-                  ? () => ShareCardHelper.shareMessage(context, msg)
-                  : null,
-            ),
-            // Stock cards below assistant messages
-            if (msg.role == 'assistant' && msg.stockCards.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, bottom: 8),
-                child: Column(
-                  children: msg.stockCards
-                      .map((card) => StockMiniCard(data: card))
-                      .toList(),
-                ),
+        return _AnimatedMessageEntry(
+          index: index,
+          child: Column(
+            crossAxisAlignment: msg.role == 'user'
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              ChatBubble(
+                message: msg,
+                onFeedback: msg.role == 'assistant' && !msg.isStreaming
+                    ? (feedback) {
+                        ref
+                            .read(arthaChatProvider.notifier)
+                            .submitFeedback(msg.id, feedback);
+                        ChatLocalDatabase.updateFeedback(msg.id, feedback);
+                      }
+                    : null,
+                onShare: msg.role == 'assistant' &&
+                        !msg.isStreaming &&
+                        msg.content.isNotEmpty
+                    ? () => ShareCardHelper.shareMessage(context, msg)
+                    : null,
               ),
-            // MF cards below assistant messages
-            if (msg.role == 'assistant' && msg.mfCards.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, bottom: 8),
-                child: Column(
-                  children: msg.mfCards
-                      .map((card) => MfMiniCard(data: card))
-                      .toList(),
+              // Stock cards below assistant messages
+              if (msg.role == 'assistant' && msg.stockCards.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, bottom: 8),
+                  child: Column(
+                    children: msg.stockCards
+                        .map((card) => StockMiniCard(data: card))
+                        .toList(),
+                  ),
                 ),
-              ),
-          ],
+              // MF cards below assistant messages
+              if (msg.role == 'assistant' && msg.mfCards.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, bottom: 8),
+                  child: Column(
+                    children: msg.mfCards
+                        .map((card) => MfMiniCard(data: card))
+                        .toList(),
+                  ),
+                ),
+            ],
+          ),
         );
       },
     );
@@ -709,7 +715,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         bottom: MediaQuery.of(context).padding.bottom + 8,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F1322),
+        color: AppTheme.cardDark,
         border: Border(
           top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
         ),
@@ -727,38 +733,37 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
               decoration: InputDecoration(
                 hintText: _isListening
                     ? 'Listening...'
-                    : 'Ask Artha anything...',
+                    : 'Ask Artha anything... (@ to mention)',
                 hintStyle: TextStyle(
                   color: _isListening
-                      ? const Color(0xFF6366F1)
+                      ? AppTheme.accentBlue
                       : Colors.white30,
                 ),
                 filled: true,
                 fillColor: _isListening
-                    ? const Color(0xFF6366F1).withValues(alpha: 0.1)
-                    : const Color(0xFF1A1F36),
+                    ? AppTheme.accentBlue.withValues(alpha: 0.1)
+                    : AppTheme.surfaceDark,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: _isListening
-                      ? const BorderSide(color: Color(0xFF6366F1), width: 1.5)
+                      ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
                       : BorderSide.none,
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: _isListening
-                      ? const BorderSide(color: Color(0xFF6366F1), width: 1.5)
+                      ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
                       : BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF6366F1),
+                  borderSide: BorderSide(
+                    color: AppTheme.accentBlue,
                     width: 1.5,
                   ),
                 ),
-                // Mic button inside the text field (when empty)
                 suffixIcon: hasText
                     ? null
                     : GestureDetector(
@@ -768,7 +773,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                           child: Icon(
                             _isListening ? Icons.mic : Icons.mic_none,
                             color: _isListening
-                                ? const Color(0xFF6366F1)
+                                ? AppTheme.accentBlue
                                 : _speechAvailable
                                     ? Colors.white38
                                     : Colors.white12,
@@ -786,8 +791,11 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             decoration: BoxDecoration(
               gradient: chatState.isLoading || !hasText
                   ? null
-                  : const LinearGradient(
-                      colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                  : LinearGradient(
+                      colors: [
+                        AppTheme.accentBlue,
+                        AppTheme.accentBlue.withValues(alpha: 0.7),
+                      ],
                     ),
               color: chatState.isLoading || !hasText ? Colors.white10 : null,
               shape: BoxShape.circle,
@@ -808,6 +816,56 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Staggered fade+slide animation for each message entry.
+class _AnimatedMessageEntry extends StatefulWidget {
+  final int index;
+  final Widget child;
+
+  const _AnimatedMessageEntry({required this.index, required this.child});
+
+  @override
+  State<_AnimatedMessageEntry> createState() => _AnimatedMessageEntryState();
+}
+
+class _AnimatedMessageEntryState extends State<_AnimatedMessageEntry>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    );
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _slideAnimation,
+      child: FadeTransition(
+        opacity: _fadeAnimation,
+        child: widget.child,
       ),
     );
   }

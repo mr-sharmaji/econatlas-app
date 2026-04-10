@@ -126,7 +126,6 @@ class _ShareCardDialogState extends State<_ShareCardDialog> {
   Widget _buildCard() {
     return Container(
       width: 340,
-      constraints: const BoxConstraints(maxHeight: 480),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [Color(0xFF0F1629), Color(0xFF1A1040), Color(0xFF0D0B2E)],

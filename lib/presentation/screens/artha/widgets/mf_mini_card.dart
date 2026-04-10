@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/theme.dart';
+
 /// Mini mutual fund card rendered inside chat messages.
 class MfMiniCard extends StatelessWidget {
   final Map<String, dynamic> data;
@@ -31,8 +33,8 @@ class MfMiniCard extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: [
-              const Color(0xFF141829),
-              const Color(0xFF1A1F36).withValues(alpha: 0.8),
+              AppTheme.cardDark,
+              AppTheme.surfaceDark.withValues(alpha: 0.8),
             ],
           ),
           borderRadius: BorderRadius.circular(12),
@@ -45,7 +47,7 @@ class MfMiniCard extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: const Color(0xFF8B5CF6).withValues(alpha: 0.15),
+                color: AppTheme.accentTeal.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               alignment: Alignment.center,
@@ -99,7 +101,7 @@ class MfMiniCard extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: isPositive ? Colors.green[400] : Colors.red[400],
+                      color: isPositive ? AppTheme.accentGreen : AppTheme.accentRed,
                     ),
                   ),
               ],
@@ -133,8 +135,8 @@ class MfMiniCard extends StatelessWidget {
   }
 
   Color _scoreColor(double score) {
-    if (score >= 70) return Colors.green[400]!;
-    if (score >= 50) return Colors.amber[400]!;
-    return Colors.red[400]!;
+    if (score >= 70) return AppTheme.accentGreen;
+    if (score >= 50) return AppTheme.accentOrange;
+    return AppTheme.accentRed;
   }
 }

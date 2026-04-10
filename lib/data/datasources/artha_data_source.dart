@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:dio/dio.dart';
 
 /// SSE event types from the Artha chat backend.
-enum ArthaEventType { thinking, token, stockCard, mfCard, done, error }
+enum ArthaEventType { thinking, token, stockCard, mfCard, suggestions, done, error }
 
 /// A single SSE event from the chat stream.
 class ArthaEvent {
@@ -168,6 +168,7 @@ class ArthaDataSource {
               'token' => ArthaEventType.token,
               'stock_card' => ArthaEventType.stockCard,
               'mf_card' => ArthaEventType.mfCard,
+              'suggestions' => ArthaEventType.suggestions,
               'done' => ArthaEventType.done,
               'error' => ArthaEventType.error,
               _ => null,
@@ -189,9 +190,12 @@ class ArthaDataSource {
     return response.data as Map<String, dynamic>;
   }
 
-  /// Get suggested prompts.
-  Future<List<String>> getSuggestions() async {
-    final response = await _dio.get('/chat/suggestions');
+  /// Get suggested prompts (watchlist-aware when device_id provided).
+  Future<List<String>> getSuggestions({String? deviceId}) async {
+    final response = await _dio.get(
+      '/chat/suggestions',
+      queryParameters: {if (deviceId != null) 'device_id': deviceId},
+    );
     final data = response.data as Map<String, dynamic>;
     return (data['suggestions'] as List<dynamic>)
         .map((e) => e as String)
