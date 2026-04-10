@@ -8,6 +8,7 @@ import 'presentation/screens/market/market_screen.dart';
 import 'presentation/screens/overview/overview_screen.dart';
 import 'presentation/screens/macro/macro_screen.dart';
 import 'presentation/screens/macro/macro_dashboard_screen.dart';
+import 'presentation/screens/artha/artha_screen.dart';
 import 'data/models/discover.dart';
 import 'presentation/screens/discover/discover_home_screen.dart';
 import 'presentation/screens/discover/stock_screener_screen.dart';
@@ -68,6 +69,12 @@ final router = GoRouter(
           GoRoute(
             path: '/macro',
             builder: (context, state) => const MacroDashboardScreen(),
+          ),
+        ]),
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/artha',
+            builder: (context, state) => const ArthaScreen(),
           ),
         ]),
       ],

@@ -11,3 +11,4 @@ export 'brief_providers.dart';
 export 'discover_providers.dart';
 export 'tab_navigation_providers.dart';
 export 'tax_providers.dart';
+export 'artha_providers.dart';

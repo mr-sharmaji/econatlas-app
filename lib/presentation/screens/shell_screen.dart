@@ -215,9 +215,16 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
             selectedIcon: Icon(Icons.analytics),
             label: 'Economy',
           ),
+          NavigationDestination(
+            icon: Icon(Icons.auto_awesome_outlined),
+            selectedIcon: Icon(Icons.auto_awesome),
+            label: 'Artha',
+          ),
         ],
       ),
-      floatingActionButton: _quickToolsFab(context),
+      floatingActionButton: widget.navigationShell.currentIndex == 5
+          ? null
+          : _quickToolsFab(context),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
