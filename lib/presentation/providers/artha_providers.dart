@@ -236,11 +236,15 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               final rawSuggestions =
                   event.data['suggestions'] as List<dynamic>?;
               if (rawSuggestions != null) {
+                // Backend prompt + parser both emit exactly 5 follow-ups.
+                // Keep all 5 — the previous `.take(4)` hard-cap was
+                // inconsistent with the backend contract and caused
+                // the last chip to get dropped on every message.
                 state = state.copyWith(
                   followUpSuggestions: rawSuggestions
                       .map((e) => e.toString())
                       .where((s) => s.isNotEmpty)
-                      .take(4)
+                      .take(5)
                       .toList(),
                 );
               }
