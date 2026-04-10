@@ -28,7 +28,10 @@ class BaseUrlInterceptor extends Interceptor {
         AppConstants.defaultBaseUrl;
     options.connectTimeout = const Duration(seconds: 6);
     options.sendTimeout = const Duration(seconds: 6);
-    options.receiveTimeout = const Duration(seconds: 8);
+    // Don't override receiveTimeout for streaming requests (SSE)
+    if (options.responseType != ResponseType.stream) {
+      options.receiveTimeout = const Duration(seconds: 8);
+    }
     handler.next(options);
   }
 }
@@ -84,6 +87,8 @@ class RetryInterceptor extends Interceptor {
   }
 
   bool _shouldRetry(DioException err) {
+    // Never retry streaming (SSE) requests
+    if (err.requestOptions.responseType == ResponseType.stream) return false;
     return err.type == DioExceptionType.connectionTimeout ||
         err.type == DioExceptionType.receiveTimeout ||
         err.type == DioExceptionType.connectionError ||
