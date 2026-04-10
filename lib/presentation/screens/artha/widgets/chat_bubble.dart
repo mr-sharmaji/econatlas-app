@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:go_router/go_router.dart';
+// The `markdown` package ships as a transitive dep of flutter_markdown.
+// We need ExtensionSet.gitHubFlavored to enable table / strikethrough /
+// task-list / autolink parsing — the default CommonMark parser renders
+// pipe-tables as plain text (visible symptom: tables show as raw pipes
+// and dashes in the chat bubble).
+import 'package:markdown/markdown.dart' as md;
 
 import '../../../../core/theme.dart';
 import '../../../../data/datasources/artha_data_source.dart';
@@ -96,10 +102,13 @@ class ChatBubble extends StatelessWidget {
                     ),
                   )
                 else
-                  // Assistant messages: markdown rendered
+                  // Assistant messages: markdown rendered with GitHub
+                  // Flavored extensions so tables / strikethrough / task
+                  // lists / autolinks all parse correctly.
                   MarkdownBody(
                     data: message.content,
                     selectable: true,
+                    extensionSet: md.ExtensionSet.gitHubFlavored,
                     onTapLink: (text, href, title) {
                       if (href != null && href.startsWith('/discover/stock/')) {
                         context.push(href);
