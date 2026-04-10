@@ -499,14 +499,15 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         ),
         if (chatState.thinkingStatus != null && chatState.isLoading)
           ThinkingIndicator(status: chatState.thinkingStatus!),
-        // Follow-up suggestion chips from LLM
+        // Follow-up suggestion chips from LLM — horizontal scroll so they
+        // never occupy more than ~48px vertical regardless of count/length.
         if (!chatState.isLoading &&
             chatState.messages.isNotEmpty &&
             chatState.messages.last.role == 'assistant' &&
             chatState.followUpSuggestions.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: SuggestionChips(
+            padding: const EdgeInsets.only(top: 4, bottom: 4),
+            child: SuggestionChips.horizontal(
               suggestions: chatState.followUpSuggestions,
               onTap: _onSuggestionTap,
             ),

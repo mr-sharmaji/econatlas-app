@@ -3,15 +3,35 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme.dart';
 
 /// Dynamic suggested prompt chips with staggered slide-up animation.
+///
+/// Two layouts are supported:
+///   * `SuggestionChips.wrap` (default) — multi-line `Wrap`, used for
+///     the welcome screen where space is abundant.
+///   * `SuggestionChips.horizontal` — single horizontally-scrollable row,
+///     used for follow-up suggestions under a chat message so they never
+///     take more than ~48px vertical space regardless of how long each
+///     suggestion is.
 class SuggestionChips extends StatefulWidget {
   final List<String> suggestions;
   final void Function(String) onTap;
+
+  /// If true, chips lay out in a single horizontally-scrollable row.
+  /// If false (default), chips wrap across multiple lines.
+  final bool horizontal;
 
   const SuggestionChips({
     super.key,
     required this.suggestions,
     required this.onTap,
+    this.horizontal = false,
   });
+
+  /// Convenience constructor for the horizontal follow-up layout.
+  const SuggestionChips.horizontal({
+    super.key,
+    required this.suggestions,
+    required this.onTap,
+  }) : horizontal = true;
 
   @override
   State<SuggestionChips> createState() => _SuggestionChipsState();
@@ -78,6 +98,13 @@ class _SuggestionChipsState extends State<SuggestionChips>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.horizontal) {
+      return _buildHorizontal();
+    }
+    return _buildWrap();
+  }
+
+  Widget _buildWrap() {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
@@ -94,11 +121,33 @@ class _SuggestionChipsState extends State<SuggestionChips>
     );
   }
 
-  Widget _chip(BuildContext context, String text) {
+  Widget _buildHorizontal() {
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: widget.suggestions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) => SlideTransition(
+          position: _slideAnimations[i],
+          child: FadeTransition(
+            opacity: _fadeAnimations[i],
+            child: _chip(context, widget.suggestions[i], compact: true),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(BuildContext context, String text, {bool compact = false}) {
     return GestureDetector(
       onTap: () => widget.onTap(text),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 14 : 16,
+          vertical: compact ? 8 : 10,
+        ),
         decoration: BoxDecoration(
           color: AppTheme.cardDark,
           borderRadius: BorderRadius.circular(20),
@@ -108,9 +157,12 @@ class _SuggestionChipsState extends State<SuggestionChips>
         ),
         child: Text(
           text,
+          maxLines: 1,
+          softWrap: false,
+          overflow: TextOverflow.visible,
           style: TextStyle(
-            color: AppTheme.accentBlue.withValues(alpha: 0.8),
-            fontSize: 13,
+            color: AppTheme.accentBlue.withValues(alpha: 0.85),
+            fontSize: 12.5,
             fontWeight: FontWeight.w500,
           ),
         ),
