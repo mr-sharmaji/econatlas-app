@@ -586,10 +586,9 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: Column(
         children: [
-          const SizedBox(height: 32),
-          // Centered app logo with a subtle gradient backdrop.
-          _buildLogo(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 40),
+          const Text('✨', style: TextStyle(fontSize: 56)),
+          const SizedBox(height: 16),
           greetingAsync.when(
             loading: () => _buildGreetingShimmer(),
             error: (_, __) => const Text(
@@ -623,38 +622,6 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             },
           ),
         ],
-      ),
-    );
-  }
-
-  /// Centered logo used on the Artha welcome screen. Uses the bundled
-  /// app_icon.png asset inside a subtle gradient ring.
-  Widget _buildLogo() {
-    return Container(
-      width: 96,
-      height: 96,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [
-            AppTheme.accentBlue.withValues(alpha: 0.25),
-            AppTheme.accentBlue.withValues(alpha: 0.02),
-          ],
-        ),
-        border: Border.all(
-          color: AppTheme.accentBlue.withValues(alpha: 0.3),
-          width: 1.5,
-        ),
-      ),
-      padding: const EdgeInsets.all(18),
-      child: Image.asset(
-        'assets/app_icon.png',
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) => const Text(
-          '✨',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 44),
-        ),
       ),
     );
   }

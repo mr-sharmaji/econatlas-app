@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Adaptive launcher icon background -->
     <color name="ic_launcher_background">#0D1117</color>
+    <!-- Launch splash background — matches AppTheme.scaffoldDark -->
+    <color name="launch_bg">#000000</color>
 </resources>
