@@ -126,6 +126,9 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
   }
 
   /// Map sort field to which change field to display in tiles.
+  /// Default is strict 1D (daily) — matches the app-wide default set
+  /// in StockListTile. Only sorts that explicitly reference a longer
+  /// period override to that period's field.
   StockChangeField _changeFieldForSort(String sortBy) {
     switch (sortBy) {
       case 'change_3m':
@@ -135,7 +138,7 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
       case 'change':
         return StockChangeField.daily;
       default:
-        return StockChangeField.threeMonth;
+        return StockChangeField.daily;
     }
   }
 

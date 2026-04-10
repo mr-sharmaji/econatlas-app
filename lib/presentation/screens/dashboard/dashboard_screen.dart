@@ -5,6 +5,7 @@ import '../../../core/error_utils.dart';
 import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
+import '../../../data/models/discover.dart';
 import '../../../data/models/market_price.dart';
 import '../../../data/services/starred_stocks_service.dart';
 import '../../providers/providers.dart';
@@ -152,19 +153,63 @@ class _StarredFavoritesTab extends ConsumerWidget {
       );
     }
 
-    final withChange =
-        starred.where((e) => e.percentChange != null).toList(growable: false);
+    // Live batch fetch: for each starred STOCK we hit /screener/stocks/
+    // {symbol}/detail in parallel on every tab open. This replaces the
+    // old frozen `StarredItem.percentChange` which captured a stale
+    // value at star-time. MFs still use the old path (we can extend
+    // this later with a mfLiveQuotesProvider).
+    final liveQuotesAsync = _isStockTab
+        ? ref.watch(starredStockLiveQuotesProvider)
+        : const AsyncValue<Map<String, DiscoverStockItem>>.data({});
 
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
-      children: [
-        if (_isStockTab && withChange.isNotEmpty) ...[
-          _StocksHealthCard(items: withChange),
-          const SizedBox(height: 8),
+    // Build "refreshed" StarredItems by overriding percentChange with
+    // the live quote. This keeps _StocksHealthCard's existing signature
+    // untouched (it reads percentChange off StarredItem).
+    final liveQuotes = liveQuotesAsync.maybeWhen(
+      data: (quotes) => quotes,
+      orElse: () => const <String, DiscoverStockItem>{},
+    );
+    final refreshed = starred
+        .map(
+          (s) => _isStockTab && liveQuotes[s.id] != null
+              ? StarredItem(
+                  type: s.type,
+                  id: s.id,
+                  name: s.name,
+                  timestamp: s.timestamp,
+                  percentChange: liveQuotes[s.id]!.percentChange,
+                )
+              : s,
+        )
+        .toList(growable: false);
+    final withChange =
+        refreshed.where((e) => e.percentChange != null).toList(growable: false);
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        if (_isStockTab) {
+          ref.invalidate(starredStockLiveQuotesProvider);
+        }
+      },
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
+        children: [
+          if (_isStockTab && withChange.isNotEmpty) ...[
+            _StocksHealthCard(items: withChange),
+            const SizedBox(height: 8),
+          ],
+          if (!_isStockTab && withChange.isNotEmpty) ...[
+            _MfHealthCard(items: withChange),
+            const SizedBox(height: 8),
+          ],
+          for (final item in refreshed)
+            _StarredItemTile(
+              item: item,
+              livePrice: _isStockTab ? liveQuotes[item.id]?.lastPrice : null,
+            ),
         ],
-        for (final item in starred) _StarredItemTile(item: item),
-      ],
+      ),
     );
   }
 }
@@ -294,6 +339,130 @@ class _StocksHealthCard extends StatelessWidget {
   }
 }
 
+class _MfHealthCard extends StatelessWidget {
+  final List<StarredItem> items;
+
+  const _MfHealthCard({required this.items});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = items.length;
+    final gainers = items.where((p) => (p.percentChange ?? 0) > 0).length;
+    final losers = items.where((p) => (p.percentChange ?? 0) < 0).length;
+    final unchanged = total - gainers - losers;
+    final avgChange = items.fold<double>(
+          0,
+          (sum, p) => sum + (p.percentChange ?? 0),
+        ) /
+        total;
+    final avgColor = avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgSign = avgChange >= 0 ? '+' : '';
+
+    final sorted = [...items]
+      ..sort((a, b) => (b.percentChange ?? 0).compareTo(a.percentChange ?? 0));
+    final best = sorted.first;
+    final worst = sorted.last;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined,
+                    size: 18, color: AppTheme.accentBlue),
+                const SizedBox(width: 8),
+                Text(
+                  'MFs Health',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: avgColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    'Avg $avgSign${avgChange.toStringAsFixed(1)}% 1Y',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: avgColor,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                _HealthStat(
+                  label: 'Total',
+                  value: '$total',
+                  color: AppTheme.accentBlue,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Positive',
+                  value: '$gainers',
+                  color: AppTheme.accentGreen,
+                ),
+                const SizedBox(width: 16),
+                _HealthStat(
+                  label: 'Negative',
+                  value: '$losers',
+                  color: AppTheme.accentRed,
+                ),
+                if (unchanged > 0) ...[
+                  const SizedBox(width: 16),
+                  _HealthStat(
+                    label: 'Flat',
+                    value: '$unchanged',
+                    color: Colors.white38,
+                  ),
+                ],
+              ],
+            ),
+            if (items.length >= 2) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _PerformerChip(
+                      label: 'Best',
+                      symbol: best.name,
+                      pct: best.percentChange ?? 0,
+                      color: AppTheme.accentGreen,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _PerformerChip(
+                      label: 'Worst',
+                      symbol: worst.name,
+                      pct: worst.percentChange ?? 0,
+                      color: AppTheme.accentRed,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _PerformerChip extends StatelessWidget {
   final String label;
   final String symbol;
@@ -352,8 +521,9 @@ class _PerformerChip extends StatelessWidget {
 
 class _StarredItemTile extends StatelessWidget {
   final StarredItem item;
+  final double? livePrice;
 
-  const _StarredItemTile({required this.item});
+  const _StarredItemTile({required this.item, this.livePrice});
 
   @override
   Widget build(BuildContext context) {
@@ -363,8 +533,9 @@ class _StarredItemTile extends StatelessWidget {
         (pct ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     final isStock = item.type == 'stock';
     final title = isStock ? item.id : item.name;
-    final subtitle = isStock ? item.name : item.id;
-    final periodLabel = isStock ? '3M' : '1Y';
+    final subtitle = isStock ? item.name : null;
+    // Strict 1D default on the watchlist — no "3M" or "1Y" label.
+    final periodLabel = '';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -406,15 +577,16 @@ class _StarredItemTile extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white54,
-                        fontSize: 11,
+                    if (subtitle != null)
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),
@@ -427,7 +599,7 @@ class _StarredItemTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% $periodLabel',
+                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}%${periodLabel.isNotEmpty ? ' $periodLabel' : ''}',
                     style: TextStyle(
                       color: pctColor,
                       fontSize: 10,

@@ -564,6 +564,18 @@ class RemoteDataSource {
     required String symbol,
     int days = 365,
   }) async {
+    // days == 0 is the sentinel for "1D intraday" → hits the new
+    // /intraday endpoint which returns 30-min ticks from
+    // discover_stock_intraday (with a Yahoo 5-min on-demand fallback
+    // for cold starts). Everything else continues to use /history.
+    if (days == 0) {
+      final response = await _dio.get(
+        '/screener/stocks/${Uri.encodeComponent(symbol)}/intraday',
+      );
+      return PriceHistoryResponse.fromJson(
+        response.data as Map<String, dynamic>,
+      );
+    }
     final response = await _dio.get(
       '/screener/stocks/${Uri.encodeComponent(symbol)}/history',
       queryParameters: {'days': days},

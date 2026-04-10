@@ -28,7 +28,9 @@ class StockDetailScreen extends ConsumerStatefulWidget {
     super.key,
     required this.symbol,
     this.initialItem,
-    this.initialDays = 90,
+    // Default to 1D (intraday) so the detail screen opens on today's
+    // movement. User can still switch to 1W / 1M / 3M / 6M / 1Y / 3Y / 5Y.
+    this.initialDays = 0,
   });
 
   @override
@@ -42,7 +44,12 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   late final TabController _tabController;
   int _tabIndex = 0;
 
+  // days = 0 is a sentinel for "1D intraday" → triggers a call to the
+  // new `/screener/stocks/{symbol}/intraday` endpoint that returns
+  // 30-min ticks from discover_stock_intraday (with a Yahoo 5-min
+  // on-demand fallback for cold starts).
   static const _periods = [
+    (label: '1D', days: 0),
     (label: '1W', days: 7),
     (label: '1M', days: 30),
     (label: '3M', days: 90),
@@ -72,6 +79,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   // ── Backend return values ─────────────────────────────────────
   double? _getBackendReturn(DiscoverStockItem item) {
     switch (_selectedDays) {
+      // 1D = today's change; come straight from the snapshot's
+      // percent_change (live, refreshed every 30 min).
+      case 0:
+        return item.percentChange;
       case 7:
         return item.percentChange1w;
       case 90:
@@ -207,12 +218,17 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
       if (history.points.length >= 2) {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
-        final first = chartPrices.first;
-        final last = chartPrices.last;
-        if (first > 0) _periodChange = ((last - first) / first) * 100;
+        // Overwrite the last point with the live snapshot price FIRST,
+        // then compute the period return from live-vs-start. This keeps
+        // the chart line and the "+2.31% 3M" badge in sync with the
+        // real current price (previously the badge used yesterday's
+        // close while the chart line had already jumped to live).
         if (chartPrices.isNotEmpty) {
           chartPrices[chartPrices.length - 1] = item.lastPrice;
         }
+        final first = chartPrices.first;
+        final last = chartPrices.last;
+        if (first > 0) _periodChange = ((last - first) / first) * 100;
       }
     });
 
@@ -229,7 +245,8 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
           _StarButton(
             symbol: item.symbol,
             displayName: item.displayName,
-            percentChange: item.percentChange3m ?? item.percentChange,
+            // We no longer freeze a percentChange at star-time. The
+            // watchlist now batch-fetches live prices on open.
           ),
         ],
       ),
@@ -1774,10 +1791,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
               SizedBox(
                 width: 52,
                 child: Text(
-                  fmtChange(stock.percentChange3m ?? stock.percentChange),
+                  // Strict 1D default on peer tables as well.
+                  fmtChange(stock.percentChange),
                   style: cellStyle.copyWith(
-                    color: changeColor(
-                        stock.percentChange3m ?? stock.percentChange),
+                    color: changeColor(stock.percentChange),
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.right,
@@ -2523,12 +2540,10 @@ class _RadarStat {
 class _StarButton extends ConsumerWidget {
   final String symbol;
   final String displayName;
-  final double? percentChange;
 
   const _StarButton({
     required this.symbol,
     required this.displayName,
-    this.percentChange,
   });
 
   @override
@@ -2543,11 +2558,12 @@ class _StarButton extends ConsumerWidget {
       ),
       tooltip: isStarred ? 'Remove from watchlist' : 'Add to watchlist',
       onPressed: () {
+        // No frozen percentChange — the watchlist screen batch-fetches
+        // live prices on open via the watchlistLiveQuotesProvider.
         ref.read(starredStocksProvider.notifier).toggle(
               type: 'stock',
               id: symbol,
               name: displayName,
-              percentChange: percentChange,
             );
       },
     );

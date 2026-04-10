@@ -33,7 +33,11 @@ class StockListTile extends StatelessWidget {
     super.key,
     required this.item,
     this.onTap,
-    this.changeField = StockChangeField.threeMonth,
+    // Strict 1D default on all card lists (home, discover, screener,
+    // watchlist). Was previously 3M — changed per product decision so
+    // cards show today's movement at a glance, matching the new 30-min
+    // intraday refresh cadence.
+    this.changeField = StockChangeField.daily,
     this.sparklineValues,
   });
 

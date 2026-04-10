@@ -596,9 +596,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
     final starred = ref.watch(starredStocksProvider);
     final isStarred =
         starred.any((e) => e.type == 'stock' && e.id == item.symbol);
-    final change3m = item.percentChange3m;
+    // Strict 1D default — use today's percent_change everywhere on the
+    // card lists (home, discover, search, watchlist). The stock detail
+    // screen still has its own period picker for charts.
+    final change1d = item.percentChange;
     final changeColor =
-        (change3m ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+        (change1d ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return ListTile(
       dense: true,
@@ -627,7 +630,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                     ?.copyWith(fontWeight: FontWeight.w600),
               ),
               Text(
-                change3m != null ? '${Formatters.changeTag(change3m)} 3M' : '',
+                change1d != null ? Formatters.changeTag(change1d) : '',
                 style: theme.textTheme.labelSmall?.copyWith(
                   color: changeColor,
                   fontWeight: FontWeight.w600,
@@ -878,8 +881,9 @@ class _StockCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pct = item.percentChange3m ?? item.percentChange ?? 0;
-    final periodLabel = item.percentChange3m != null ? ' 3M' : '';
+    // Strict 1D default — show today's change on every home-screen card.
+    final pct = item.percentChange ?? 0;
+    final periodLabel = '';
     final isUp = pct >= 0;
     final changeColor = isUp ? AppTheme.accentGreen : AppTheme.accentRed;
 

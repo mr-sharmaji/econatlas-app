@@ -1140,3 +1140,43 @@ final starredStocksProvider =
   final prefs = ref.watch(sharedPreferencesProvider);
   return StarredStocksNotifier(StarredStocksService(prefs));
 });
+
+/// Live 1D quotes for every starred symbol.
+///
+/// Replaces the old pattern of reading `StarredItem.percentChange`, which
+/// stored a frozen value at star-time and never refreshed (so the
+/// watchlist showed "-0.7% 3M" for ACE months after the real change
+/// had moved to +2.31%). This provider:
+///
+///   1. Reads the starred symbol list.
+///   2. Fetches the live detail for each one in parallel via
+///      /screener/stocks/{symbol}/detail (served from the snapshot
+///      table that the intraday job refreshes every 30 min).
+///   3. Returns a map keyed by symbol → DiscoverStockItem.
+///
+/// Watching UIs can look up each row's `percentChange` (today's 1D
+/// change) and `lastPrice` without ever trusting the stale local copy.
+/// The provider is autoDispose so it re-fetches when the tab re-opens.
+final starredStockLiveQuotesProvider =
+    FutureProvider.autoDispose<Map<String, DiscoverStockItem>>((ref) async {
+  final starred = ref.watch(starredStocksProvider);
+  final stockSymbols = starred
+      .where((e) => e.type == 'stock')
+      .map((e) => e.id)
+      .toList(growable: false);
+  if (stockSymbols.isEmpty) {
+    return <String, DiscoverStockItem>{};
+  }
+  final repo = ref.watch(discoverRepositoryProvider);
+  final futures = stockSymbols.map(
+    (s) => repo.getStockBySymbol(symbol: s).then<MapEntry<String, DiscoverStockItem>?>(
+          (item) => MapEntry(s, item),
+          onError: (_) => null,
+        ),
+  );
+  final results = await Future.wait(futures);
+  return {
+    for (final e in results.whereType<MapEntry<String, DiscoverStockItem>>())
+      e.key: e.value,
+  };
+});
