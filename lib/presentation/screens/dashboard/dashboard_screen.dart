@@ -7,7 +7,6 @@ import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/market_price.dart';
 import '../../../data/services/starred_stocks_service.dart';
-import '../../providers/discover_providers.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
@@ -27,7 +26,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   void initState() {
     super.initState();
     _scrollController = ScrollController();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -84,6 +83,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           tabs: const [
             Tab(text: 'Markets'),
             Tab(text: 'Stocks'),
+            Tab(text: 'Mutual Funds'),
           ],
         ),
       ),
@@ -110,7 +110,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
             ),
           ),
           // Stocks tab — starred discover stocks
-          const _StarredStocksTab(),
+          const _StarredFavoritesTab(type: 'stock'),
+          const _StarredFavoritesTab(type: 'mf'),
         ],
       ),
     );
@@ -118,52 +119,47 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 }
 
 // =============================================================================
-// Starred Stocks Tab
+// Starred Favorites Tabs
 // =============================================================================
 
-class _StarredStocksTab extends ConsumerWidget {
-  const _StarredStocksTab();
+class _StarredFavoritesTab extends ConsumerWidget {
+  final String type;
+
+  const _StarredFavoritesTab({required this.type});
+
+  bool get _isStockTab => type == 'stock';
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final starred = ref.watch(starredStocksProvider);
-    final theme = Theme.of(context);
+    final starred = (ref
+        .watch(starredStocksProvider)
+        .where((item) => item.type == type)
+        .toList(growable: false)
+      ..sort((a, b) {
+        final primaryCompare =
+            a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        if (primaryCompare != 0) return primaryCompare;
+        return a.id.toLowerCase().compareTo(b.id.toLowerCase());
+      }));
 
     if (starred.isEmpty) {
       return ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           const SizedBox(height: 80),
-          Icon(Icons.star_border_rounded,
-              size: 48, color: Colors.white.withValues(alpha: 0.15)),
-          const SizedBox(height: 12),
-          Center(
-            child: Text(
-              'No starred stocks yet',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white38),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: Text(
-              'Star stocks from Discover to track them here',
-              style:
-                  theme.textTheme.bodySmall?.copyWith(color: Colors.white24),
-            ),
-          ),
+          _FavoritesEmptyState(type: type),
         ],
       );
     }
 
-    // Only items with percent change data for health card
-    final withChange = starred.where((e) => e.percentChange != null).toList();
+    final withChange =
+        starred.where((e) => e.percentChange != null).toList(growable: false);
 
     return ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
       children: [
-        if (withChange.isNotEmpty) ...[
+        if (_isStockTab && withChange.isNotEmpty) ...[
           _StocksHealthCard(items: withChange),
           const SizedBox(height: 8),
         ],
@@ -182,24 +178,20 @@ class _StocksHealthCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final total = items.length;
-    final gainers =
-        items.where((p) => (p.percentChange ?? 0) > 0).length;
-    final losers =
-        items.where((p) => (p.percentChange ?? 0) < 0).length;
+    final gainers = items.where((p) => (p.percentChange ?? 0) > 0).length;
+    final losers = items.where((p) => (p.percentChange ?? 0) < 0).length;
     final unchanged = total - gainers - losers;
     final avgChange = items.fold<double>(
           0,
           (sum, p) => sum + (p.percentChange ?? 0),
         ) /
         total;
-    final avgColor =
-        avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final avgColor = avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     final avgSign = avgChange >= 0 ? '+' : '';
 
     // Best and worst performers
     final sorted = [...items]
-      ..sort((a, b) =>
-          (b.percentChange ?? 0).compareTo(a.percentChange ?? 0));
+      ..sort((a, b) => (b.percentChange ?? 0).compareTo(a.percentChange ?? 0));
     final best = sorted.first;
     final worst = sorted.last;
 
@@ -367,12 +359,19 @@ class _StarredItemTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final pct = item.percentChange;
-    final pctColor = (pct ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final pctColor =
+        (pct ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
+    final isStock = item.type == 'stock';
+    final title = isStock ? item.id : item.name;
+    final subtitle = isStock ? item.name : item.id;
+    final periodLabel = isStock ? '3M' : '1Y';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: InkWell(
-        onTap: () => context.push('/discover/stock/${item.id}'),
+        onTap: () => context.push(
+          isStock ? '/discover/stock/${item.id}' : '/discover/mf/${item.id}',
+        ),
         borderRadius: BorderRadius.circular(14),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -386,8 +385,10 @@ class _StarredItemTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(
-                  Icons.bar_chart_rounded,
+                child: Icon(
+                  isStock
+                      ? Icons.bar_chart_rounded
+                      : Icons.account_balance_rounded,
                   size: 16,
                   color: AppTheme.accentBlue,
                 ),
@@ -398,7 +399,7 @@ class _StarredItemTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      item.id,
+                      title,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         fontWeight: FontWeight.w600,
                       ),
@@ -406,7 +407,7 @@ class _StarredItemTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
-                      item.name,
+                      subtitle,
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: Colors.white54,
                         fontSize: 11,
@@ -426,7 +427,7 @@ class _StarredItemTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% 3M',
+                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% $periodLabel',
                     style: TextStyle(
                       color: pctColor,
                       fontSize: 10,
@@ -439,6 +440,68 @@ class _StarredItemTile extends StatelessWidget {
                 Icons.chevron_right_rounded,
                 size: 18,
                 color: Colors.white.withValues(alpha: 0.3),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FavoritesEmptyState extends StatelessWidget {
+  final String type;
+
+  const _FavoritesEmptyState({required this.type});
+
+  bool get _isStock => type == 'stock';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final title =
+        _isStock ? 'No starred stocks yet' : 'No starred mutual funds yet';
+    final body = _isStock
+        ? 'Star stocks from Discover to track them here.'
+        : 'Star mutual funds from Discover to track them here.';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            children: [
+              Icon(
+                _isStock
+                    ? Icons.star_border_rounded
+                    : Icons.account_balance_wallet_outlined,
+                size: 44,
+                color: Colors.white.withValues(alpha: 0.16),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: Colors.white38,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                body,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: Colors.white24,
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/discover'),
+                icon: const Icon(Icons.search_rounded, size: 16),
+                label: const Text('Open Discover'),
               ),
             ],
           ),
@@ -486,8 +549,7 @@ class _MarketOverviewGrid extends ConsumerWidget {
           // Error state — show retry
           return ErrorView(
             message: 'Failed to load watchlist',
-            onRetry: () =>
-                ref.read(watchlistProvider.notifier).load(),
+            onRetry: () => ref.read(watchlistProvider.notifier).load(),
           );
         }
         final byAsset = <String, MarketPrice>{};
@@ -686,7 +748,6 @@ class _DashboardTile extends StatelessWidget {
     );
   }
 }
-
 
 class _HealthStat extends StatelessWidget {
   final String label;

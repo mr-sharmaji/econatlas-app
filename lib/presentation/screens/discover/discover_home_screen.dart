@@ -22,8 +22,7 @@ class DiscoverHomeScreen extends ConsumerStatefulWidget {
   const DiscoverHomeScreen({super.key});
 
   @override
-  ConsumerState<DiscoverHomeScreen> createState() =>
-      _DiscoverHomeScreenState();
+  ConsumerState<DiscoverHomeScreen> createState() => _DiscoverHomeScreenState();
 }
 
 class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
@@ -231,9 +230,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
       Padding(
         padding: const EdgeInsets.only(top: 12),
         child: _buildQuickCategories(
-          data.quickCategories
-              .where((c) => c.segment == 'stocks')
-              .toList(),
+          data.quickCategories.where((c) => c.segment == 'stocks').toList(),
         ),
       ),
       const SizedBox(height: 12),
@@ -510,8 +507,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                         color: AppTheme.cardDark,
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                            color:
-                                AppTheme.accentBlue.withValues(alpha: 0.20)),
+                            color: AppTheme.accentBlue.withValues(alpha: 0.20)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withValues(alpha: 0.4),
@@ -524,8 +520,7 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                         loading: () => const Padding(
                           padding: EdgeInsets.all(24),
                           child: Center(
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2)),
+                              child: CircularProgressIndicator(strokeWidth: 2)),
                         ),
                         error: (err, _) => Padding(
                           padding: const EdgeInsets.all(16),
@@ -555,19 +550,16 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
                             borderRadius: BorderRadius.circular(14),
                             child: ListView(
                               shrinkWrap: true,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 8),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
                               children: [
                                 if (hasStocks) ...[
                                   _searchSectionHeader('Stocks'),
-                                  ...result.stocks
-                                      .map(_buildStockSearchTile),
+                                  ...result.stocks.map(_buildStockSearchTile),
                                 ],
                                 if (hasMf) ...[
                                   if (hasStocks) const Divider(height: 1),
                                   _searchSectionHeader('Mutual Funds'),
-                                  ...result.mutualFunds
-                                      .map(_buildMfSearchTile),
+                                  ...result.mutualFunds.map(_buildMfSearchTile),
                                 ],
                               ],
                             ),
@@ -601,10 +593,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   Widget _buildStockSearchTile(SearchStockResult item) {
     final theme = Theme.of(context);
+    final starred = ref.watch(starredStocksProvider);
+    final isStarred =
+        starred.any((e) => e.type == 'stock' && e.id == item.symbol);
     final change3m = item.percentChange3m;
-    final changeColor = (change3m ?? 0) >= 0
-        ? AppTheme.accentGreen
-        : AppTheme.accentRed;
+    final changeColor =
+        (change3m ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return ListTile(
       dense: true,
@@ -620,22 +614,43 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
       ),
-      trailing: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            Formatters.price(item.lastPrice),
-            style: theme.textTheme.bodyMedium
-                ?.copyWith(fontWeight: FontWeight.w600),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                Formatters.price(item.lastPrice),
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(fontWeight: FontWeight.w600),
+              ),
+              Text(
+                change3m != null ? '${Formatters.changeTag(change3m)} 3M' : '',
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: changeColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          Text(
-            change3m != null
-                ? '${Formatters.changeTag(change3m)} 3M'
-                : '',
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: changeColor,
-              fontWeight: FontWeight.w600,
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            splashRadius: 18,
+            tooltip: isStarred ? 'Remove from watchlist' : 'Add to watchlist',
+            onPressed: () {
+              ref.read(starredStocksProvider.notifier).toggle(
+                    type: 'stock',
+                    id: item.symbol,
+                    name: item.displayName,
+                    percentChange: item.percentChange3m ?? item.percentChange,
+                  );
+            },
+            icon: Icon(
+              isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+              color: isStarred ? AppTheme.accentOrange : Colors.white54,
             ),
           ),
         ],
@@ -653,10 +668,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
   Widget _buildMfSearchTile(SearchMfResult item) {
     final theme = Theme.of(context);
+    final starred = ref.watch(starredStocksProvider);
+    final isStarred =
+        starred.any((e) => e.type == 'mf' && e.id == item.schemeCode);
     final ret1y = item.returns1y;
-    final changeColor = (ret1y ?? 0) >= 0
-        ? AppTheme.accentGreen
-        : AppTheme.accentRed;
+    final changeColor =
+        (ret1y ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
 
     return ListTile(
       dense: true,
@@ -674,14 +691,35 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
         overflow: TextOverflow.ellipsis,
         style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
       ),
-      trailing: Text(
-        ret1y != null
-            ? '${Formatters.changeTag(ret1y)} 1Y'
-            : '',
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: changeColor,
-          fontWeight: FontWeight.w600,
-        ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            ret1y != null ? '${Formatters.changeTag(ret1y)} 1Y' : '',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: changeColor,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            splashRadius: 18,
+            tooltip: isStarred ? 'Remove from watchlist' : 'Add to watchlist',
+            onPressed: () {
+              ref.read(starredStocksProvider.notifier).toggle(
+                    type: 'mf',
+                    id: item.schemeCode,
+                    name: item.displayName ?? item.schemeName,
+                    percentChange: item.returns1y,
+                  );
+            },
+            icon: Icon(
+              isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+              color: isStarred ? AppTheme.accentOrange : Colors.white54,
+            ),
+          ),
+        ],
       ),
       onTap: () {
         _clearSearch();
@@ -873,8 +911,8 @@ class _StockCard extends StatelessWidget {
                 ),
                 if (item.actionTag != null)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 1),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
                       color: _actionTagColor(item.actionTag!)
                           .withValues(alpha: 0.15),
@@ -935,8 +973,8 @@ class _StockCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: ScoreBar.scoreColor(item.score)
-                        .withValues(alpha: 0.15),
+                    color:
+                        ScoreBar.scoreColor(item.score).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
@@ -1054,8 +1092,8 @@ class _MfCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: ScoreBar.scoreColor(item.score)
-                        .withValues(alpha: 0.15),
+                    color:
+                        ScoreBar.scoreColor(item.score).withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(

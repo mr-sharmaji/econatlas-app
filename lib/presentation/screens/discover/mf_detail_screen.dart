@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +7,6 @@ import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
 import '../../providers/discover_providers.dart';
-import '../../providers/settings_providers.dart';
 import '../../widgets/chart_widget.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/score_bar.dart';
@@ -71,8 +69,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const Text('Error loading fund details'),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () => ref.invalidate(
-                    discoverMfDetailProvider(widget.schemeCode)),
+                onPressed: () =>
+                    ref.invalidate(discoverMfDetailProvider(widget.schemeCode)),
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Retry'),
               ),
@@ -139,7 +137,16 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         .label;
 
     return Scaffold(
-      appBar: AppBar(title: Text(item.displayName ?? item.schemeName)),
+      appBar: AppBar(
+        title: Text(item.displayName ?? item.schemeName),
+        actions: [
+          _MfStarButton(
+            schemeCode: item.schemeCode,
+            displayName: item.displayName ?? item.schemeName,
+            returns1y: item.returns1y,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -248,7 +255,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
 
             // 10. Fund Ranking
             if ((item.categoryRank != null && item.categoryTotal != null) ||
-                (item.subCategoryRank != null && item.subCategoryTotal != null)) ...[
+                (item.subCategoryRank != null &&
+                    item.subCategoryTotal != null)) ...[
               _buildCategoryRankCard(theme),
               const SizedBox(height: 8),
             ],
@@ -391,13 +399,14 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           item.displayName ?? item.schemeName,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: theme.textTheme.titleLarge
-              ?.copyWith(fontWeight: FontWeight.w700),
+          style:
+              theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Row(
           children: [
-            if (item.fundClassification != null || item.subCategory != null) ...[
+            if (item.fundClassification != null ||
+                item.subCategory != null) ...[
               Flexible(
                 child: Text(
                   item.fundClassification ?? item.subCategory ?? '',
@@ -411,18 +420,21 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               if (item.category != null) ...[
                 Text(
                   ' \u00B7 ',
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white38),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Colors.white38),
                 ),
                 Text(
                   item.category!,
-                  style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                  style: theme.textTheme.bodySmall
+                      ?.copyWith(color: Colors.white54),
                 ),
               ],
               const SizedBox(width: 8),
             ] else if (item.category != null) ...[
               Text(
                 item.category!,
-                style: theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
+                style:
+                    theme.textTheme.bodySmall?.copyWith(color: Colors.white54),
               ),
               const SizedBox(width: 8),
             ],
@@ -511,8 +523,10 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         breakdown.riskScore > 0 ||
         breakdown.costScore > 0 ||
         breakdown.consistencyScore > 0;
-    final isDebt = (item.fundType ?? item.category ?? '').toLowerCase() == 'debt';
-    final catFit = breakdown.categoryFitScore ?? item.scoreCategoryFit?.toDouble();
+    final isDebt =
+        (item.fundType ?? item.category ?? '').toLowerCase() == 'debt';
+    final catFit =
+        breakdown.categoryFitScore ?? item.scoreCategoryFit?.toDouble();
 
     return Card(
       margin: EdgeInsets.zero,
@@ -547,8 +561,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   width: 180,
                   child: RadarChartWidget(
                     dimensions: [
-                      RadarDimension(label: 'Performance', value: breakdown.returnScore),
-                      RadarDimension(label: 'Consistency', value: breakdown.consistencyScore),
+                      RadarDimension(
+                          label: 'Performance', value: breakdown.returnScore),
+                      RadarDimension(
+                          label: 'Consistency',
+                          value: breakdown.consistencyScore),
                       RadarDimension(label: 'Risk', value: breakdown.riskScore),
                       RadarDimension(label: 'Cost', value: breakdown.costScore),
                       if (catFit != null)
@@ -568,7 +585,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       label: 'Performance',
                       value: breakdown.returnScore.toStringAsFixed(1),
                       valueColor: _scoreColor(breakdown.returnScore),
-                      tooltip: 'How well the fund performs compared to peers. Based on blended 1Y, 3Y, and 5Y returns ranked within the same category.',
+                      tooltip:
+                          'How well the fund performs compared to peers. Based on blended 1Y, 3Y, and 5Y returns ranked within the same category.',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -577,7 +595,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       label: 'Consistency',
                       value: breakdown.consistencyScore.toStringAsFixed(1),
                       valueColor: _scoreColor(breakdown.consistencyScore),
-                      tooltip: 'How predictable and stable the returns are. Based on Sortino ratio and rolling return consistency — higher means more reliable outcomes.',
+                      tooltip:
+                          'How predictable and stable the returns are. Based on Sortino ratio and rolling return consistency — higher means more reliable outcomes.',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -586,7 +605,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       label: 'Risk',
                       value: breakdown.riskScore.toStringAsFixed(1),
                       valueColor: _scoreColor(breakdown.riskScore),
-                      tooltip: 'How well the fund manages downside risk. Based on maximum drawdown and risk level — higher score means better capital protection.',
+                      tooltip:
+                          'How well the fund manages downside risk. Based on maximum drawdown and risk level — higher score means better capital protection.',
                     ),
                   ),
                 ],
@@ -600,7 +620,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       label: 'Cost',
                       value: breakdown.costScore.toStringAsFixed(1),
                       valueColor: _scoreColor(breakdown.costScore),
-                      tooltip: 'How cost-efficient the fund is. Lower expense ratio relative to category peers earns a higher score.',
+                      tooltip:
+                          'How cost-efficient the fund is. Lower expense ratio relative to category peers earns a higher score.',
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -610,7 +631,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         label: 'Category Fit',
                         value: catFit.toStringAsFixed(1),
                         valueColor: _scoreColor(catFit),
-                        tooltip: 'How well the fund fits its stated mandate. Measures category-specific quality factors like tracking error for index funds or alpha generation for active funds.',
+                        tooltip:
+                            'How well the fund fits its stated mandate. Measures category-specific quality factors like tracking error for index funds or alpha generation for active funds.',
                       ),
                     )
                   else
@@ -622,7 +644,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         label: 'Beta',
                         value: breakdown.betaScore!.toStringAsFixed(1),
                         valueColor: _scoreColor(breakdown.betaScore!),
-                        tooltip: 'Market sensitivity score. Higher means the fund is more defensive — it moves less than the market during downturns.',
+                        tooltip:
+                            'Market sensitivity score. Higher means the fund is more defensive — it moves less than the market during downturns.',
                       ),
                     ),
                   ] else ...[
@@ -667,13 +690,17 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               ),
 
             // Sub-category rank second (more granular: e.g. Large Cap, Mid Cap)
-            if (item.subCategoryRank != null && item.subCategoryTotal != null) ...[
+            if (item.subCategoryRank != null &&
+                item.subCategoryTotal != null) ...[
               if (item.categoryRank != null) const SizedBox(height: 8),
               _buildRankRow(
                 theme,
                 rank: item.subCategoryRank!,
                 total: item.subCategoryTotal!,
-                label: item.fundClassification ?? item.subCategory ?? item.category ?? 'Sub-Category',
+                label: item.fundClassification ??
+                    item.subCategory ??
+                    item.category ??
+                    'Sub-Category',
               ),
             ],
           ],
@@ -707,13 +734,13 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             ),
             Text(
               ' of $total',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white60),
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
             ),
             Text(
               ' in ',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: Colors.white60),
+              style:
+                  theme.textTheme.bodyMedium?.copyWith(color: Colors.white60),
             ),
             Flexible(
               child: Text(
@@ -768,9 +795,14 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       child: _returnColumn(theme, entry.$1, entry.$2),
                     ),
                 // If no returns at all, show a placeholder
-                if ([item.returns1m, item.returns3m, item.returns6m,
-                     item.returns1y, item.returns3y, item.returns5y]
-                    .every((v) => v == null))
+                if ([
+                  item.returns1m,
+                  item.returns3m,
+                  item.returns6m,
+                  item.returns1y,
+                  item.returns3y,
+                  item.returns5y
+                ].every((v) => v == null))
                   Expanded(
                     child: _returnColumn(theme, '1Y', null),
                   ),
@@ -791,21 +823,33 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 height: 180,
                 child: GroupedBarChartWidget(
                   groups: [
-                    if (item.returns1y != null || item.categoryAvgReturns1y != null)
+                    if (item.returns1y != null ||
+                        item.categoryAvgReturns1y != null)
                       BarGroup(label: '1Y', values: [
                         item.returns1y?.toDouble() ?? 0,
                         item.categoryAvgReturns1y?.toDouble() ?? 0,
-                      ], colors: [AppTheme.accentBlue, Colors.white38]),
-                    if (item.returns3y != null || item.categoryAvgReturns3y != null)
+                      ], colors: [
+                        AppTheme.accentBlue,
+                        Colors.white38
+                      ]),
+                    if (item.returns3y != null ||
+                        item.categoryAvgReturns3y != null)
                       BarGroup(label: '3Y', values: [
                         item.returns3y?.toDouble() ?? 0,
                         item.categoryAvgReturns3y?.toDouble() ?? 0,
-                      ], colors: [AppTheme.accentBlue, Colors.white38]),
-                    if (item.returns5y != null || item.categoryAvgReturns5y != null)
+                      ], colors: [
+                        AppTheme.accentBlue,
+                        Colors.white38
+                      ]),
+                    if (item.returns5y != null ||
+                        item.categoryAvgReturns5y != null)
                       BarGroup(label: '5Y', values: [
                         item.returns5y?.toDouble() ?? 0,
                         item.categoryAvgReturns5y?.toDouble() ?? 0,
-                      ], colors: [AppTheme.accentBlue, Colors.white38]),
+                      ], colors: [
+                        AppTheme.accentBlue,
+                        Colors.white38
+                      ]),
                   ],
                 ),
               ),
@@ -813,13 +857,25 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(width: 10, height: 10, decoration: BoxDecoration(color: AppTheme.accentBlue, borderRadius: BorderRadius.circular(2))),
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: AppTheme.accentBlue,
+                          borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 4),
-                  Text('Fund Return', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                  Text('Fund Return',
+                      style: TextStyle(fontSize: 10, color: Colors.white54)),
                   const SizedBox(width: 12),
-                  Container(width: 10, height: 10, decoration: BoxDecoration(color: Colors.white38, borderRadius: BorderRadius.circular(2))),
+                  Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                          color: Colors.white38,
+                          borderRadius: BorderRadius.circular(2))),
                   const SizedBox(width: 4),
-                  Text('Category Avg', style: TextStyle(fontSize: 10, color: Colors.white54)),
+                  Text('Category Avg',
+                      style: TextStyle(fontSize: 10, color: Colors.white54)),
                 ],
               ),
               const SizedBox(height: 8),
@@ -850,7 +906,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       ),
     );
   }
-
 
   bool _hasAnyCategoryAvg() {
     return (item.returns1y != null && item.categoryAvgReturns1y != null) ||
@@ -957,7 +1012,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     label: 'Sharpe',
                     value: item.sharpe?.toStringAsFixed(2) ?? '\u2014',
                     valueColor: _sharpeColor(item.sharpe),
-                    tooltip: 'Sharpe ratio measures risk-adjusted returns. Higher is better — it shows how much return you earn per unit of total risk taken. Above 1.5 is excellent, below 0.5 is weak.',
+                    tooltip:
+                        'Sharpe ratio measures risk-adjusted returns. Higher is better — it shows how much return you earn per unit of total risk taken. Above 1.5 is excellent, below 0.5 is weak.',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -966,7 +1022,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     label: 'Sortino',
                     value: item.sortino?.toStringAsFixed(2) ?? '\u2014',
                     valueColor: _sharpeColor(item.sortino),
-                    tooltip: 'Sortino ratio is like Sharpe but only considers downside risk (losses). Higher is better. Above 2.0 is excellent — the fund protects well against losses while generating returns.',
+                    tooltip:
+                        'Sortino ratio is like Sharpe but only considers downside risk (losses). Higher is better. Above 2.0 is excellent — the fund protects well against losses while generating returns.',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -977,7 +1034,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         ? '${item.maxDrawdown!.toStringAsFixed(1)}%'
                         : '\u2014',
                     valueColor: _maxDrawdownColor(item.maxDrawdown),
-                    tooltip: 'Maximum Drawdown is the largest peak-to-trough decline in the fund\'s history. Lower is better — it shows the worst-case loss you could have experienced.',
+                    tooltip:
+                        'Maximum Drawdown is the largest peak-to-trough decline in the fund\'s history. Lower is better — it shows the worst-case loss you could have experienced.',
                   ),
                 ),
               ],
@@ -993,7 +1051,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         ? '${item.alpha!.toStringAsFixed(1)}%'
                         : '\u2014',
                     valueColor: _alphaColor(item.alpha),
-                    tooltip: 'Alpha measures how much the fund outperforms (or underperforms) its benchmark after adjusting for risk. Positive alpha means the fund manager is adding value beyond what the market provides.',
+                    tooltip:
+                        'Alpha measures how much the fund outperforms (or underperforms) its benchmark after adjusting for risk. Positive alpha means the fund manager is adding value beyond what the market provides.',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1002,7 +1061,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                     label: 'Beta',
                     value: item.beta?.toStringAsFixed(2) ?? '\u2014',
                     valueColor: _betaColor(item.beta),
-                    tooltip: 'Beta measures the fund\'s sensitivity to market movements. Beta < 1 means the fund is defensive (moves less than the market). Beta > 1 means it\'s aggressive (amplifies market moves).',
+                    tooltip:
+                        'Beta measures the fund\'s sensitivity to market movements. Beta < 1 means the fund is defensive (moves less than the market). Beta > 1 means it\'s aggressive (amplifies market moves).',
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1013,7 +1073,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                         ? '${item.rollingReturnConsistency!.toStringAsFixed(1)}%'
                         : '\u2014',
                     valueColor: _rollingColor(item.rollingReturnConsistency),
-                    tooltip: 'Rolling Return Consistency measures how predictable the fund\'s returns are across different time periods. Lower is better — it means returns are consistent regardless of when you invest.',
+                    tooltip:
+                        'Rolling Return Consistency measures how predictable the fund\'s returns are across different time periods. Lower is better — it means returns are consistent regardless of when you invest.',
                   ),
                 ),
               ],
@@ -1071,8 +1132,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       value: '${item.fundAgeYears!.toStringAsFixed(1)} years',
                     ),
                   ),
-                if (item.fundAgeYears != null &&
-                    item.stdDev != null)
+                if (item.fundAgeYears != null && item.stdDev != null)
                   const SizedBox(width: 8),
                 if (item.stdDev != null)
                   Expanded(
@@ -1104,7 +1164,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Row(
               children: [
-                const Icon(Icons.lightbulb_outline_rounded, size: 18, color: AppTheme.accentOrange),
+                const Icon(Icons.lightbulb_outline_rounded,
+                    size: 18, color: AppTheme.accentOrange),
                 const SizedBox(width: 8),
                 Text(
                   'Key Insights',
@@ -1175,12 +1236,15 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           children: [
             Row(
               children: [
-                Text('Asset Allocation', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                Text('Asset Allocation',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
                 const Spacer(),
                 if (item.holdingsAsOf != null)
                   Text(
                     'As of ${_formatDate(item.holdingsAsOf!)}',
-                    style: theme.textTheme.labelSmall?.copyWith(color: Colors.white38),
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: Colors.white38),
                   ),
               ],
             ),
@@ -1225,13 +1289,17 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 runSpacing: 4,
                 children: [
                   if (item.assetAllocation!.equity > 0)
-                    _assetLegend('Equity', item.assetAllocation!.equity, AppTheme.accentBlue, theme),
+                    _assetLegend('Equity', item.assetAllocation!.equity,
+                        AppTheme.accentBlue, theme),
                   if (item.assetAllocation!.debt > 0)
-                    _assetLegend('Debt', item.assetAllocation!.debt, AppTheme.accentTeal, theme),
+                    _assetLegend('Debt', item.assetAllocation!.debt,
+                        AppTheme.accentTeal, theme),
                   if (item.assetAllocation!.cash > 0)
-                    _assetLegend('Cash', item.assetAllocation!.cash, AppTheme.accentOrange, theme),
+                    _assetLegend('Cash', item.assetAllocation!.cash,
+                        AppTheme.accentOrange, theme),
                   if (item.assetAllocation!.other > 0)
-                    _assetLegend('Other', item.assetAllocation!.other, AppTheme.accentGray, theme),
+                    _assetLegend('Other', item.assetAllocation!.other,
+                        AppTheme.accentGray, theme),
                 ],
               ),
             ],
@@ -1295,7 +1363,8 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   children: [
                     CircleAvatar(
                       radius: 18,
-                      backgroundColor: AppTheme.accentBlue.withValues(alpha: 0.15),
+                      backgroundColor:
+                          AppTheme.accentBlue.withValues(alpha: 0.15),
                       child: Text(
                         name.isNotEmpty ? name[0].toUpperCase() : '?',
                         style: TextStyle(
@@ -1355,8 +1424,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         );
         const cellStyle = TextStyle(fontSize: 12);
 
-        Widget buildRow(DiscoverMutualFundItem fund,
-            {bool isCurrent = false}) {
+        Widget buildRow(DiscoverMutualFundItem fund, {bool isCurrent = false}) {
           final ret1y = fund.returns1y;
           final retColor = ret1y != null
               ? (ret1y >= 0 ? AppTheme.accentGreen : AppTheme.accentRed)
@@ -1374,9 +1442,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               height: 40,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: isCurrent
-                    ? Colors.white.withValues(alpha: 0.05)
-                    : null,
+                color: isCurrent ? Colors.white.withValues(alpha: 0.05) : null,
                 border: Border(
                   bottom: BorderSide(
                     color: Colors.white.withValues(alpha: 0.06),
@@ -1481,24 +1547,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   child: Row(
                     children: const [
                       Expanded(
-                          flex: 3,
-                          child: Text('Fund', style: headerStyle)),
+                          flex: 3, child: Text('Fund', style: headerStyle)),
                       SizedBox(
                           width: 42,
-                          child: Text('Score', style: headerStyle,
-                              textAlign: TextAlign.center)),
+                          child: Text('Score',
+                              style: headerStyle, textAlign: TextAlign.center)),
                       SizedBox(
                           width: 54,
-                          child: Text('1Y Return', style: headerStyle,
-                              textAlign: TextAlign.right)),
+                          child: Text('1Y Return',
+                              style: headerStyle, textAlign: TextAlign.right)),
                       SizedBox(
                           width: 48,
-                          child: Text('Expense', style: headerStyle,
-                              textAlign: TextAlign.right)),
+                          child: Text('Expense',
+                              style: headerStyle, textAlign: TextAlign.right)),
                       SizedBox(
                           width: 32,
-                          child: Text('Rank', style: headerStyle,
-                              textAlign: TextAlign.right)),
+                          child: Text('Rank',
+                              style: headerStyle, textAlign: TextAlign.right)),
                     ],
                   ),
                 ),
@@ -1558,5 +1623,39 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     if (rolling < 10) return AppTheme.accentGreen;
     if (rolling > 20) return AppTheme.accentRed;
     return AppTheme.accentOrange;
+  }
+}
+
+class _MfStarButton extends ConsumerWidget {
+  final String schemeCode;
+  final String displayName;
+  final double? returns1y;
+
+  const _MfStarButton({
+    required this.schemeCode,
+    required this.displayName,
+    this.returns1y,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final starred = ref.watch(starredStocksProvider);
+    final isStarred = starred.any((e) => e.type == 'mf' && e.id == schemeCode);
+
+    return IconButton(
+      icon: Icon(
+        isStarred ? Icons.star_rounded : Icons.star_border_rounded,
+        color: isStarred ? AppTheme.accentOrange : Colors.white54,
+      ),
+      tooltip: isStarred ? 'Remove from watchlist' : 'Add to watchlist',
+      onPressed: () {
+        ref.read(starredStocksProvider.notifier).toggle(
+              type: 'mf',
+              id: schemeCode,
+              name: displayName,
+              percentChange: returns1y,
+            );
+      },
+    );
   }
 }

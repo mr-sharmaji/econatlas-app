@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/dio_client.dart';
 import '../../data/datasources/artha_data_source.dart';
 import '../../data/local/chat_database.dart';
+import 'discover_providers.dart';
 import 'settings_providers.dart';
 
 /// Artha data source provider.
@@ -89,9 +90,11 @@ class ArthaChatState {
 class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
   final ArthaDataSource _ds;
   final String _deviceId;
+  final Ref _ref;
   StreamSubscription<ArthaEvent>? _streamSub;
 
-  ArthaChatNotifier(this._ds, this._deviceId) : super(const ArthaChatState());
+  ArthaChatNotifier(this._ds, this._deviceId, this._ref)
+      : super(const ArthaChatState());
 
   /// Start a new chat session.
   void newChat() {
@@ -184,10 +187,23 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
     );
 
     try {
+      final starredItems = _ref
+          .read(starredStocksProvider)
+          .map(
+            (item) => <String, dynamic>{
+              'type': item.type,
+              'id': item.id,
+              'name': item.name,
+              if (item.percentChange != null)
+                'percent_change': item.percentChange,
+            },
+          )
+          .toList(growable: false);
       final stream = _ds.streamChat(
         deviceId: _deviceId,
         message: text.trim(),
         sessionId: state.sessionId,
+        starredItems: starredItems,
       );
 
       String fullContent = '';
@@ -405,7 +421,7 @@ final arthaChatProvider =
     StateNotifierProvider.autoDispose<ArthaChatNotifier, ArthaChatState>((ref) {
   final ds = ref.read(arthaDataSourceProvider);
   final deviceId = ref.read(deviceIdProvider);
-  return ArthaChatNotifier(ds, deviceId);
+  return ArthaChatNotifier(ds, deviceId, ref);
 });
 
 /// Autocomplete provider.

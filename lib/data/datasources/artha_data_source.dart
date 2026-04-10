@@ -5,9 +5,9 @@ import 'package:dio/dio.dart';
 
 /// SSE event types from the Artha chat backend.
 enum ArthaEventType {
-  thinking,       // status pings ("Artha is thinking...", "Querying data...")
-  thinkingText,   // live content of the <thinking>...</thinking> reasoning block
-  token,          // answer text chunks
+  thinking, // status pings ("Artha is thinking...", "Querying data...")
+  thinkingText, // live content of the <thinking>...</thinking> reasoning block
+  token, // answer text chunks
   stockCard,
   mfCard,
   suggestions,
@@ -139,6 +139,7 @@ class ArthaDataSource {
     required String deviceId,
     required String message,
     String? sessionId,
+    List<Map<String, dynamic>> starredItems = const [],
   }) async* {
     final response = await _dio.post<ResponseBody>(
       '/chat/stream',
@@ -146,6 +147,7 @@ class ArthaDataSource {
         'device_id': deviceId,
         'message': message,
         if (sessionId != null) 'session_id': sessionId,
+        if (starredItems.isNotEmpty) 'starred_items': starredItems,
       },
       options: Options(
         responseType: ResponseType.stream,

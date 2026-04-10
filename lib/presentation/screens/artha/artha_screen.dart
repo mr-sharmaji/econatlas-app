@@ -29,6 +29,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final _focusNode = FocusNode();
+  final _autocompleteLayerLink = LayerLink();
   bool _showHistory = false;
   bool _isOffline = false;
 
@@ -41,6 +42,14 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   List<AutocompleteItem> _autocompleteResults = [];
   bool _showAutocomplete = false;
   Timer? _autocompleteDebounce;
+
+  void _ensureInputFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_focusNode.hasFocus) {
+        _focusNode.requestFocus();
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -87,21 +96,46 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     } catch (_) {}
   }
 
-  void _scrollToBottom() {
+  void _scrollToBottom({bool animated = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
-        _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
-        );
+        final offset = _scrollController.position.maxScrollExtent;
+        if (animated) {
+          _scrollController.animateTo(
+            offset,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else {
+          _scrollController.jumpTo(offset);
+        }
       }
     });
+  }
+
+  bool _didStreamingContentChange(ArthaChatState? prev, ArthaChatState next) {
+    if (prev == null || prev.messages.isEmpty || next.messages.isEmpty) {
+      return false;
+    }
+
+    final prevLast = prev.messages.last;
+    final nextLast = next.messages.last;
+
+    if (nextLast.role != 'assistant' || !nextLast.isStreaming) {
+      return false;
+    }
+
+    return prevLast.id == nextLast.id &&
+        (prevLast.content != nextLast.content ||
+            prevLast.thinkingText != nextLast.thinkingText ||
+            prevLast.stockCards.length != nextLast.stockCards.length ||
+            prevLast.mfCards.length != nextLast.mfCards.length);
   }
 
   void _sendMessage() {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
+    FocusScope.of(context).unfocus();
     _controller.clear();
     setState(() => _showAutocomplete = false);
     ref.read(arthaChatProvider.notifier).sendMessage(text);
@@ -152,11 +186,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         // Make sure there's no whitespace between @ and cursor (so @TCS triggers
         // but "@ hello world" doesn't keep triggering after the word)
         final query = beforeCursor.substring(atIdx + 1);
-        if (!query.contains(' ') && !query.contains('\n') && query.length >= 1) {
+        if (!query.contains(' ') && !query.contains('\n') && query.isNotEmpty) {
           _autocompleteDebounce?.cancel();
           _autocompleteDebounce = Timer(const Duration(milliseconds: 250), () {
             _fetchAutocomplete(query);
           });
+          _ensureInputFocus();
           return;
         }
       }
@@ -179,6 +214,9 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           _autocompleteResults = results;
           _showAutocomplete = results.isNotEmpty;
         });
+        if (results.isNotEmpty) {
+          _ensureInputFocus();
+        }
       }
     } catch (_) {}
   }
@@ -189,11 +227,11 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     final beforeCursor = text.substring(0, cursorPos);
     final atIdx = beforeCursor.lastIndexOf('@');
     if (atIdx >= 0) {
-      final name = item.type == 'stock'
-          ? (item.symbol ?? item.name)
-          : item.name;
+      final name =
+          item.type == 'stock' ? (item.symbol ?? item.name) : item.name;
       // Replace "@query" with the name and add a trailing space for convenience
-      final newText = text.substring(0, atIdx) + name + ' ' + text.substring(cursorPos);
+      final newText =
+          '${text.substring(0, atIdx)}$name ${text.substring(cursorPos)}';
       _controller.text = newText;
       _controller.selection = TextSelection.fromPosition(
         TextPosition(offset: atIdx + name.length + 1),
@@ -203,7 +241,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       _showAutocomplete = false;
       _autocompleteResults = [];
     });
-    _focusNode.requestFocus();
+    _ensureInputFocus();
   }
 
   @override
@@ -217,7 +255,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           next.isLoading != (prev?.isLoading ?? false)) {
         _scrollToBottom();
       }
-      if (!next.isLoading && prev?.isLoading == true && next.sessionId != null) {
+      if (_didStreamingContentChange(prev, next)) {
+        _scrollToBottom(animated: false);
+      }
+      if (!next.isLoading &&
+          prev?.isLoading == true &&
+          next.sessionId != null) {
         _cacheMessagesLocally(next);
       }
     });
@@ -332,7 +375,11 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       await ChatLocalDatabase.upsertSession(ChatSession(
         id: state.sessionId!,
         deviceId: ref.read(deviceIdProvider),
-        title: state.messages.firstWhere((m) => m.role == 'user', orElse: () => state.messages.first).content.substring(0, state.messages.first.content.length.clamp(0, 80)),
+        title: state.messages
+            .firstWhere((m) => m.role == 'user',
+                orElse: () => state.messages.first)
+            .content
+            .substring(0, state.messages.first.content.length.clamp(0, 80)),
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
         messageCount: state.messages.length,
@@ -490,93 +537,124 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   }
 
   Widget _buildChatView(ArthaChatState chatState) {
-    return Column(
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Expanded(
-          child: chatState.messages.isEmpty
-              ? _buildWelcomeView()
-              : _buildMessageList(chatState),
+        Column(
+          children: [
+            Expanded(
+              child: chatState.messages.isEmpty
+                  ? _buildWelcomeView()
+                  : _buildMessageList(chatState),
+            ),
+            if (chatState.thinkingStatus != null && chatState.isLoading)
+              ThinkingIndicator(status: chatState.thinkingStatus!),
+            // Retry banner — shown when the last stream aborted. Tapping
+            // re-sends the last user message in the same session.
+            if (chatState.lastResponseFailed && !chatState.isLoading)
+              _buildRetryBanner(chatState),
+            // Follow-up suggestion chips from LLM — horizontal scroll so they
+            // never occupy more than ~48px vertical regardless of count/length.
+            if (!chatState.isLoading &&
+                !chatState.lastResponseFailed &&
+                chatState.messages.isNotEmpty &&
+                chatState.messages.last.role == 'assistant' &&
+                chatState.followUpSuggestions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                child: SuggestionChips.horizontal(
+                  suggestions: chatState.followUpSuggestions,
+                  onTap: _onSuggestionTap,
+                ),
+              ),
+            _buildInputBar(chatState),
+          ],
         ),
-        if (chatState.thinkingStatus != null && chatState.isLoading)
-          ThinkingIndicator(status: chatState.thinkingStatus!),
-        // Retry banner — shown when the last stream aborted. Tapping
-        // re-sends the last user message in the same session.
-        if (chatState.lastResponseFailed && !chatState.isLoading)
-          _buildRetryBanner(chatState),
-        // Follow-up suggestion chips from LLM — horizontal scroll so they
-        // never occupy more than ~48px vertical regardless of count/length.
-        if (!chatState.isLoading &&
-            !chatState.lastResponseFailed &&
-            chatState.messages.isNotEmpty &&
-            chatState.messages.last.role == 'assistant' &&
-            chatState.followUpSuggestions.isNotEmpty)
-          Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 4),
-            child: SuggestionChips.horizontal(
-              suggestions: chatState.followUpSuggestions,
-              onTap: _onSuggestionTap,
+        if (_showAutocomplete)
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: false,
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: CompositedTransformFollower(
+                  link: _autocompleteLayerLink,
+                  showWhenUnlinked: false,
+                  targetAnchor: Alignment.topCenter,
+                  followerAnchor: Alignment.bottomCenter,
+                  offset: const Offset(0, -8),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: _buildAutocompleteOverlay(),
+                  ),
+                ),
+              ),
             ),
           ),
-        // Autocomplete dropdown
-        if (_showAutocomplete) _buildAutocompleteOverlay(),
-        _buildInputBar(chatState),
       ],
     );
   }
 
   Widget _buildAutocompleteOverlay() {
-    return Container(
-      constraints: const BoxConstraints(maxHeight: 200),
-      margin: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.accentBlue.withValues(alpha: 0.3)),
-      ),
-      child: ListView.builder(
-        shrinkWrap: true,
-        padding: EdgeInsets.zero,
-        itemCount: _autocompleteResults.length,
-        itemBuilder: (context, index) {
-          final item = _autocompleteResults[index];
-          return ListTile(
-            dense: true,
-            leading: Icon(
-              item.type == 'stock' ? Icons.show_chart : Icons.account_balance,
-              size: 18,
-              color: item.type == 'stock'
-                  ? AppTheme.accentBlue
-                  : AppTheme.accentTeal,
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxHeight: 200, maxWidth: 560),
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.accentBlue.withValues(alpha: 0.3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.28),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
             ),
-            title: Text(
-              item.name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 13),
-            ),
-            subtitle: Text(
-              item.type == 'stock'
-                  ? item.symbol ?? ''
-                  : 'Mutual Fund',
-              style: const TextStyle(fontSize: 11, color: Colors.white38),
-            ),
-            trailing: item.score != null
-                ? Text(
-                    item.score!.toStringAsFixed(0),
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: item.score! >= 70
-                          ? AppTheme.accentGreen
-                          : item.score! >= 50
-                              ? AppTheme.accentOrange
-                              : AppTheme.accentRed,
-                    ),
-                  )
-                : null,
-            onTap: () => _insertAutocomplete(item),
-          );
-        },
+          ],
+        ),
+        child: ListView.builder(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
+          shrinkWrap: true,
+          padding: EdgeInsets.zero,
+          itemCount: _autocompleteResults.length,
+          itemBuilder: (context, index) {
+            final item = _autocompleteResults[index];
+            return ListTile(
+              dense: true,
+              leading: Icon(
+                item.type == 'stock' ? Icons.show_chart : Icons.account_balance,
+                size: 18,
+                color: item.type == 'stock'
+                    ? AppTheme.accentBlue
+                    : AppTheme.accentTeal,
+              ),
+              title: Text(
+                item.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 13),
+              ),
+              subtitle: Text(
+                item.type == 'stock' ? item.symbol ?? '' : 'Mutual Fund',
+                style: const TextStyle(fontSize: 11, color: Colors.white38),
+              ),
+              trailing: item.score != null
+                  ? Text(
+                      item.score!.toStringAsFixed(0),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: item.score! >= 70
+                            ? AppTheme.accentGreen
+                            : item.score! >= 50
+                                ? AppTheme.accentOrange
+                                : AppTheme.accentRed,
+                      ),
+                    )
+                  : null,
+              onTap: () => _insertAutocomplete(item),
+            );
+          },
+        ),
       ),
     );
   }
@@ -639,8 +717,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: () =>
-              ref.read(arthaChatProvider.notifier).retryLastMessage(),
+          onTap: () => ref.read(arthaChatProvider.notifier).retryLastMessage(),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -764,6 +841,7 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   Widget _buildMessageList(ArthaChatState chatState) {
     return ListView.builder(
       controller: _scrollController,
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.manual,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       itemCount: chatState.messages.length,
       itemBuilder: (context, index) {
@@ -826,131 +904,133 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     // flicker/reload. Instead, we use ValueListenableBuilder against
     // the TextEditingController so only the send button + mic icon
     // rebuild when text changes — nothing else.
-    return Container(
-      padding: EdgeInsets.only(
-        left: 12,
-        right: 8,
-        top: 8,
-        bottom: MediaQuery.of(context).padding.bottom + 8,
-      ),
-      decoration: BoxDecoration(
-        color: AppTheme.cardDark,
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+    return CompositedTransformTarget(
+      link: _autocompleteLayerLink,
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 12,
+          right: 8,
+          top: 8,
+          bottom: MediaQuery.of(context).padding.bottom + 8,
         ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              textInputAction: TextInputAction.send,
-              maxLines: 3,
-              minLines: 1,
-              style: const TextStyle(fontSize: 15),
-              decoration: InputDecoration(
-                hintText: _isListening
-                    ? 'Listening...'
-                    : 'Ask Artha anything... (@ to mention)',
-                hintStyle: TextStyle(
-                  color: _isListening
-                      ? AppTheme.accentBlue
-                      : Colors.white30,
-                ),
-                filled: true,
-                fillColor: _isListening
-                    ? AppTheme.accentBlue.withValues(alpha: 0.1)
-                    : AppTheme.surfaceDark,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: _isListening
-                      ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
-                      : BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: _isListening
-                      ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
-                      : BorderSide.none,
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(
-                    color: AppTheme.accentBlue,
-                    width: 1.5,
+        decoration: BoxDecoration(
+          color: AppTheme.cardDark,
+          border: Border(
+            top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                textInputAction: TextInputAction.send,
+                maxLines: 3,
+                minLines: 1,
+                style: const TextStyle(fontSize: 15),
+                decoration: InputDecoration(
+                  hintText: _isListening
+                      ? 'Listening...'
+                      : 'Ask Artha anything... (@ to mention)',
+                  hintStyle: TextStyle(
+                    color: _isListening ? AppTheme.accentBlue : Colors.white30,
+                  ),
+                  filled: true,
+                  fillColor: _isListening
+                      ? AppTheme.accentBlue.withValues(alpha: 0.1)
+                      : AppTheme.surfaceDark,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: _isListening
+                        ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
+                        : BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: _isListening
+                        ? BorderSide(color: AppTheme.accentBlue, width: 1.5)
+                        : BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: AppTheme.accentBlue,
+                      width: 1.5,
+                    ),
+                  ),
+                  // Mic icon: rebuild only when text state changes from
+                  // empty→non-empty or vice versa, via ValueListenableBuilder.
+                  suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                    valueListenable: _controller,
+                    builder: (context, value, _) {
+                      final hasText = value.text.trim().isNotEmpty;
+                      if (hasText) return const SizedBox.shrink();
+                      return GestureDetector(
+                        onTap: _speechAvailable ? _toggleVoiceInput : null,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Icon(
+                            _isListening ? Icons.mic : Icons.mic_none,
+                            color: _isListening
+                                ? AppTheme.accentBlue
+                                : _speechAvailable
+                                    ? Colors.white38
+                                    : Colors.white12,
+                            size: 22,
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 ),
-                // Mic icon: rebuild only when text state changes from
-                // empty→non-empty or vice versa, via ValueListenableBuilder.
-                suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                  valueListenable: _controller,
-                  builder: (context, value, _) {
-                    final hasText = value.text.trim().isNotEmpty;
-                    if (hasText) return const SizedBox.shrink();
-                    return GestureDetector(
-                      onTap: _speechAvailable ? _toggleVoiceInput : null,
-                      child: Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: Icon(
-                          _isListening ? Icons.mic : Icons.mic_none,
-                          color: _isListening
-                              ? AppTheme.accentBlue
-                              : _speechAvailable
-                                  ? Colors.white38
-                                  : Colors.white12,
-                          size: 22,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                onTap: _ensureInputFocus,
+                onSubmitted: (_) => _sendMessage(),
+                // Intentionally NO onChanged setState — see class docstring
+                // on _buildInputBar for why.
               ),
-              onSubmitted: (_) => _sendMessage(),
-              // Intentionally NO onChanged setState — see class docstring
-              // on _buildInputBar for why.
             ),
-          ),
-          const SizedBox(width: 8),
-          // Send button rebuilds only when text value changes.
-          ValueListenableBuilder<TextEditingValue>(
-            valueListenable: _controller,
-            builder: (context, value, _) {
-              final hasText = value.text.trim().isNotEmpty;
-              final disabled = chatState.isLoading || !hasText;
-              return Container(
-                decoration: BoxDecoration(
-                  gradient: disabled
-                      ? null
-                      : LinearGradient(
-                          colors: [
-                            AppTheme.accentBlue,
-                            AppTheme.accentBlue.withValues(alpha: 0.7),
-                          ],
-                        ),
-                  color: disabled ? Colors.white10 : null,
-                  shape: BoxShape.circle,
-                ),
-                child: IconButton(
-                  icon: chatState.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white54,
+            const SizedBox(width: 8),
+            // Send button rebuilds only when text value changes.
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _controller,
+              builder: (context, value, _) {
+                final hasText = value.text.trim().isNotEmpty;
+                final disabled = chatState.isLoading || !hasText;
+                return Container(
+                  decoration: BoxDecoration(
+                    gradient: disabled
+                        ? null
+                        : LinearGradient(
+                            colors: [
+                              AppTheme.accentBlue,
+                              AppTheme.accentBlue.withValues(alpha: 0.7),
+                            ],
                           ),
-                        )
-                      : const Icon(Icons.arrow_upward, size: 22),
-                  color: Colors.white,
-                  onPressed: disabled ? null : _sendMessage,
-                ),
-              );
-            },
-          ),
-        ],
+                    color: disabled ? Colors.white10 : null,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: chatState.isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white54,
+                            ),
+                          )
+                        : const Icon(Icons.arrow_upward, size: 22),
+                    color: Colors.white,
+                    onPressed: disabled ? null : _sendMessage,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -980,7 +1060,8 @@ class _AnimatedMessageEntryState extends State<_AnimatedMessageEntry>
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _fadeAnimation =
+        CurvedAnimation(parent: _controller, curve: Curves.easeOut);
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.15),
       end: Offset.zero,
