@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Launch theme for Android 12+ (API 31+).
+         Android 12 introduced a NEW splash screen API that IGNORES
+         the old @drawable/launch_background layer-list approach.
+         On API 31+ the system renders:
+           * windowSplashScreenBackground   — solid background colour
+           * windowSplashScreenAnimatedIcon — drawable shown centred inside
+                                              a ~288dp masked circle
+           * postSplashScreenTheme          — theme applied AFTER the splash
+         Apps targeting API 31+ that don't define these items get a blank
+         or default system splash — which is exactly what the user was
+         seeing ("logo missing"). The old LaunchTheme still applies on
+         Android 11 and below via values/styles.xml. -->
+    <style name="LaunchTheme" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/launch_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/launch_logo</item>
+        <item name="postSplashScreenTheme">@style/NormalTheme</item>
+    </style>
+
+    <!-- Normal theme applied after the splash animation finishes. Keeps
+         the dark background so there's no white flash during the
+         Flutter engine warm-up. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/launch_bg</item>
+    </style>
+</resources>

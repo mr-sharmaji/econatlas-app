@@ -43,6 +43,11 @@ android {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Required for the Android 12+ splash screen API (Theme.SplashScreen)
+    // referenced by res/values-v31/styles.xml. Without this, the app
+    // targeting API 31+ shows a blank system splash instead of our
+    // centred launch_logo.
+    implementation("androidx.core:core-splashscreen:1.0.1")
 }
 
 flutter {
