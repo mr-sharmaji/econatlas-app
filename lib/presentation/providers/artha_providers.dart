@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/dio_client.dart';
 import '../../data/datasources/artha_data_source.dart';
+import '../../data/local/chat_database.dart';
 import 'settings_providers.dart';
 
 /// Artha data source provider.
@@ -90,8 +91,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
   final String _deviceId;
   StreamSubscription<ArthaEvent>? _streamSub;
 
-  ArthaChatNotifier(this._ds, this._deviceId)
-      : super(const ArthaChatState());
+  ArthaChatNotifier(this._ds, this._deviceId) : super(const ArthaChatState());
 
   /// Start a new chat session.
   void newChat() {
@@ -104,12 +104,45 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
     state = state.copyWith(isLoading: true, sessionId: sessionId);
     try {
       final messages = await _ds.getSessionMessages(sessionId, _deviceId);
+      if (messages.isNotEmpty) {
+        await ChatLocalDatabase.cacheSessionMessages(sessionId, messages);
+        state = state.copyWith(
+          messages: messages,
+          isLoading: false,
+          sessionId: sessionId,
+          error: null,
+        );
+        return;
+      }
+
+      final cachedMessages = await ChatLocalDatabase.getMessages(sessionId);
+      if (cachedMessages.isNotEmpty) {
+        state = state.copyWith(
+          messages: cachedMessages,
+          isLoading: false,
+          sessionId: sessionId,
+          error: null,
+        );
+        return;
+      }
+
       state = state.copyWith(
         messages: messages,
         isLoading: false,
         sessionId: sessionId,
+        error: null,
       );
     } catch (e) {
+      final cachedMessages = await ChatLocalDatabase.getMessages(sessionId);
+      if (cachedMessages.isNotEmpty) {
+        state = state.copyWith(
+          messages: cachedMessages,
+          isLoading: false,
+          sessionId: sessionId,
+          error: null,
+        );
+        return;
+      }
       state = state.copyWith(
         isLoading: false,
         error: 'Failed to load chat history.',
@@ -200,7 +233,8 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               break;
 
             case ArthaEventType.suggestions:
-              final rawSuggestions = event.data['suggestions'] as List<dynamic>?;
+              final rawSuggestions =
+                  event.data['suggestions'] as List<dynamic>?;
               if (rawSuggestions != null) {
                 state = state.copyWith(
                   followUpSuggestions: rawSuggestions
@@ -215,8 +249,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
             case ArthaEventType.done:
               finalSessionId = event.data['session_id'] as String?;
               finalMessageId = event.data['message_id'] as String?;
-              _updateAssistantMessage(
-                  fullContent, stockCards, mfCards, false,
+              _updateAssistantMessage(fullContent, stockCards, mfCards, false,
                   messageId: finalMessageId);
               state = state.copyWith(
                 isLoading: false,
@@ -225,13 +258,22 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               break;
 
             case ArthaEventType.error:
-              final errorMsg = event.data['message'] as String? ??
-                  'Something went wrong.';
-              _updateAssistantMessage(errorMsg, [], [], false);
+              final errorMsg =
+                  event.data['message'] as String? ?? 'Something went wrong.';
+              final persistedMessageId = event.data['message_id'] as String?;
+              final persistedSessionId = event.data['session_id'] as String?;
+              _updateAssistantMessage(
+                errorMsg,
+                [],
+                [],
+                false,
+                messageId: persistedMessageId,
+              );
               state = state.copyWith(
                 isLoading: false,
                 error: errorMsg,
                 lastResponseFailed: true,
+                sessionId: persistedSessionId ?? finalSessionId,
               );
               break;
           }
@@ -320,7 +362,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
           sessionId: last.sessionId,
           role: 'assistant',
           content: content,
-          thinkingText: last.thinkingText,  // preserve accumulated thinking
+          thinkingText: last.thinkingText, // preserve accumulated thinking
           stockCards: stockCards,
           mfCards: mfCards,
           createdAt: last.createdAt,
@@ -356,8 +398,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
 
 /// Chat state provider.
 final arthaChatProvider =
-    StateNotifierProvider.autoDispose<ArthaChatNotifier, ArthaChatState>(
-        (ref) {
+    StateNotifierProvider.autoDispose<ArthaChatNotifier, ArthaChatState>((ref) {
   final ds = ref.read(arthaDataSourceProvider);
   final deviceId = ref.read(deviceIdProvider);
   return ArthaChatNotifier(ds, deviceId);
