@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shimmer/shimmer.dart';
 
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
@@ -73,6 +76,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _aiNarrativeRefetchTimer?.cancel();
     super.dispose();
   }
 
@@ -477,14 +481,63 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  // ── Top-level Action Verdict Card ─────────────────────────────
+  // ── Top-level Action Verdict Card (Artha-branded) ──────────────
+  //
+  // The backend's /stocks/{symbol}/story endpoint returns both a
+  // rule-based `why_narrative` (always present) AND an LLM-generated
+  // `ai_narrative` (cached in DB, refreshed in background every 24h,
+  // null on first view of a freshly-indexed stock).
+  //
+  // The card shows the Artha-analysis gradient treatment at all
+  // times because the content IS AI-curated (score layers + tags +
+  // verdict come from the scoring pipeline, narrative comes from
+  // the LLM). When ai_narrative is null on a cold view we show a
+  // "✨ Artha is analyzing…" shimmer line and schedule one refetch
+  // after 3 s so the background-generated narrative appears without
+  // a manual reload.
+  Timer? _aiNarrativeRefetchTimer;
 
   Widget _buildTopVerdictCard(ThemeData theme, DiscoverStockItem item) {
     final storyAsync = ref.watch(discoverStockStoryProvider(item.symbol));
     return storyAsync.when(
-      loading: () => _buildVerdictShimmer(),
-      error: (_, __) => _buildVerdictFromItem(theme, item),
-      data: (story) => _buildVerdictFromStory(theme, item, story),
+      loading: () => _buildVerdictShimmer(theme),
+      error: (_, __) => _buildArthaCard(
+        theme,
+        item,
+        actionTag: item.actionTag,
+        verdict: null,
+        narrative: item.scoreBreakdown.whyNarrative,
+        isAiNarrative: false,
+        isAnalyzing: false,
+        bannerTags: _bannerContextTags(item.tags),
+      ),
+      data: (story) {
+        final narrative = story.aiNarrative
+            ?? story.whyNarrative
+            ?? item.scoreBreakdown.whyNarrative;
+        final isAi = story.aiNarrative != null;
+        final isAnalyzing = story.aiNarrative == null;
+        // Schedule a one-shot refetch so the background-regenerated
+        // narrative surfaces without needing a manual reload.
+        if (isAnalyzing && _aiNarrativeRefetchTimer == null) {
+          _aiNarrativeRefetchTimer = Timer(const Duration(seconds: 3), () {
+            if (mounted) {
+              ref.invalidate(discoverStockStoryProvider(item.symbol));
+              _aiNarrativeRefetchTimer = null;
+            }
+          });
+        }
+        return _buildArthaCard(
+          theme,
+          item,
+          actionTag: story.actionTag ?? item.actionTag,
+          verdict: story.verdict,
+          narrative: narrative,
+          isAiNarrative: isAi,
+          isAnalyzing: isAnalyzing,
+          bannerTags: _bannerContextTags(item.tags),
+        );
+      },
     );
   }
 
@@ -790,61 +843,167 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
 
   // ── Action Verdict Helpers ──────────────────────────────────
 
-  Widget _buildVerdictShimmer() {
-    return const ShimmerCard(height: 120);
+  /// Shimmer version of the Artha card shown while the story fetch
+  /// is in flight. Matches the gradient look so there's no visual
+  /// jump when the real content lands.
+  Widget _buildVerdictShimmer(ThemeData theme) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: _arthaGradient(Colors.white24),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildArthaHeader(theme, analyzing: true),
+          const SizedBox(height: 10),
+          Shimmer.fromColors(
+            baseColor: Colors.white.withValues(alpha: 0.08),
+            highlightColor: Colors.white.withValues(alpha: 0.20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(height: 12, width: 160, color: Colors.white),
+                const SizedBox(height: 8),
+                Container(height: 10, width: double.infinity, color: Colors.white),
+                const SizedBox(height: 6),
+                Container(height: 10, width: double.infinity, color: Colors.white),
+                const SizedBox(height: 6),
+                Container(height: 10, width: 180, color: Colors.white),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
-  /// Fallback when Story endpoint fails — uses data already on the item model.
-  Widget _buildVerdictFromItem(ThemeData theme, DiscoverStockItem item) {
-    final actionTag = item.actionTag;
-    final narrative = item.scoreBreakdown.whyNarrative;
-    if (actionTag == null && narrative == null) return const SizedBox.shrink();
+  /// Unified Artha verdict card — used for both the story-endpoint
+  /// data path AND the fallback when /story fails.
+  Widget _buildArthaCard(
+    ThemeData theme,
+    DiscoverStockItem item, {
+    required String? actionTag,
+    required String? verdict,
+    required String? narrative,
+    required bool isAiNarrative,
+    required bool isAnalyzing,
+    required List<TagV2> bannerTags,
+  }) {
+    if (actionTag == null && verdict == null && narrative == null
+        && !isAnalyzing) {
+      return const SizedBox.shrink();
+    }
 
-    final color =
-        actionTag != null ? _actionTagColor(actionTag) : Colors.white54;
-
-    final bannerTags = _bannerContextTags(item.tags);
+    final tagColor = actionTag != null
+        ? _actionTagColor(actionTag)
+        : AppTheme.accentBlue;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        gradient: _arthaGradient(tagColor),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: tagColor.withValues(alpha: 0.30),
+          width: 1,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              if (actionTag != null) ...[
-                Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  actionTag != null ? _formatActionTag(actionTag) : '',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: color,
+          _buildArthaHeader(theme, analyzing: isAnalyzing),
+
+          // Action tag pill
+          if (actionTag != null) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tagColor.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: tagColor.withValues(alpha: 0.55),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        _actionTagIcon(actionTag),
+                        size: 14,
+                        color: tagColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatActionTag(actionTag),
+                        style: theme.textTheme.labelMedium?.copyWith(
+                          color: tagColor,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
-          ),
-          if (narrative != null) ...[
-            const SizedBox(height: 8),
+              ],
+            ),
+          ],
+
+          // Verdict one-liner
+          if (verdict != null) ...[
+            const SizedBox(height: 10),
             Text(
-              narrative,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-                height: 1.4,
+              verdict,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: Colors.white.withValues(alpha: 0.95),
+                fontWeight: FontWeight.w600,
+                height: 1.35,
               ),
             ),
           ],
+
+          // AI narrative paragraph (or analysing shimmer line)
+          if (isAnalyzing) ...[
+            const SizedBox(height: 10),
+            Shimmer.fromColors(
+              baseColor: Colors.white.withValues(alpha: 0.08),
+              highlightColor: Colors.white.withValues(alpha: 0.20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(height: 10, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 6),
+                  Container(height: 10, width: double.infinity, color: Colors.white),
+                  const SizedBox(height: 6),
+                  Container(height: 10, width: 180, color: Colors.white),
+                ],
+              ),
+            ),
+          ] else if (narrative != null) ...[
+            const SizedBox(height: 10),
+            Text(
+              narrative,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.80),
+                height: 1.5,
+                fontStyle: isAiNarrative ? FontStyle.italic : FontStyle.normal,
+              ),
+            ),
+          ],
+
+          // Context tag chips
           if (bannerTags.isNotEmpty) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 6,
               runSpacing: 6,
@@ -859,90 +1018,47 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     );
   }
 
-  /// Full verdict card with Story endpoint data.
-  Widget _buildVerdictFromStory(
-      ThemeData theme, DiscoverStockItem item, StockStory story) {
-    final actionTag = story.actionTag ?? item.actionTag;
-    final verdict = story.verdict;
-    final narrative = story.whyNarrative ?? item.scoreBreakdown.whyNarrative;
+  /// Subtle gradient used on the Artha verdict card. Blends the
+  /// action-tag colour with Artha's purple-teal accent so the card
+  /// feels AI-curated without overwhelming the action tag's meaning.
+  LinearGradient _arthaGradient(Color tagColor) {
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        AppTheme.accentBlue.withValues(alpha: 0.18),
+        tagColor.withValues(alpha: 0.10),
+        const Color(0xFF7C4DFF).withValues(alpha: 0.12), // accent purple
+      ],
+      stops: const [0.0, 0.55, 1.0],
+    );
+  }
 
-    if (actionTag == null && verdict == null && narrative == null) {
-      return const SizedBox.shrink();
-    }
-
-    final color =
-        actionTag != null ? _actionTagColor(actionTag) : Colors.white54;
-
-    final bannerTags = _bannerContextTags(item.tags);
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Action tag header row with confidence badge
-          Row(
-            children: [
-              if (actionTag != null) ...[
-                Icon(_actionTagIcon(actionTag), size: 18, color: color),
-                const SizedBox(width: 8),
-              ],
-              Expanded(
-                child: Text(
-                  actionTag != null ? _formatActionTag(actionTag) : '',
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                ),
-              ),
-            ],
+  /// Header row: ✨ Artha analysis + (analyzing…) subtitle.
+  Widget _buildArthaHeader(ThemeData theme, {required bool analyzing}) {
+    return Row(
+      children: [
+        const Text('✨', style: TextStyle(fontSize: 16)),
+        const SizedBox(width: 6),
+        Text(
+          'Artha analysis',
+          style: theme.textTheme.labelMedium?.copyWith(
+            color: Colors.white.withValues(alpha: 0.85),
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
           ),
-
-          // Verdict one-liner
-          if (verdict != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              verdict,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.9),
-                fontWeight: FontWeight.w500,
-              ),
+        ),
+        if (analyzing) ...[
+          const SizedBox(width: 8),
+          Text(
+            '— analyzing…',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontStyle: FontStyle.italic,
             ),
-          ],
-
-          // Narrative paragraph
-          if (narrative != null) ...[
-            const SizedBox(height: 6),
-            Text(
-              narrative,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white70,
-                height: 1.4,
-              ),
-            ),
-          ],
-
-          // Context tag chips
-          if (bannerTags.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: bannerTags.map((t) {
-                final td = getTagV2Display(t);
-                return _bannerChip(theme, td, t);
-              }).toList(),
-            ),
-          ],
+          ),
         ],
-      ),
+      ],
     );
   }
 

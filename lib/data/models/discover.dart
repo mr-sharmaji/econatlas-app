@@ -1434,7 +1434,15 @@ class StockStory {
   final String? trendAlignment;
   final String? breakoutSignal;
   final String? lynchClassification;
+  /// Rule-based narrative composed from score_breakdown. Always
+  /// present when the stock has a score. Deterministic, not AI.
   final String? whyNarrative;
+  /// LLM-generated 2-3 sentence narrative. Cached in the DB and
+  /// refreshed in the background every 24h. Null on first view of
+  /// a newly-indexed stock; the verdict card should show an
+  /// "Artha is analyzing..." shimmer in that case and refetch after
+  /// a few seconds so the card picks up the background-written text.
+  final String? aiNarrative;
   final String? scoreConfidence;
   final List<ScoreChange> scoreChanges;
 
@@ -1447,6 +1455,7 @@ class StockStory {
     this.breakoutSignal,
     this.lynchClassification,
     this.whyNarrative,
+    this.aiNarrative,
     this.scoreConfidence,
     this.scoreChanges = const [],
   });
@@ -1461,6 +1470,7 @@ class StockStory {
       breakoutSignal: json['breakout_signal'] as String?,
       lynchClassification: json['lynch_classification'] as String?,
       whyNarrative: json['why_narrative'] as String?,
+      aiNarrative: json['ai_narrative'] as String?,
       scoreConfidence: json['score_confidence'] as String?,
       scoreChanges: (json['score_changes'] as List<dynamic>? ?? const [])
           .map((e) => ScoreChange.fromJson(e as Map<String, dynamic>))
