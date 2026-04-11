@@ -10,6 +10,8 @@ import '../../../data/models/market_price.dart';
 import '../../../data/services/starred_stocks_service.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
+import '../discover/widgets/mf_list_tile.dart';
+import '../discover/widgets/stock_list_tile.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -176,7 +178,10 @@ class _StarredFavoritesTab extends ConsumerStatefulWidget {
 
 class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
   late _FavoritesSortMode _sortMode;
-  bool _isEditMode = false;
+  // Active filter — null = show all, otherwise only rows whose
+  // sector (stocks) or category (MFs) equals this string. Toggled
+  // via the chip row beneath the summary card.
+  String? _activeFilter;
 
   bool get _isStockTab => widget.type == 'stock';
   String get _sortPreferenceKey =>
@@ -198,6 +203,12 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
         .setString(_sortPreferenceKey, mode.storageValue);
   }
 
+  void _toggleFilter(String label) {
+    setState(() {
+      _activeFilter = _activeFilter == label ? null : label;
+    });
+  }
+
   Future<void> _refreshLiveData() async {
     if (_isStockTab) {
       ref.invalidate(starredStockLiveQuotesProvider);
@@ -208,13 +219,39 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
     await ref.read(starredMfLiveQuotesProvider.future);
   }
 
-  Future<void> _removeFavorite(StarredItem item) async {
+  Future<void> _removeFavoriteWithUndo(StarredItem item) async {
+    // Snapshot the item so the Undo path can restore with the exact
+    // same name + freshness stamp.
+    final snapshot = item;
     await ref.read(starredStocksProvider.notifier).toggle(
           type: item.type,
           id: item.id,
           name: item.name,
           percentChange: item.percentChange,
         );
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.clearSnackBars();
+    messenger.showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 4),
+        content: Text(
+          'Removed ${snapshot.name} from watchlist',
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        action: SnackBarAction(
+          label: 'Undo',
+          onPressed: () async {
+            await ref.read(starredStocksProvider.notifier).toggle(
+                  type: snapshot.type,
+                  id: snapshot.id,
+                  name: snapshot.name,
+                  percentChange: snapshot.percentChange,
+                );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -245,28 +282,54 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
         liveAsync.valueOrNull ?? const <String, DiscoverStockItem>{};
 
     if (liveAsync.isLoading && liveQuotes.isEmpty) {
-      return _FavoritesLoadingTab(
-        onRefresh: _refreshLiveData,
-        isStockTab: true,
-        sortMode: _sortMode,
-        isEditMode: _isEditMode,
-        onSortSelected: _setSortMode,
-        onToggleEdit: () => setState(() => _isEditMode = !_isEditMode),
-      );
+      return _FavoritesLoadingTab(onRefresh: _refreshLiveData);
     }
 
-    final rows = starred
+    final allRows = starred
         .map(
           (item) => _StockFavoriteRowData(
             item: item,
             live: liveQuotes[item.id],
           ),
         )
-        .toList(growable: false)
-      ..sort(_compareStockRows);
+        .toList(growable: false);
 
-    final summary =
-        _buildStockSummary(totalFavorites: starred.length, rows: rows);
+    // Build filterable sector buckets off the live snapshot. Rows
+    // without a sector collapse to "Other".
+    final sectorCounts = <String, int>{};
+    for (final row in allRows) {
+      final sector = (row.live?.sector ?? '').trim();
+      final key = sector.isEmpty ? 'Other' : sector;
+      sectorCounts[key] = (sectorCounts[key] ?? 0) + 1;
+    }
+
+    final filterLabel = _activeFilter;
+    final filteredRows = (filterLabel == null
+            ? allRows
+            : allRows.where((row) {
+                final sector = (row.live?.sector ?? '').trim();
+                final bucket = sector.isEmpty ? 'Other' : sector;
+                return bucket == filterLabel;
+              }).toList())
+        ..sort(_compareStockRows);
+
+    // Summary numbers always reflect the *currently visible* set so
+    // that the sector-chip tap instantly redraws the badges above.
+    final summary = _buildStockSummary(
+      totalFavorites: filteredRows.length,
+      rows: filteredRows,
+    );
+
+    // Prefetch per-row intraday sparkline data. One batched fetch for
+    // all visible symbols, same provider the screener uses.
+    final symbolsCsv = filteredRows.map((row) => row.symbol).join(',');
+    final sparkAsync = symbolsCsv.isEmpty
+        ? const AsyncValue<Map<String, List<PriceHistoryPoint>>>.data({})
+        : ref.watch(discoverStockSparklinesProvider(
+            (symbolsCsv: symbolsCsv, days: 1),
+          ));
+    final sparkMap = sparkAsync.valueOrNull ?? const {};
+
     final showStaleNotice = liveAsync.hasError && liveQuotes.isEmpty;
 
     return RefreshIndicator(
@@ -289,21 +352,77 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
             positiveLabel: 'Gainers',
             negativeLabel: 'Losers',
             summary: summary,
-          ),
-          const SizedBox(height: 10),
-          _FavoritesControlsRow(
-            isStockTab: true,
-            sortMode: _sortMode,
-            isEditMode: _isEditMode,
-            onSortSelected: _setSortMode,
-            onToggleEdit: () => setState(() => _isEditMode = !_isEditMode),
+            filterBuckets: sectorCounts,
+            activeFilter: filterLabel,
+            onFilterTapped: _toggleFilter,
           ),
           const SizedBox(height: 8),
-          for (final row in rows)
-            _StockFavoriteCard(
-              row: row,
-              isEditMode: _isEditMode,
-              onRemove: () => _removeFavorite(row.item),
+          _FavoritesSortDropdown(
+            sortMode: _sortMode,
+            isStockTab: true,
+            onChanged: _setSortMode,
+          ),
+          const SizedBox(height: 4),
+          if (filteredRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  'No favorites in this sector.',
+                  style: TextStyle(color: Colors.white38),
+                ),
+              ),
+            ),
+          for (final row in filteredRows)
+            Dismissible(
+              key: ValueKey('fav-stock-${row.item.id}'),
+              direction: DismissDirection.endToStart,
+              background: const _FavoritesDismissBackground(),
+              confirmDismiss: (_) async {
+                await _removeFavoriteWithUndo(row.item);
+                return true;
+              },
+              child: Builder(
+                builder: (context) {
+                  final live = row.live;
+                  if (live != null) {
+                    return StockListTile(
+                      item: live,
+                      changeField: StockChangeField.daily,
+                      sparklineValues:
+                          sparkMap[row.symbol]?.map((p) => p.value).toList(),
+                      onTap: () => context.push(
+                        '/discover/stock/${Uri.encodeComponent(row.symbol)}',
+                        extra: live,
+                      ),
+                    );
+                  }
+                  // No live snapshot yet — thin placeholder row that
+                  // still links to the detail screen.
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      title: Text(
+                        row.displayName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: const Text(
+                        'Waiting for live data…',
+                        style: TextStyle(color: Colors.white38),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () => context.push(
+                        '/discover/stock/${Uri.encodeComponent(row.symbol)}',
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
         ],
       ),
@@ -316,27 +435,53 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
         liveAsync.valueOrNull ?? const <String, DiscoverMutualFundItem>{};
 
     if (liveAsync.isLoading && liveQuotes.isEmpty) {
-      return _FavoritesLoadingTab(
-        onRefresh: _refreshLiveData,
-        isStockTab: false,
-        sortMode: _sortMode,
-        isEditMode: _isEditMode,
-        onSortSelected: _setSortMode,
-        onToggleEdit: () => setState(() => _isEditMode = !_isEditMode),
-      );
+      return _FavoritesLoadingTab(onRefresh: _refreshLiveData);
     }
 
-    final rows = starred
+    final allRows = starred
         .map(
           (item) => _MfFavoriteRowData(
             item: item,
             live: liveQuotes[item.id],
           ),
         )
-        .toList(growable: false)
-      ..sort(_compareMfRows);
+        .toList(growable: false);
 
-    final summary = _buildMfSummary(totalFavorites: starred.length, rows: rows);
+    // Coarse category buckets (Equity / Debt / Hybrid / Other) —
+    // same taxonomy the screener uses. Missing categories collapse
+    // to "Other".
+    final categoryCounts = <String, int>{};
+    for (final row in allRows) {
+      final category = (row.live?.category ?? '').trim();
+      final key = category.isEmpty ? 'Other' : _canonicalMfCategory(category);
+      categoryCounts[key] = (categoryCounts[key] ?? 0) + 1;
+    }
+
+    final filterLabel = _activeFilter;
+    final filteredRows = (filterLabel == null
+            ? allRows
+            : allRows.where((row) {
+                final category = (row.live?.category ?? '').trim();
+                final bucket = category.isEmpty
+                    ? 'Other'
+                    : _canonicalMfCategory(category);
+                return bucket == filterLabel;
+              }).toList())
+        ..sort(_compareMfRows);
+
+    final summary = _buildMfSummary(
+      totalFavorites: filteredRows.length,
+      rows: filteredRows,
+    );
+
+    final codesCsv = filteredRows.map((row) => row.item.id).join(',');
+    final sparkAsync = codesCsv.isEmpty
+        ? const AsyncValue<Map<String, List<PriceHistoryPoint>>>.data({})
+        : ref.watch(discoverMfSparklinesProvider(
+            (codesCsv: codesCsv, days: 30),
+          ));
+    final sparkMap = sparkAsync.valueOrNull ?? const {};
+
     final showStaleNotice = liveAsync.hasError && liveQuotes.isEmpty;
 
     return RefreshIndicator(
@@ -359,25 +504,89 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
             positiveLabel: 'Positive',
             negativeLabel: 'Negative',
             summary: summary,
-          ),
-          const SizedBox(height: 10),
-          _FavoritesControlsRow(
-            isStockTab: false,
-            sortMode: _sortMode,
-            isEditMode: _isEditMode,
-            onSortSelected: _setSortMode,
-            onToggleEdit: () => setState(() => _isEditMode = !_isEditMode),
+            filterBuckets: categoryCounts,
+            activeFilter: filterLabel,
+            onFilterTapped: _toggleFilter,
           ),
           const SizedBox(height: 8),
-          for (final row in rows)
-            _MfFavoriteCard(
-              row: row,
-              isEditMode: _isEditMode,
-              onRemove: () => _removeFavorite(row.item),
+          _FavoritesSortDropdown(
+            sortMode: _sortMode,
+            isStockTab: false,
+            onChanged: _setSortMode,
+          ),
+          const SizedBox(height: 4),
+          if (filteredRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 32),
+              child: Center(
+                child: Text(
+                  'No favorites in this category.',
+                  style: TextStyle(color: Colors.white38),
+                ),
+              ),
+            ),
+          for (final row in filteredRows)
+            Dismissible(
+              key: ValueKey('fav-mf-${row.item.id}'),
+              direction: DismissDirection.endToStart,
+              background: const _FavoritesDismissBackground(),
+              confirmDismiss: (_) async {
+                await _removeFavoriteWithUndo(row.item);
+                return true;
+              },
+              child: Builder(
+                builder: (context) {
+                  final live = row.live;
+                  if (live != null) {
+                    return MfListTile(
+                      item: live,
+                      sparklineValues:
+                          sparkMap[row.item.id]?.map((p) => p.value).toList(),
+                      onTap: () => context.push(
+                        '/discover/mf/${row.item.id}',
+                        extra: live,
+                      ),
+                    );
+                  }
+                  // No live snapshot yet — show a thin placeholder row
+                  // that still links to the detail screen.
+                  return Card(
+                    margin: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 4,
+                    ),
+                    child: ListTile(
+                      dense: true,
+                      title: Text(
+                        row.displayName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      subtitle: const Text(
+                        'Waiting for live data…',
+                        style: TextStyle(color: Colors.white38),
+                      ),
+                      trailing: const Icon(Icons.chevron_right_rounded),
+                      onTap: () =>
+                          context.push('/discover/mf/${row.item.id}'),
+                    ),
+                  );
+                },
+              ),
             ),
         ],
       ),
     );
+  }
+
+  // Normalise a raw AMFI / ET Money category string into one of
+  // {Equity, Debt, Hybrid, Other} — the 4-way chip row the UI shows.
+  static String _canonicalMfCategory(String raw) {
+    final lower = raw.toLowerCase();
+    if (lower.contains('equity')) return 'Equity';
+    if (lower.contains('debt')) return 'Debt';
+    if (lower.contains('hybrid')) return 'Hybrid';
+    return 'Other';
   }
 
   int _compareStockRows(_StockFavoriteRowData a, _StockFavoriteRowData b) {
@@ -570,6 +779,15 @@ class _FavoritesSummaryCard extends StatelessWidget {
   final String positiveLabel;
   final String negativeLabel;
   final _FavoritesSummaryData summary;
+  /// Sector (stocks) / category (MFs) breakdown of the full
+  /// favorites universe. Keys are label strings, values are
+  /// counts. Used to build the inline filter chip row.
+  final Map<String, int> filterBuckets;
+  /// The currently-active filter label (or null for "all").
+  final String? activeFilter;
+  /// Called when a chip is tapped. Tapping the active chip again
+  /// should clear the filter (the parent handles that logic).
+  final ValueChanged<String> onFilterTapped;
 
   const _FavoritesSummaryCard({
     required this.title,
@@ -578,6 +796,9 @@ class _FavoritesSummaryCard extends StatelessWidget {
     required this.positiveLabel,
     required this.negativeLabel,
     required this.summary,
+    this.filterBuckets = const {},
+    this.activeFilter,
+    required this.onFilterTapped,
   });
 
   @override
@@ -687,26 +908,73 @@ class _FavoritesSummaryCard extends StatelessWidget {
                 fontSize: 11,
               ),
             ),
+            if (filterBuckets.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              _buildFilterChipRow(theme),
+            ],
           ],
         ),
       ),
     );
   }
+
+  Widget _buildFilterChipRow(ThemeData theme) {
+    // Sort by count DESC so the most-populated bucket leads.
+    final entries = filterBuckets.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return SizedBox(
+      height: 32,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: entries.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final entry = entries[index];
+          final selected = entry.key == activeFilter;
+          return FilterChip(
+            label: Text(
+              '${entry.key} (${entry.value})',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : Colors.white70,
+              ),
+            ),
+            selected: selected,
+            onSelected: (_) => onFilterTapped(entry.key),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            selectedColor: AppTheme.accentBlue.withValues(alpha: 0.60),
+            backgroundColor: AppTheme.accentBlue.withValues(alpha: 0.12),
+            checkmarkColor: Colors.white,
+            showCheckmark: false,
+            side: BorderSide(
+              color: selected
+                  ? AppTheme.accentBlue
+                  : AppTheme.accentBlue.withValues(alpha: 0.25),
+              width: 0.8,
+            ),
+          );
+        },
+      ),
+    );
+  }
 }
 
-class _FavoritesControlsRow extends StatelessWidget {
-  final bool isStockTab;
+/// Compact sort dropdown used on both Stocks and MFs tabs. Replaces
+/// the ChoiceChip row + Edit toggle. Renders as a single menu button
+/// aligned to the right.
+class _FavoritesSortDropdown extends StatelessWidget {
   final _FavoritesSortMode sortMode;
-  final bool isEditMode;
-  final ValueChanged<_FavoritesSortMode> onSortSelected;
-  final VoidCallback onToggleEdit;
+  final bool isStockTab;
+  final ValueChanged<_FavoritesSortMode> onChanged;
 
-  const _FavoritesControlsRow({
-    required this.isStockTab,
+  const _FavoritesSortDropdown({
     required this.sortMode,
-    required this.isEditMode,
-    required this.onSortSelected,
-    required this.onToggleEdit,
+    required this.isStockTab,
+    required this.onChanged,
   });
 
   @override
@@ -714,30 +982,90 @@ class _FavoritesControlsRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Expanded(
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final mode in _FavoritesSortMode.values)
-                  ChoiceChip(
-                    label: Text(mode.label(isStockTab: isStockTab)),
-                    selected: sortMode == mode,
-                    onSelected: (_) => onSortSelected(mode),
-                  ),
-              ],
+          Icon(
+            Icons.sort_rounded,
+            size: 16,
+            color: Colors.white54,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Sort:',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.white54,
+              fontWeight: FontWeight.w500,
             ),
           ),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
-            onPressed: onToggleEdit,
-            icon: Icon(
-              isEditMode ? Icons.check_rounded : Icons.edit_outlined,
-              size: 16,
+          const SizedBox(width: 6),
+          DropdownButtonHideUnderline(
+            child: DropdownButton<_FavoritesSortMode>(
+              value: sortMode,
+              dropdownColor: AppTheme.cardDark,
+              isDense: true,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Colors.white,
+              ),
+              icon: const Icon(
+                Icons.keyboard_arrow_down_rounded,
+                size: 16,
+                color: Colors.white54,
+              ),
+              items: [
+                for (final mode in _FavoritesSortMode.values)
+                  DropdownMenuItem(
+                    value: mode,
+                    child: Text(
+                      mode.label(isStockTab: isStockTab),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+              ],
+              onChanged: (mode) {
+                if (mode != null) onChanged(mode);
+              },
             ),
-            label: Text(isEditMode ? 'Done' : 'Edit'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Red slide-away background shown behind a Dismissible row when the
+/// user swipes left to remove a favourite.
+class _FavoritesDismissBackground extends StatelessWidget {
+  const _FavoritesDismissBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: AppTheme.accentRed.withValues(alpha: 0.80),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: Alignment.centerRight,
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.star_outline_rounded,
+              size: 18, color: Colors.white),
+          SizedBox(width: 6),
+          Text(
+            'Unstar',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -747,20 +1075,8 @@ class _FavoritesControlsRow extends StatelessWidget {
 
 class _FavoritesLoadingTab extends StatelessWidget {
   final Future<void> Function() onRefresh;
-  final bool isStockTab;
-  final _FavoritesSortMode sortMode;
-  final bool isEditMode;
-  final ValueChanged<_FavoritesSortMode> onSortSelected;
-  final VoidCallback onToggleEdit;
 
-  const _FavoritesLoadingTab({
-    required this.onRefresh,
-    required this.isStockTab,
-    required this.sortMode,
-    required this.isEditMode,
-    required this.onSortSelected,
-    required this.onToggleEdit,
-  });
+  const _FavoritesLoadingTab({required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -769,20 +1085,13 @@ class _FavoritesLoadingTab extends StatelessWidget {
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
-        children: [
-          const ShimmerCard(height: 170),
-          const SizedBox(height: 10),
-          _FavoritesControlsRow(
-            isStockTab: isStockTab,
-            sortMode: sortMode,
-            isEditMode: isEditMode,
-            onSortSelected: onSortSelected,
-            onToggleEdit: onToggleEdit,
-          ),
-          const SizedBox(height: 8),
-          const ShimmerCard(height: 124),
-          const ShimmerCard(height: 124),
-          const ShimmerCard(height: 124),
+        children: const [
+          ShimmerCard(height: 170),
+          SizedBox(height: 10),
+          ShimmerCard(height: 80),
+          ShimmerCard(height: 80),
+          ShimmerCard(height: 80),
+          ShimmerCard(height: 80),
         ],
       ),
     );
@@ -822,454 +1131,6 @@ class _FavoritesDataNotice extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class _StockFavoriteCard extends StatelessWidget {
-  final _StockFavoriteRowData row;
-  final bool isEditMode;
-  final Future<void> Function() onRemove;
-
-  const _StockFavoriteCard({
-    required this.row,
-    required this.isEditMode,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final sector = row.live?.sector ?? row.live?.industry;
-    final freshness = row.freshness != null
-        ? Formatters.updatedFreshness(row.freshness!)
-        : 'Saved ${Formatters.relativeTime(DateTime.fromMillisecondsSinceEpoch(row.item.timestamp))}';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: InkWell(
-        onTap: () => context.push('/discover/stock/${row.item.id}'),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentBlue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.show_chart_rounded,
-                  size: 18,
-                  color: AppTheme.accentBlue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            row.symbol,
-                            style: theme.textTheme.bodyLarge?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (row.live != null)
-                          Text(
-                            '₹ ${Formatters.fullPrice(row.live!.lastPrice)}',
-                            style: theme.textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures()
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      row.displayName,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: Colors.white70,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    if (sector != null && sector.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        sector,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white38,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (row.effectiveChange != null)
-                          _MetricChip(
-                            label:
-                                _formatPercent(row.effectiveChange, digits: 1),
-                            color: _changeColor(row.effectiveChange),
-                          ),
-                        if (row.live != null)
-                          _MetricChip(
-                            label:
-                                'Score ${row.live!.score.toStringAsFixed(0)}',
-                            color: AppTheme.accentBlue,
-                          ),
-                        if (row.live?.actionTag != null &&
-                            row.live!.actionTag!.trim().isNotEmpty)
-                          _MetricChip(
-                            label: row.live!.actionTag!,
-                            color: AppTheme.accentBlue,
-                            isSubtle: true,
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            freshness,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white38,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        if (isEditMode)
-                          IconButton(
-                            onPressed: onRemove,
-                            tooltip: 'Remove favorite',
-                            icon: const Icon(
-                              Icons.remove_circle_outline_rounded,
-                              color: AppTheme.accentRed,
-                            ),
-                          )
-                        else
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MfFavoriteCard extends StatelessWidget {
-  final _MfFavoriteRowData row;
-  final bool isEditMode;
-  final Future<void> Function() onRemove;
-
-  const _MfFavoriteCard({
-    required this.row,
-    required this.isEditMode,
-    required this.onRemove,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final live = row.live;
-    final subtitleParts = <String>[
-      if ((live?.category ?? '').trim().isNotEmpty) live!.category!.trim(),
-      if ((live?.fundClassification ?? '').trim().isNotEmpty)
-        live!.fundClassification!.trim(),
-    ];
-    final metaParts = <String>[
-      if (live?.expenseRatio != null)
-        'Expense ${live!.expenseRatio!.toStringAsFixed(2)}%',
-      if (live?.aumCr != null) 'AUM ₹${Formatters.fullPrice(live!.aumCr!)} Cr',
-    ];
-    final freshness = row.freshness != null
-        ? Formatters.updatedFreshness(row.freshness!)
-        : 'Saved ${Formatters.relativeTime(DateTime.fromMillisecondsSinceEpoch(row.item.timestamp))}';
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      child: InkWell(
-        onTap: () => context.push('/discover/mf/${row.item.id}'),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: AppTheme.accentBlue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: const Icon(
-                  Icons.account_balance_wallet_outlined,
-                  size: 18,
-                  color: AppTheme.accentBlue,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            row.displayName,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (live != null)
-                          Padding(
-                            padding: const EdgeInsets.only(left: 8),
-                            child: Text(
-                              '₹ ${Formatters.fullPrice(live.nav)}',
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                fontFeatures: const [
-                                  FontFeature.tabularFigures()
-                                ],
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                    if (subtitleParts.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Text(
-                        subtitleParts.join(' · '),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white54,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (row.effectiveReturn1y != null)
-                          _MetricChip(
-                            label:
-                                '${_formatPercent(row.effectiveReturn1y, digits: 1)} 1Y',
-                            color: _changeColor(row.effectiveReturn1y),
-                          ),
-                        if (live != null)
-                          _MetricChip(
-                            label: 'Score ${live.score.toStringAsFixed(0)}',
-                            color: AppTheme.accentBlue,
-                          ),
-                        if ((live?.riskLevel ?? '').trim().isNotEmpty)
-                          _MetricChip(
-                            label: live!.riskLevel!,
-                            color: _riskColor(live.riskLevel),
-                            isSubtle: true,
-                          ),
-                      ],
-                    ),
-                    if (metaParts.isNotEmpty) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        metaParts.join(' · '),
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white38,
-                          fontSize: 11,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            freshness,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: Colors.white38,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ),
-                        if (isEditMode)
-                          IconButton(
-                            onPressed: onRemove,
-                            tooltip: 'Remove favorite',
-                            icon: const Icon(
-                              Icons.remove_circle_outline_rounded,
-                              color: AppTheme.accentRed,
-                            ),
-                          )
-                        else
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            size: 18,
-                            color: Colors.white.withValues(alpha: 0.3),
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _PerformerChip extends StatelessWidget {
-  final String label;
-  final String symbol;
-  final double pct;
-  final Color color;
-
-  const _PerformerChip({
-    required this.label,
-    required this.symbol,
-    required this.pct,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: Colors.white38,
-              fontSize: 10,
-            ),
-          ),
-          Expanded(
-            child: Text(
-              symbol,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 10,
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Text(
-            _formatPercent(pct, digits: 1),
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final bool isSubtle;
-
-  const _MetricChip({
-    required this.label,
-    required this.color,
-    this.isSubtle = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: isSubtle ? 0.1 : 0.14),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: color.withValues(alpha: isSubtle ? 0.18 : 0.24),
-        ),
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 11,
-        ),
-      ),
-    );
-  }
-}
-
-String _formatPercent(double? value, {int digits = 1}) {
-  if (value == null) return '—';
-  final sign = value >= 0 ? '+' : '';
-  return '$sign${value.toStringAsFixed(digits)}%';
-}
-
-Color _changeColor(double? value) {
-  if (value == null) return Colors.white38;
-  return value >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
-}
-
-Color _riskColor(String? value) {
-  switch ((value ?? '').toLowerCase()) {
-    case 'low':
-    case 'low to moderate':
-      return AppTheme.accentGreen;
-    case 'moderately high':
-    case 'high':
-    case 'very high':
-      return AppTheme.accentRed;
-    case 'moderate':
-    default:
-      return AppTheme.accentBlue;
   }
 }
 
@@ -1608,6 +1469,115 @@ class _HealthStat extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Small coloured pill used in the favourites summary card header to
+/// show an aggregate metric like "Avg 1D +0.42%". Borrowed back from
+/// the deleted _StockFavoriteCard/_MfFavoriteCard widgets — still
+/// needed by _FavoritesSummaryCard.
+class _MetricChip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final bool isSubtle;
+
+  const _MetricChip({
+    required this.label,
+    required this.color,
+    this.isSubtle = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isSubtle ? 0.10 : 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+  }
+}
+
+/// "Best / Worst" performer chip used at the bottom of the favourites
+/// summary card. Displays a short symbol + its % change in the chip's
+/// colour.
+class _PerformerChip extends StatelessWidget {
+  final String label;
+  final String symbol;
+  final double pct;
+  final Color color;
+
+  const _PerformerChip({
+    required this.label,
+    required this.symbol,
+    required this.pct,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: Colors.white54,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              symbol,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _formatPercent(pct, digits: 1),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact +0.00% / -0.00% / 0.0% formatter used by the summary
+/// card header and the performer chips.
+String _formatPercent(double? value, {int digits = 1}) {
+  if (value == null) return '—';
+  if (value == 0) return '0.${'0' * digits}%';
+  final sign = value > 0 ? '+' : '';
+  return '$sign${value.toStringAsFixed(digits)}%';
 }
 
 class _DashboardFallbackTile extends StatelessWidget {
