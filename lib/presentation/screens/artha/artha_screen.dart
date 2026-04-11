@@ -12,6 +12,7 @@ import '../../../data/local/chat_database.dart';
 import '../../providers/artha_providers.dart';
 import '../../providers/settings_providers.dart';
 import 'widgets/chat_bubble.dart';
+import 'widgets/data_card_widget.dart';
 import 'widgets/stock_mini_card.dart';
 import 'widgets/mf_mini_card.dart';
 import 'widgets/suggestion_chips.dart';
@@ -869,6 +870,19 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
                     ? () => ShareCardHelper.shareMessage(context, msg)
                     : null,
               ),
+              // Native data cards (comparison, ranked_list, metric_grid)
+              // — replaces markdown tables. Rendered ABOVE mini-cards
+              // because they're the primary visual for comparison /
+              // screener answers.
+              if (msg.role == 'assistant' && msg.dataCards.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8, bottom: 8),
+                  child: Column(
+                    children: msg.dataCards
+                        .map((card) => DataCardWidget(data: card))
+                        .toList(),
+                  ),
+                ),
               // Stock cards below assistant messages
               if (msg.role == 'assistant' && msg.stockCards.isNotEmpty)
                 Padding(

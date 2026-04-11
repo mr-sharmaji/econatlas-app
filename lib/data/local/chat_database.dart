@@ -10,7 +10,7 @@ import '../datasources/artha_data_source.dart';
 class ChatLocalDatabase {
   static Database? _db;
   static const _dbName = 'artha_chat.db';
-  static const _dbVersion = 2;
+  static const _dbVersion = 3;
 
   static Future<Database> get database async {
     _db ??= await _initDb();
@@ -43,6 +43,7 @@ class ChatLocalDatabase {
             thinking_text TEXT,
             stock_cards TEXT,
             mf_cards TEXT,
+            data_cards TEXT,
             feedback INTEGER,
             created_at TEXT NOT NULL,
             FOREIGN KEY (session_id) REFERENCES chat_sessions(id) ON DELETE CASCADE
@@ -63,6 +64,15 @@ class ChatLocalDatabase {
             );
           } catch (_) {
             // Ignore duplicate-column upgrades on dev/test builds.
+          }
+        }
+        if (oldVersion < 3) {
+          try {
+            await db.execute(
+              'ALTER TABLE chat_messages ADD COLUMN data_cards TEXT',
+            );
+          } catch (_) {
+            // Ignore duplicate-column upgrades.
           }
         }
       },
@@ -134,6 +144,8 @@ class ChatLocalDatabase {
         'stock_cards':
             msg.stockCards.isNotEmpty ? jsonEncode(msg.stockCards) : null,
         'mf_cards': msg.mfCards.isNotEmpty ? jsonEncode(msg.mfCards) : null,
+        'data_cards':
+            msg.dataCards.isNotEmpty ? jsonEncode(msg.dataCards) : null,
         'feedback': msg.feedback,
         'created_at': msg.createdAt.toIso8601String(),
       },
@@ -152,6 +164,7 @@ class ChatLocalDatabase {
     return rows.map((r) {
       List<Map<String, dynamic>> stockCards = [];
       List<Map<String, dynamic>> mfCards = [];
+      List<Map<String, dynamic>> dataCards = [];
       if (r['stock_cards'] != null) {
         stockCards = (jsonDecode(r['stock_cards'] as String) as List)
             .map((e) => Map<String, dynamic>.from(e as Map))
@@ -159,6 +172,11 @@ class ChatLocalDatabase {
       }
       if (r['mf_cards'] != null) {
         mfCards = (jsonDecode(r['mf_cards'] as String) as List)
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList();
+      }
+      if (r['data_cards'] != null) {
+        dataCards = (jsonDecode(r['data_cards'] as String) as List)
             .map((e) => Map<String, dynamic>.from(e as Map))
             .toList();
       }
@@ -170,6 +188,7 @@ class ChatLocalDatabase {
         thinkingText: r['thinking_text'] as String?,
         stockCards: stockCards,
         mfCards: mfCards,
+        dataCards: dataCards,
         feedback: r['feedback'] as int?,
         createdAt: DateTime.parse(r['created_at'] as String),
       );

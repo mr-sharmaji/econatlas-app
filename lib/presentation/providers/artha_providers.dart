@@ -212,6 +212,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       String? finalMessageId;
       final stockCards = <Map<String, dynamic>>[];
       final mfCards = <Map<String, dynamic>>[];
+      final dataCards = <Map<String, dynamic>>[];
 
       _streamSub = stream.listen(
         (event) {
@@ -235,17 +236,26 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
 
             case ArthaEventType.token:
               fullContent += event.data['text'] as String? ?? '';
-              _updateAssistantMessage(fullContent, stockCards, mfCards, true);
+              _updateAssistantMessage(
+                  fullContent, stockCards, mfCards, dataCards, true);
               break;
 
             case ArthaEventType.stockCard:
               stockCards.add(event.data);
-              _updateAssistantMessage(fullContent, stockCards, mfCards, true);
+              _updateAssistantMessage(
+                  fullContent, stockCards, mfCards, dataCards, true);
               break;
 
             case ArthaEventType.mfCard:
               mfCards.add(event.data);
-              _updateAssistantMessage(fullContent, stockCards, mfCards, true);
+              _updateAssistantMessage(
+                  fullContent, stockCards, mfCards, dataCards, true);
+              break;
+
+            case ArthaEventType.dataCard:
+              dataCards.add(event.data);
+              _updateAssistantMessage(
+                  fullContent, stockCards, mfCards, dataCards, true);
               break;
 
             case ArthaEventType.suggestions:
@@ -269,8 +279,14 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
             case ArthaEventType.done:
               finalSessionId = event.data['session_id'] as String?;
               finalMessageId = event.data['message_id'] as String?;
-              _updateAssistantMessage(fullContent, stockCards, mfCards, false,
-                  messageId: finalMessageId);
+              _updateAssistantMessage(
+                fullContent,
+                stockCards,
+                mfCards,
+                dataCards,
+                false,
+                messageId: finalMessageId,
+              );
               state = state.copyWith(
                 isLoading: false,
                 sessionId: finalSessionId,
@@ -284,6 +300,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
               final persistedSessionId = event.data['session_id'] as String?;
               _updateAssistantMessage(
                 errorMsg,
+                [],
                 [],
                 [],
                 false,
@@ -300,7 +317,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
         },
         onError: (e) {
           _updateAssistantMessage(
-              'Something went wrong. Please try again.', [], [], false);
+              'Something went wrong. Please try again.', [], [], [], false);
           state = state.copyWith(
             isLoading: false,
             error: 'Connection error.',
@@ -315,7 +332,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       );
     } catch (e) {
       _updateAssistantMessage(
-          'Failed to connect. Please try again.', [], [], false);
+          'Failed to connect. Please try again.', [], [], [], false);
       state = state.copyWith(
         isLoading: false,
         error: 'Connection failed.',
@@ -367,6 +384,7 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
     String content,
     List<Map<String, dynamic>> stockCards,
     List<Map<String, dynamic>> mfCards,
+    List<Map<String, dynamic>> dataCards,
     bool isStreaming, {
     String? messageId,
   }) {
@@ -375,20 +393,21 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
       final last = msgs.last;
       last.content = content;
       last.isStreaming = isStreaming;
-      // Update stock/mf cards
-      if (messageId != null) {
-        msgs[msgs.length - 1] = ChatMessage(
-          id: messageId,
-          sessionId: last.sessionId,
-          role: 'assistant',
-          content: content,
-          thinkingText: last.thinkingText, // preserve accumulated thinking
-          stockCards: stockCards,
-          mfCards: mfCards,
-          createdAt: last.createdAt,
-          isStreaming: isStreaming,
-        );
-      }
+      // Rebuild the message instance on done (messageId known) or when
+      // card lists grow (in-flight cards) so the UI picks up the new
+      // list references.
+      msgs[msgs.length - 1] = ChatMessage(
+        id: messageId ?? last.id,
+        sessionId: last.sessionId,
+        role: 'assistant',
+        content: content,
+        thinkingText: last.thinkingText, // preserve accumulated thinking
+        stockCards: stockCards,
+        mfCards: mfCards,
+        dataCards: dataCards,
+        createdAt: last.createdAt,
+        isStreaming: isStreaming,
+      );
     }
     state = state.copyWith(messages: msgs);
   }

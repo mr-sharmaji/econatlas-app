@@ -10,6 +10,7 @@ enum ArthaEventType {
   token, // answer text chunks
   stockCard,
   mfCard,
+  dataCard, // structured comparison / ranked_list / metric_grid
   suggestions,
   done,
   error,
@@ -64,6 +65,9 @@ class ChatMessage {
   String? thinkingText;
   final List<Map<String, dynamic>> stockCards;
   final List<Map<String, dynamic>> mfCards;
+  // Structured data cards (comparison / ranked_list / metric_grid)
+  // rendered as native Flutter widgets instead of markdown tables.
+  final List<Map<String, dynamic>> dataCards;
   int? feedback;
   final DateTime createdAt;
 
@@ -78,6 +82,7 @@ class ChatMessage {
     this.thinkingText,
     this.stockCards = const [],
     this.mfCards = const [],
+    this.dataCards = const [],
     this.feedback,
     required this.createdAt,
     this.isStreaming = false,
@@ -94,6 +99,10 @@ class ChatMessage {
                 .toList() ??
             [],
         mfCards: (json['mf_cards'] as List<dynamic>?)
+                ?.map((e) => Map<String, dynamic>.from(e as Map))
+                .toList() ??
+            [],
+        dataCards: (json['data_cards'] as List<dynamic>?)
                 ?.map((e) => Map<String, dynamic>.from(e as Map))
                 .toList() ??
             [],
@@ -187,6 +196,7 @@ class ArthaDataSource {
               'token' => ArthaEventType.token,
               'stock_card' => ArthaEventType.stockCard,
               'mf_card' => ArthaEventType.mfCard,
+              'data_card' => ArthaEventType.dataCard,
               'suggestions' => ArthaEventType.suggestions,
               'done' => ArthaEventType.done,
               'error' => ArthaEventType.error,
