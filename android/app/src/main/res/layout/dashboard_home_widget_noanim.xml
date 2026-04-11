@@ -142,7 +142,6 @@
         android:dividerHeight="0dp"
         android:fadingEdge="none"
         android:fastScrollEnabled="false"
-        android:layoutAnimation="@anim/widget_tab_layout_anim"
         android:paddingTop="2dp"
         android:scrollbarStyle="outsideInset"
         android:transcriptMode="disabled" />

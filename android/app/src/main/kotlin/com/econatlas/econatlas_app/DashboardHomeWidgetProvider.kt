@@ -40,6 +40,12 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     const val EXTRA_TAB = "tab"
     const val PREF_ACTIVE_TAB = "dashboard_widget_active_tab"
     const val PREF_REFRESHING = "dashboard_widget_refreshing"
+    // One-shot flag set by ACTION_SELECT_TAB and consumed by the
+    // very next onUpdate so the animated layout variant is used
+    // only for tab switches. Refresh / periodic update / boot all
+    // render via the noanim layout so the list doesn't re-animate
+    // every time the Dart side republishes a snapshot.
+    const val PREF_ANIMATE_NEXT = "dashboard_widget_animate_next"
     // Valid tab keys mirrored by the RemoteViewsFactory.
     const val TAB_MARKETS = "markets"
     const val TAB_STOCKS = "stocks"
@@ -55,6 +61,17 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     val snapshot = DashboardWidgetHeaderSnapshot.from(widgetData)
     val activeTab = widgetData.getString(PREF_ACTIVE_TAB, TAB_MARKETS) ?: TAB_MARKETS
     val isRefreshing = widgetData.getBoolean(PREF_REFRESHING, false)
+    // Consume the animate-once flag so the layoutAnimation plays
+    // exactly once — on the redraw that follows the tab tap.
+    val animateNext = widgetData.getBoolean(PREF_ANIMATE_NEXT, false)
+    if (animateNext) {
+      widgetData.edit().putBoolean(PREF_ANIMATE_NEXT, false).apply()
+    }
+    val layoutId = if (animateNext) {
+      R.layout.dashboard_home_widget
+    } else {
+      R.layout.dashboard_home_widget_noanim
+    }
 
     appWidgetIds.forEach { widgetId ->
       val serviceIntent =
@@ -66,7 +83,7 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
           }
 
       val views =
-          RemoteViews(context.packageName, R.layout.dashboard_home_widget).apply {
+          RemoteViews(context.packageName, layoutId).apply {
             setTextViewText(R.id.widget_title, snapshot.title)
             setTextViewText(R.id.widget_subtitle, snapshot.subtitle)
             setTextViewText(R.id.widget_empty, snapshot.emptyMessage)
@@ -207,7 +224,10 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
             "HomeWidgetPreferences",
             Context.MODE_PRIVATE,
         )
-        prefs.edit().putString(PREF_ACTIVE_TAB, tab).apply()
+        prefs.edit()
+            .putString(PREF_ACTIVE_TAB, tab)
+            .putBoolean(PREF_ANIMATE_NEXT, true)
+            .apply()
         redrawAllWidgets(context, prefs)
       }
       ACTION_REFRESH_START -> {
