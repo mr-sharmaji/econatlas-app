@@ -6,19 +6,21 @@
     android:orientation="vertical"
     android:padding="14dp">
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:minHeight="36dp"
+        android:gravity="center_vertical"
+        android:minHeight="40dp"
+        android:orientation="horizontal"
         android:paddingBottom="8dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_alignParentStart="true"
-            android:layout_toStartOf="@id/widget_refresh"
-            android:orientation="vertical">
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:paddingEnd="8dp">
 
             <TextView
                 android:id="@+id/widget_title"
@@ -27,7 +29,7 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_text_primary"
-                android:textSize="15sp"
+                android:textSize="14sp"
                 android:textStyle="bold" />
 
             <TextView
@@ -45,14 +47,12 @@
             android:id="@+id/widget_refresh"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
             android:background="@drawable/dashboard_home_widget_tab_bg"
             android:gravity="center"
-            android:minWidth="44dp"
-            android:minHeight="32dp"
+            android:minWidth="56dp"
+            android:minHeight="28dp"
             android:paddingHorizontal="12dp"
-            android:paddingVertical="6dp"
+            android:paddingVertical="4dp"
             android:text="Refresh"
             android:textColor="@color/widget_blue"
             android:textSize="11sp"
@@ -60,21 +60,15 @@
 
         <!-- Indeterminate spinner shown while a refresh is in flight.
              onReceive(ACTION_REFRESH_START) hides widget_refresh and
-             reveals this. When the Dart side finishes publishing the
-             new snapshot, onUpdate runs again and flips visibility
-             back. Styled to sit exactly where widget_refresh sat so
-             there's no layout shift. -->
+             reveals this. -->
         <ProgressBar
             android:id="@+id/widget_refresh_spinner"
             android:layout_width="20dp"
             android:layout_height="20dp"
-            android:layout_alignParentEnd="true"
-            android:layout_centerVertical="true"
-            android:layout_marginEnd="12dp"
             android:indeterminate="true"
             android:indeterminateTint="@color/widget_blue"
             android:visibility="gone" />
-    </RelativeLayout>
+    </LinearLayout>
 
     <!-- Tab bar: Markets / Stocks / Mutual Funds. Each tab is a
          TextView pending-intent that switches the active widget

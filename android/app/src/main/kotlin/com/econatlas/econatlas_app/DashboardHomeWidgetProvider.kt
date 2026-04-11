@@ -46,6 +46,13 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     // render via the noanim layout so the list doesn't re-animate
     // every time the Dart side republishes a snapshot.
     const val PREF_ANIMATE_NEXT = "dashboard_widget_animate_next"
+    // One-shot flag set when the only thing that changed is the
+    // header (e.g. spinner visibility on refresh start). When
+    // this is set, onUpdate redraws the widget chrome but skips
+    // notifyAppWidgetViewDataChanged so the ListView doesn't
+    // re-hit the RemoteViewsFactory and flicker between the
+    // loading view and the old rows.
+    const val PREF_SKIP_DATA_NOTIFY = "dashboard_widget_skip_data_notify"
     // Valid tab keys mirrored by the RemoteViewsFactory.
     const val TAB_MARKETS = "markets"
     const val TAB_STOCKS = "stocks"
@@ -64,8 +71,16 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     // Consume the animate-once flag so the layoutAnimation plays
     // exactly once — on the redraw that follows the tab tap.
     val animateNext = widgetData.getBoolean(PREF_ANIMATE_NEXT, false)
-    if (animateNext) {
-      widgetData.edit().putBoolean(PREF_ANIMATE_NEXT, false).apply()
+    // Consume the skip-data-notify flag. If set, we're doing a
+    // header-only redraw (refresh start) and must NOT call
+    // notifyAppWidgetViewDataChanged, otherwise the list reloads
+    // from the factory mid-refresh and the user sees a flicker.
+    val skipDataNotify = widgetData.getBoolean(PREF_SKIP_DATA_NOTIFY, false)
+    if (animateNext || skipDataNotify) {
+      widgetData.edit()
+          .putBoolean(PREF_ANIMATE_NEXT, false)
+          .putBoolean(PREF_SKIP_DATA_NOTIFY, false)
+          .apply()
     }
     val layoutId = if (animateNext) {
       R.layout.dashboard_home_widget
@@ -169,7 +184,9 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
       appWidgetManager.updateAppWidget(widgetId, views)
     }
 
-    appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
+    if (!skipDataNotify) {
+      appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
+    }
   }
 
   /**
@@ -254,9 +271,16 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
             "HomeWidgetPreferences",
             Context.MODE_PRIVATE,
         )
-        // Step 1: flip the refreshing flag and immediately redraw
-        // so the spinner appears the instant the user taps.
-        prefs.edit().putBoolean(PREF_REFRESHING, true).apply()
+        // Step 1: flip the refreshing flag AND skip-data-notify
+        // so the redraw only swaps the spinner visibility without
+        // forcing the RemoteViewsFactory to reload the list. This
+        // is critical — without skip-data-notify the ListView
+        // flickers between its loading view and the stale rows
+        // for the entire refresh duration.
+        prefs.edit()
+            .putBoolean(PREF_REFRESHING, true)
+            .putBoolean(PREF_SKIP_DATA_NOTIFY, true)
+            .apply()
         redrawAllWidgets(context, prefs)
 
         // Step 2: kick the Dart side's refresh pipeline via
