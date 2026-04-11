@@ -498,14 +498,14 @@ class DashboardHomeWidgetService {
     required DiscoverStockItem? live,
     DashboardWidgetListItem? previous,
   }) {
+    // Compact footer: sector • Score N • action_tag. Deliberately
+    // omit the "Saved / updated" freshness stamp — the widget
+    // header already shows the global last-refreshed time, so
+    // per-row staleness text is noise.
     final footerParts = <String>[
       if ((live?.sector ?? '').trim().isNotEmpty) live!.sector!.trim(),
       if (live != null) 'Score ${live.score.toStringAsFixed(0)}',
       if ((live?.actionTag ?? '').trim().isNotEmpty) live!.actionTag!.trim(),
-      if (live?.sourceTimestamp != null)
-        Formatters.updatedFreshness(live!.sourceTimestamp),
-      if (live == null)
-        'Saved ${Formatters.relativeTime(DateTime.fromMillisecondsSinceEpoch(item.timestamp))}',
     ];
 
     return DashboardWidgetListItem.stock(
@@ -533,18 +533,14 @@ class DashboardHomeWidgetService {
       if ((live?.fundClassification ?? '').trim().isNotEmpty)
         live!.fundClassification!.trim(),
     ];
+    // Compact footer: Score • risk • expense • AUM. No "Saved / NAV
+    // from" freshness — the header last-refreshed stamp covers it.
     final footerParts = <String>[
       if (live != null) 'Score ${live.score.toStringAsFixed(0)}',
       if ((live?.riskLevel ?? '').trim().isNotEmpty) live!.riskLevel!.trim(),
       if (live?.expenseRatio != null)
         'Exp ${live!.expenseRatio!.toStringAsFixed(2)}%',
       if (live?.aumCr != null) 'AUM ₹${Formatters.fullPrice(live!.aumCr!)} Cr',
-      if (live?.navDate != null)
-        Formatters.updatedFreshness(live!.navDate!)
-      else if (live?.sourceTimestamp != null)
-        Formatters.updatedFreshness(live!.sourceTimestamp),
-      if (live == null)
-        'Saved ${Formatters.relativeTime(DateTime.fromMillisecondsSinceEpoch(item.timestamp))}',
     ];
 
     return DashboardWidgetListItem.mutualFund(
