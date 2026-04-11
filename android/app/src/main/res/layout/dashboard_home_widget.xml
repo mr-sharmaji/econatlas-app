@@ -46,12 +46,15 @@
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:background="@android:color/transparent"
-            android:paddingHorizontal="6dp"
-            android:paddingVertical="4dp"
-            android:text="↻"
+            android:background="@drawable/dashboard_home_widget_tab_bg"
+            android:gravity="center"
+            android:minWidth="44dp"
+            android:minHeight="32dp"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="Refresh"
             android:textColor="@color/widget_blue"
-            android:textSize="14sp"
+            android:textSize="11sp"
             android:textStyle="bold" />
     </RelativeLayout>
 
