@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
@@ -44,12 +45,21 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   bool _showAutocomplete = false;
   Timer? _autocompleteDebounce;
 
-  // Smart auto-scroll state. We only auto-scroll when the user is
-  // already near the bottom of the chat. If they've scrolled up to
-  // read earlier content we stop hijacking the viewport and instead
-  // surface a floating "Jump to latest" chip.
+  // Smart auto-scroll state.
+  //
+  // Model: we "stick" to the bottom by default and only release the
+  // stick when the user themselves drags the list upward. Content
+  // growth (new tokens during streaming) does NOT release the stick
+  // — the previous implementation watched pixels vs maxScrollExtent
+  // in a scroll listener, and the scrollExtent grew faster than the
+  // animated scroll could catch up, so `_userScrolledUp` flipped to
+  // true mid-stream and silently blocked every subsequent scroll.
+  //
+  // Now: we detect user drags via NotificationListener and only
+  // release `_stickToBottom` on a user-initiated upward drag. When
+  // the user scrolls back near the bottom we re-stick.
   static const double _nearBottomThresholdPx = 160;
-  bool _userScrolledUp = false;
+  bool _stickToBottom = true;
   bool _pendingNewMessagesWhileScrolledUp = false;
 
   void _ensureInputFocus() {
@@ -67,7 +77,6 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     _checkConnectivity();
     _syncLocalHistory();
     _controller.addListener(_onTextChanged);
-    _scrollController.addListener(_onScrollChanged);
   }
 
   bool _isNearBottom() {
@@ -76,23 +85,44 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     return (pos.maxScrollExtent - pos.pixels) <= _nearBottomThresholdPx;
   }
 
-  void _onScrollChanged() {
-    if (!_scrollController.hasClients) return;
-    final nearBottom = _isNearBottom();
-    if (nearBottom && _userScrolledUp) {
-      setState(() {
-        _userScrolledUp = false;
-        _pendingNewMessagesWhileScrolledUp = false;
-      });
-    } else if (!nearBottom && !_userScrolledUp) {
-      setState(() => _userScrolledUp = true);
+  bool _handleScrollNotification(ScrollNotification n) {
+    // User-initiated drag UPWARD → release the stick.
+    if (n is UserScrollNotification) {
+      if (n.direction == ScrollDirection.reverse) {
+        // Flutter reports "reverse" when the user drags downward with
+        // their finger, which scrolls the content UPWARD (reveals
+        // earlier messages). That's our signal that the user wants
+        // to read history.
+        if (_stickToBottom) {
+          setState(() => _stickToBottom = false);
+        }
+      } else if (n.direction == ScrollDirection.forward) {
+        // Drag upward → content moves down → re-stick if near bottom.
+        if (!_stickToBottom && _isNearBottom()) {
+          setState(() {
+            _stickToBottom = true;
+            _pendingNewMessagesWhileScrolledUp = false;
+          });
+        }
+      }
     }
+    // Scroll end → if we ended near the bottom, re-stick. This handles
+    // the case where the user flings upward and releases; by the time
+    // the fling settles, they're at the bottom and should be sticky.
+    if (n is ScrollEndNotification) {
+      if (!_stickToBottom && _isNearBottom()) {
+        setState(() {
+          _stickToBottom = true;
+          _pendingNewMessagesWhileScrolledUp = false;
+        });
+      }
+    }
+    return false;
   }
 
   @override
   void dispose() {
     _controller.removeListener(_onTextChanged);
-    _scrollController.removeListener(_onScrollChanged);
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -127,34 +157,33 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   }
 
   void _scrollToBottom({bool animated = true, bool force = false}) {
-    // Skip auto-scroll if the user has scrolled up to read earlier
-    // content — we don't want to yank them back down while they're
-    // reading. `force: true` is used for the floating jump chip and
-    // for explicit user actions (send, session switch).
-    if (!force && _userScrolledUp) {
+    // If the user has explicitly scrolled up (sticky broken) and
+    // we're not forcing, just flip the "new messages" chip and stop.
+    // `force: true` is used for the floating jump chip and for
+    // explicit user actions (send, session switch).
+    if (!force && !_stickToBottom) {
       if (mounted && !_pendingNewMessagesWhileScrolledUp) {
         setState(() => _pendingNewMessagesWhileScrolledUp = true);
       }
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollController.hasClients) {
-        final offset = _scrollController.position.maxScrollExtent;
-        if (animated) {
-          _scrollController.animateTo(
-            offset,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        } else {
-          _scrollController.jumpTo(offset);
-        }
-        if (force && mounted) {
-          setState(() {
-            _userScrolledUp = false;
-            _pendingNewMessagesWhileScrolledUp = false;
-          });
-        }
+      if (!_scrollController.hasClients) return;
+      final offset = _scrollController.position.maxScrollExtent;
+      if (animated) {
+        _scrollController.animateTo(
+          offset,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(offset);
+      }
+      if (force && mounted) {
+        setState(() {
+          _stickToBottom = true;
+          _pendingNewMessagesWhileScrolledUp = false;
+        });
       }
     });
   }
@@ -297,11 +326,18 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     final chatState = ref.watch(arthaChatProvider);
     final theme = Theme.of(context);
 
-    // Auto-scroll when new messages arrive
+    // Auto-scroll when new messages arrive. We intentionally use a
+    // jump (not animated) on every streaming-content change — an
+    // animated scroll can't keep up with token cadence, and the
+    // visible "drift" behind the latest token is more jarring than
+    // an instant snap.
     ref.listen(arthaChatProvider, (prev, next) {
-      if (prev?.messages.length != next.messages.length ||
-          next.isLoading != (prev?.isLoading ?? false)) {
-        _scrollToBottom();
+      final lengthChanged =
+          prev?.messages.length != next.messages.length;
+      final loadingChanged =
+          next.isLoading != (prev?.isLoading ?? false);
+      if (lengthChanged || loadingChanged) {
+        _scrollToBottom(animated: false);
       }
       if (_didStreamingContentChange(prev, next)) {
         _scrollToBottom(animated: false);
@@ -591,18 +627,21 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         Column(
           children: [
             Expanded(
-              child: Stack(
-                children: [
-                  chatState.messages.isEmpty
-                      ? _buildWelcomeView()
-                      : _buildMessageList(chatState),
-                  if (_userScrolledUp && chatState.messages.isNotEmpty)
-                    Positioned(
-                      right: 16,
-                      bottom: 12,
-                      child: _buildJumpToLatestChip(),
-                    ),
-                ],
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _handleScrollNotification,
+                child: Stack(
+                  children: [
+                    chatState.messages.isEmpty
+                        ? _buildWelcomeView()
+                        : _buildMessageList(chatState),
+                    if (!_stickToBottom && chatState.messages.isNotEmpty)
+                      Positioned(
+                        right: 16,
+                        bottom: 12,
+                        child: _buildJumpToLatestChip(),
+                      ),
+                  ],
+                ),
               ),
             ),
             if (chatState.thinkingStatus != null && chatState.isLoading)
