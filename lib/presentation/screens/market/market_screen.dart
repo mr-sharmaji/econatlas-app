@@ -379,17 +379,17 @@ class _CommoditiesTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pricesAsync = ref.watch(latestCommoditiesProvider);
     final unitSystem = ref.watch(unitSystemProvider);
-    final marketAsync = ref.watch(latestMarketPricesProvider);
     final scores = ref.watch(marketScoresProvider).valueOrNull ?? const {};
-    final usdInrRate = marketAsync.whenOrNull(
-      data: (prices) {
-        final usdInr = prices.where((p) => p.asset == 'USD/INR').toList();
-        return usdInr.isNotEmpty ? usdInr.first.price : null;
-      },
-    );
-    final effectiveUsdInrRate = usdInrRate ?? 1.0;
+    // Pull USD/INR from the dedicated provider. Previously this read
+    // `latestMarketPricesProvider` — which could still be loading or
+    // errored out — and fell back to USD/oz. The dedicated provider
+    // hydrates synchronously from SharedPreferences so the first
+    // frame always has a valid rate when the user has the Indian
+    // unit system selected.
+    final usdInrRate = ref.watch(usdInrRateProvider);
+    final effectiveUsdInrRate = usdInrRate ?? 83.0;
     final useIndianCommodityUnits =
-        unitSystem == UnitSystem.indian && usdInrRate != null && usdInrRate > 0;
+        unitSystem == UnitSystem.indian && effectiveUsdInrRate > 0;
 
     return RefreshIndicator(
       onRefresh: () async {

@@ -21,6 +21,84 @@ final latestMarketPricesProvider =
   );
 });
 
+/// Dedicated provider for the USD/INR spot rate.
+///
+/// The commodities / crypto / dashboard screens need this to convert
+/// USD-denominated prices ($/oz, $/bbl, $/MMBtu) into INR when the
+/// user has chosen the Indian unit system. Previously those screens
+/// pulled USD/INR out of `latestMarketPricesProvider` as a side-read
+/// — if that provider was still loading (or had errored), the rate
+/// came back null and tiles rendered in '$ /oz' even though the user
+/// had selected INR. This provider loads synchronously from
+/// SharedPreferences on cold start and refreshes in the background,
+/// so the first frame always has a non-null rate.
+///
+/// Returns `null` only on the first-ever launch before any network
+/// fetch has completed.
+final usdInrRateProvider =
+    StateNotifierProvider<_UsdInrRateNotifier, double?>((ref) {
+  return _UsdInrRateNotifier(ref);
+});
+
+class _UsdInrRateNotifier extends StateNotifier<double?> {
+  final Ref _ref;
+  static const _kFallbackRate = 83.0; // sensible default on first launch
+
+  _UsdInrRateNotifier(this._ref) : super(null) {
+    _bootstrap();
+  }
+
+  void _bootstrap() {
+    final prefs = _ref.read(sharedPreferencesProvider);
+    // 1. Hydrate from cache first so the first frame is non-null.
+    final cached = prefs.getDouble(AppConstants.prefCacheUsdInrRate);
+    if (cached != null && cached > 0) {
+      state = cached;
+    }
+    // 2. Kick a background refresh — never blocks the UI.
+    Future.microtask(_refresh);
+  }
+
+  Future<void> _refresh() async {
+    try {
+      if (await isOffline()) return;
+      final repo = _ref.read(marketRepositoryProvider);
+      final response = await repo
+          .getLatestMarketPrices(instrumentType: 'currency')
+          .timeout(const Duration(seconds: 6));
+      final rate = response.prices
+          .where((p) => p.asset == 'USD/INR' && p.price > 0)
+          .map((p) => p.price)
+          .firstOrNull;
+      if (rate == null || rate <= 0) return;
+      final prefs = _ref.read(sharedPreferencesProvider);
+      await prefs.setDouble(AppConstants.prefCacheUsdInrRate, rate);
+      await prefs.setString(
+        AppConstants.prefCacheUsdInrRateTs,
+        DateTime.now().toUtc().millisecondsSinceEpoch.toString(),
+      );
+      if (mounted) state = rate;
+    } catch (_) {
+      // Swallow — we'll try again on next screen watch.
+    }
+  }
+
+  /// Manually trigger a refresh (exposed for pull-to-refresh).
+  Future<void> refresh() => _refresh();
+
+  /// Returns the best available rate, never null — falls back to
+  /// [_kFallbackRate] only on a cold first launch with no network.
+  double get effectiveOrFallback => state ?? _kFallbackRate;
+}
+
+/// Convenience accessor that returns a non-null rate suitable for
+/// inline use in ternaries — hides the `_kFallbackRate` constant
+/// from callers.
+final usdInrRateOrFallbackProvider = Provider<double>((ref) {
+  final rate = ref.watch(usdInrRateProvider);
+  return rate ?? 83.0;
+});
+
 final latestIndicesProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   return _loadLatestMarketWithCache(

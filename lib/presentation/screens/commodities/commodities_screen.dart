@@ -54,7 +54,6 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
     final theme = Theme.of(context);
     final historyAsync = ref.watch(commodityHistoryProvider(widget.asset));
     final unitSystem = ref.watch(unitSystemProvider);
-    final marketAsync = ref.watch(latestMarketPricesProvider);
     final latestCommoditiesAsync = ref.watch(latestCommoditiesProvider);
     final latestResolvedPrice = latestCommoditiesAsync.valueOrNull
         ?.where((p) => p.asset == widget.asset)
@@ -68,13 +67,13 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
         latestResolvedPrice != null || intradayList.isNotEmpty;
     final phase = normalizeMarketPhase(currentPrice?.marketPhase);
     final chartTzId = ref.watch(chartTimezoneProvider).id;
-    final usdInrRate = marketAsync.valueOrNull
-        ?.where((p) => p.asset == 'USD/INR')
-        .map((p) => p.price)
-        .firstOrNull;
-    final effectiveUsdInrRate = usdInrRate ?? 1.0;
+    // Dedicated USD/INR provider — hydrates from SharedPreferences so
+    // the first frame always has a non-null rate when the user has
+    // chosen Indian units. See usdInrRateProvider for rationale.
+    final usdInrRate = ref.watch(usdInrRateProvider);
+    final effectiveUsdInrRate = usdInrRate ?? 83.0;
     final useIndian =
-        unitSystem == UnitSystem.indian && usdInrRate != null && usdInrRate > 0;
+        unitSystem == UnitSystem.indian && effectiveUsdInrRate > 0;
     final display = currentPrice != null
         ? assetDisplayPriceAndUnit(
             asset: widget.asset,

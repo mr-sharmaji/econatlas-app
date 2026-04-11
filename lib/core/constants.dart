@@ -116,6 +116,12 @@ class AppConstants {
   static const String prefCacheLatestCommoditiesTs =
       'cache_latest_commodities_ts';
   static const String prefCacheLatestCryptoTs = 'cache_latest_crypto_ts';
+  /// USD/INR spot rate, cached separately from /market/latest so the
+  /// commodities / crypto / dashboard screens can convert prices to INR
+  /// instantly on cold start, without waiting for the full market
+  /// snapshot provider (which can be slow or fail).
+  static const String prefCacheUsdInrRate = 'cache_usd_inr_rate';
+  static const String prefCacheUsdInrRateTs = 'cache_usd_inr_rate_ts';
   static const String prefTaxSalary = 'tax_salary';
   static const String prefTaxDeductions = 'tax_deductions';
   static const String prefTaxRegime = 'tax_regime';
