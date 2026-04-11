@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  LayoutAnimation wrapper referenced by the widget's ListView via
+  android:layoutAnimation. Cascades widget_tab_item_slide across
+  the rows with a short per-row delay so rows appear to fan in
+  when the user switches Markets / Stocks / Funds tabs.
+-->
+<layoutAnimation xmlns:android="http://schemas.android.com/apk/res/android"
+    android:animation="@anim/widget_tab_item_slide"
+    android:animationOrder="normal"
+    android:delay="8%" />
