@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/theme.dart';
+import '../../../widgets/asset_logo_badge.dart';
 
 /// Mini stock card rendered inside chat messages.
 class StockMiniCard extends StatelessWidget {
@@ -22,7 +23,8 @@ class StockMiniCard extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (symbol.isNotEmpty) {
-          context.push('/discover/stock/$symbol');
+          // URL-encode to survive symbols with `&` (M&M), `/` etc.
+          context.push('/discover/stock/${Uri.encodeComponent(symbol)}');
         }
       },
       child: Container(
@@ -40,23 +42,15 @@ class StockMiniCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Symbol badge
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppTheme.accentBlue.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                symbol.length > 3 ? symbol.substring(0, 3) : symbol,
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
+            // Asset badge — uses the same square SVG system as the rest
+            // of the app (AssetLogoBadge → SquareBadgeSvg with manifest
+            // fallback) so stocks render a consistent, dynamic tile
+            // instead of a generic 3-letter text chip.
+            AssetLogoBadge(
+              asset: name.isNotEmpty ? name : symbol,
+              instrumentType: 'stock',
+              size: 40,
+              borderRadius: 10,
             ),
             const SizedBox(width: 12),
             // Name and sector

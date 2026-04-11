@@ -144,7 +144,7 @@ class _ComparisonCard extends StatelessWidget {
                   onTap: () {
                     final id = e['id'] as String? ?? '';
                     if (id.isNotEmpty) {
-                      context.push('/discover/stock/$id');
+                      context.push('/discover/stock/${Uri.encodeComponent(id)}');
                     }
                   },
                   child: Padding(
@@ -280,7 +280,7 @@ class _EntityBlock extends StatelessWidget {
     return GestureDetector(
       onTap: () {
         if (id.isNotEmpty) {
-          context.push('/discover/stock/$id');
+          context.push('/discover/stock/${Uri.encodeComponent(id)}');
         }
       },
       child: Container(
@@ -517,7 +517,7 @@ class _RankedListRow extends StatelessWidget {
       onTap: () {
         if (id.isEmpty) return;
         if (entityType == 'stock') {
-          context.push('/discover/stock/$id');
+          context.push('/discover/stock/${Uri.encodeComponent(id)}');
         } else if (entityType == 'mutual_fund') {
           context.push('/discover/mf/$id');
         }

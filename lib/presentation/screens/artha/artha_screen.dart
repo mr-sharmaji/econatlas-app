@@ -44,6 +44,14 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
   bool _showAutocomplete = false;
   Timer? _autocompleteDebounce;
 
+  // Smart auto-scroll state. We only auto-scroll when the user is
+  // already near the bottom of the chat. If they've scrolled up to
+  // read earlier content we stop hijacking the viewport and instead
+  // surface a floating "Jump to latest" chip.
+  static const double _nearBottomThresholdPx = 160;
+  bool _userScrolledUp = false;
+  bool _pendingNewMessagesWhileScrolledUp = false;
+
   void _ensureInputFocus() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_focusNode.hasFocus) {
@@ -59,11 +67,32 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     _checkConnectivity();
     _syncLocalHistory();
     _controller.addListener(_onTextChanged);
+    _scrollController.addListener(_onScrollChanged);
+  }
+
+  bool _isNearBottom() {
+    if (!_scrollController.hasClients) return true;
+    final pos = _scrollController.position;
+    return (pos.maxScrollExtent - pos.pixels) <= _nearBottomThresholdPx;
+  }
+
+  void _onScrollChanged() {
+    if (!_scrollController.hasClients) return;
+    final nearBottom = _isNearBottom();
+    if (nearBottom && _userScrolledUp) {
+      setState(() {
+        _userScrolledUp = false;
+        _pendingNewMessagesWhileScrolledUp = false;
+      });
+    } else if (!nearBottom && !_userScrolledUp) {
+      setState(() => _userScrolledUp = true);
+    }
   }
 
   @override
   void dispose() {
     _controller.removeListener(_onTextChanged);
+    _scrollController.removeListener(_onScrollChanged);
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();
@@ -97,7 +126,17 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     } catch (_) {}
   }
 
-  void _scrollToBottom({bool animated = true}) {
+  void _scrollToBottom({bool animated = true, bool force = false}) {
+    // Skip auto-scroll if the user has scrolled up to read earlier
+    // content — we don't want to yank them back down while they're
+    // reading. `force: true` is used for the floating jump chip and
+    // for explicit user actions (send, session switch).
+    if (!force && _userScrolledUp) {
+      if (mounted && !_pendingNewMessagesWhileScrolledUp) {
+        setState(() => _pendingNewMessagesWhileScrolledUp = true);
+      }
+      return;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         final offset = _scrollController.position.maxScrollExtent;
@@ -109,6 +148,12 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
           );
         } else {
           _scrollController.jumpTo(offset);
+        }
+        if (force && mounted) {
+          setState(() {
+            _userScrolledUp = false;
+            _pendingNewMessagesWhileScrolledUp = false;
+          });
         }
       }
     });
@@ -130,7 +175,8 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         (prevLast.content != nextLast.content ||
             prevLast.thinkingText != nextLast.thinkingText ||
             prevLast.stockCards.length != nextLast.stockCards.length ||
-            prevLast.mfCards.length != nextLast.mfCards.length);
+            prevLast.mfCards.length != nextLast.mfCards.length ||
+            prevLast.dataCards.length != nextLast.dataCards.length);
   }
 
   void _sendMessage() {
@@ -140,7 +186,8 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
     _controller.clear();
     setState(() => _showAutocomplete = false);
     ref.read(arthaChatProvider.notifier).sendMessage(text);
-    _scrollToBottom();
+    // Sending is an explicit user action — always snap to the bottom.
+    _scrollToBottom(force: true);
   }
 
   void _onSuggestionTap(String suggestion) {
@@ -544,9 +591,19 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
         Column(
           children: [
             Expanded(
-              child: chatState.messages.isEmpty
-                  ? _buildWelcomeView()
-                  : _buildMessageList(chatState),
+              child: Stack(
+                children: [
+                  chatState.messages.isEmpty
+                      ? _buildWelcomeView()
+                      : _buildMessageList(chatState),
+                  if (_userScrolledUp && chatState.messages.isNotEmpty)
+                    Positioned(
+                      right: 16,
+                      bottom: 12,
+                      child: _buildJumpToLatestChip(),
+                    ),
+                ],
+              ),
             ),
             if (chatState.thinkingStatus != null && chatState.isLoading)
               ThinkingIndicator(status: chatState.thinkingStatus!),
@@ -592,6 +649,60 @@ class _ArthaScreenState extends ConsumerState<ArthaScreen> {
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildJumpToLatestChip() {
+    final hasNew = _pendingNewMessagesWhileScrolledUp;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: () => _scrollToBottom(force: true),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            color: hasNew
+                ? AppTheme.accentBlue.withValues(alpha: 0.95)
+                : AppTheme.cardDark.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: hasNew
+                  ? AppTheme.accentBlue
+                  : Colors.white.withValues(alpha: 0.12),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.35),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.arrow_downward_rounded,
+                size: 16,
+                color: Colors.white,
+              ),
+              if (hasNew) ...[
+                const SizedBox(width: 6),
+                const Text(
+                  'New messages',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 

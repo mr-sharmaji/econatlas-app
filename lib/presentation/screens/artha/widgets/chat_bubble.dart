@@ -135,7 +135,15 @@ class _ChatBubbleState extends State<ChatBubble> {
                     extensionSet: md.ExtensionSet.gitHubFlavored,
                     onTapLink: (text, href, title) {
                       if (href != null && href.startsWith('/discover/stock/')) {
-                        context.push(href);
+                        // Rebuild the path with a properly URL-encoded
+                        // symbol segment. Raw symbols containing `&`
+                        // (e.g. `M&M`) would otherwise get truncated
+                        // by go_router's query parser.
+                        final rawSym =
+                            href.substring('/discover/stock/'.length);
+                        context.push(
+                          '/discover/stock/${Uri.encodeComponent(rawSym)}',
+                        );
                       }
                     },
                     styleSheet: MarkdownStyleSheet(

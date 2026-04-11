@@ -103,32 +103,24 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
   }
 
   /// Load an existing session's messages.
+  ///
+  /// Server is always the source of truth. We write the freshly-fetched
+  /// messages into the local SQLite cache as a one-way sync so the app
+  /// can still display recent conversations while offline, but we never
+  /// fall back to the cache when the network call *succeeds* — even if
+  /// the server returned zero rows, that's the truth for this session.
+  /// The cache is only consulted if the backend call itself throws.
   Future<void> loadSession(String sessionId) async {
     state = state.copyWith(isLoading: true, sessionId: sessionId);
     try {
       final messages = await _ds.getSessionMessages(sessionId, _deviceId);
+      // Refresh the offline cache best-effort; do not block on failures.
       if (messages.isNotEmpty) {
-        await ChatLocalDatabase.cacheSessionMessages(sessionId, messages);
-        state = state.copyWith(
-          messages: messages,
-          isLoading: false,
-          sessionId: sessionId,
-          error: null,
+        unawaited(
+          ChatLocalDatabase.cacheSessionMessages(sessionId, messages)
+              .catchError((_) {}),
         );
-        return;
       }
-
-      final cachedMessages = await ChatLocalDatabase.getMessages(sessionId);
-      if (cachedMessages.isNotEmpty) {
-        state = state.copyWith(
-          messages: cachedMessages,
-          isLoading: false,
-          sessionId: sessionId,
-          error: null,
-        );
-        return;
-      }
-
       state = state.copyWith(
         messages: messages,
         isLoading: false,
@@ -136,6 +128,8 @@ class ArthaChatNotifier extends StateNotifier<ArthaChatState> {
         error: null,
       );
     } catch (e) {
+      // Network / server failure — only now fall back to whatever we
+      // have cached locally so the user isn't staring at a blank screen.
       final cachedMessages = await ChatLocalDatabase.getMessages(sessionId);
       if (cachedMessages.isNotEmpty) {
         state = state.copyWith(
