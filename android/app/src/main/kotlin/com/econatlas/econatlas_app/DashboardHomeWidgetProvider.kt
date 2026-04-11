@@ -141,10 +141,29 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
 
             setRemoteAdapter(R.id.widget_list, serviceIntent)
             setEmptyView(R.id.widget_list, R.id.widget_empty)
-            setPendingIntentTemplate(
-                R.id.widget_list,
-                HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
+            // IMPORTANT: setPendingIntentTemplate requires the
+            // PendingIntent to be MUTABLE on Android 12+ so the
+            // framework can merge each row's fill-in intent data
+            // URI into the template. HomeWidgetLaunchIntent
+            // builds its PendingIntent with FLAG_IMMUTABLE, which
+            // silently drops the fill-in URIs and sends every
+            // tap to /dashboard instead of the item's detail
+            // page. Build the template directly so we control
+            // the flags.
+            val templateIntent = Intent(
+                context,
+                MainActivity::class.java,
+            ).apply {
+              action = "es.antonborri.home_widget.action.LAUNCH"
+            }
+            val templatePi = PendingIntent.getActivity(
+                context,
+                widgetId,
+                templateIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or
+                    PendingIntent.FLAG_MUTABLE,
             )
+            setPendingIntentTemplate(R.id.widget_list, templatePi)
           }
 
       appWidgetManager.updateAppWidget(widgetId, views)
