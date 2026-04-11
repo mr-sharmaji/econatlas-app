@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Color
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
@@ -34,8 +35,11 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
   companion object {
     const val ACTION_SELECT_TAB =
         "com.econatlas.econatlas_app.WIDGET_SELECT_TAB"
+    const val ACTION_REFRESH_START =
+        "com.econatlas.econatlas_app.WIDGET_REFRESH_START"
     const val EXTRA_TAB = "tab"
     const val PREF_ACTIVE_TAB = "dashboard_widget_active_tab"
+    const val PREF_REFRESHING = "dashboard_widget_refreshing"
     // Valid tab keys mirrored by the RemoteViewsFactory.
     const val TAB_MARKETS = "markets"
     const val TAB_STOCKS = "stocks"
@@ -50,6 +54,7 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
   ) {
     val snapshot = DashboardWidgetHeaderSnapshot.from(widgetData)
     val activeTab = widgetData.getString(PREF_ACTIVE_TAB, TAB_MARKETS) ?: TAB_MARKETS
+    val isRefreshing = widgetData.getBoolean(PREF_REFRESHING, false)
 
     appWidgetIds.forEach { widgetId ->
       val serviceIntent =
@@ -74,12 +79,42 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
                     Uri.parse(snapshot.launchRoute),
                 ),
             )
+            // Refresh button: routes through our own
+            // ACTION_REFRESH_START broadcast so we can set the
+            // refreshing flag, swap in the spinner view, and THEN
+            // fire the HomeWidget background intent that actually
+            // triggers the Dart refresh pipeline. onUpdate running
+            // again after publish() resets the flag + visibility.
+            val refreshIntent = Intent(
+                context,
+                DashboardHomeWidgetProvider::class.java,
+            ).apply {
+              action = ACTION_REFRESH_START
+              data = Uri.parse("econatlas://widget/$widgetId/refresh")
+            }
+            val refreshPi = PendingIntent.getBroadcast(
+                context,
+                widgetId * 10 + "refresh".hashCode(),
+                refreshIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or
+                    PendingIntent.FLAG_IMMUTABLE,
+            )
+            setOnClickPendingIntent(R.id.widget_refresh, refreshPi)
             setOnClickPendingIntent(
+                R.id.widget_refresh_spinner,
+                refreshPi,
+            )
+
+            // Visibility swap: while a refresh is in flight we show
+            // the indeterminate ProgressBar in place of the Refresh
+            // button.
+            setViewVisibility(
                 R.id.widget_refresh,
-                HomeWidgetBackgroundIntent.getBroadcast(
-                    context,
-                    Uri.parse("econatlas://refresh"),
-                ),
+                if (isRefreshing) View.GONE else View.VISIBLE,
+            )
+            setViewVisibility(
+                R.id.widget_refresh_spinner,
+                if (isRefreshing) View.VISIBLE else View.GONE,
             )
 
             // --- Tab buttons ---
@@ -150,22 +185,72 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
 
   override fun onReceive(context: Context, intent: Intent) {
     super.onReceive(context, intent)
-    if (intent.action == ACTION_SELECT_TAB) {
-      val tab = intent.getStringExtra(EXTRA_TAB) ?: return
-      val prefs =
-          context.getSharedPreferences(
-              "HomeWidgetPreferences",
-              Context.MODE_PRIVATE,
-          )
-      prefs.edit().putString(PREF_ACTIVE_TAB, tab).apply()
+    when (intent.action) {
+      ACTION_SELECT_TAB -> {
+        val tab = intent.getStringExtra(EXTRA_TAB) ?: return
+        val prefs = context.getSharedPreferences(
+            "HomeWidgetPreferences",
+            Context.MODE_PRIVATE,
+        )
+        prefs.edit().putString(PREF_ACTIVE_TAB, tab).apply()
+        redrawAllWidgets(context, prefs)
+      }
+      ACTION_REFRESH_START -> {
+        val prefs = context.getSharedPreferences(
+            "HomeWidgetPreferences",
+            Context.MODE_PRIVATE,
+        )
+        // Step 1: flip the refreshing flag and immediately redraw
+        // so the spinner appears the instant the user taps.
+        prefs.edit().putBoolean(PREF_REFRESHING, true).apply()
+        redrawAllWidgets(context, prefs)
 
-      val manager = AppWidgetManager.getInstance(context)
-      val ids =
-          manager.getAppWidgetIds(
-              ComponentName(context, DashboardHomeWidgetProvider::class.java),
+        // Step 2: kick the Dart side's refresh pipeline via
+        // HomeWidget's background intent. This is the same path
+        // the old refresh tap used; once it finishes publishing
+        // a new snapshot the Dart side calls HomeWidget.updateWidget
+        // → our onUpdate runs again and unsets the refreshing flag.
+        try {
+          val bgIntent = HomeWidgetBackgroundIntent.getBroadcast(
+              context,
+              Uri.parse("econatlas://refresh"),
           )
-      onUpdate(context, manager, ids, prefs)
+          bgIntent.send()
+        } catch (_: Exception) {
+          // If the background intent fails (pending-intent canceled,
+          // killed service, etc.), clear the refreshing flag so the
+          // spinner doesn't get stuck on.
+          prefs.edit().putBoolean(PREF_REFRESHING, false).apply()
+          redrawAllWidgets(context, prefs)
+        }
+      }
+      AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
+        // Normal update path — when the Dart side publishes a new
+        // snapshot via HomeWidget.updateWidget it fires this action.
+        // That means the refresh (if any) just completed, so clear
+        // the spinner flag before letting the base class run the
+        // standard onUpdate().
+        val prefs = context.getSharedPreferences(
+            "HomeWidgetPreferences",
+            Context.MODE_PRIVATE,
+        )
+        if (prefs.getBoolean(PREF_REFRESHING, false)) {
+          prefs.edit().putBoolean(PREF_REFRESHING, false).apply()
+        }
+      }
     }
+  }
+
+  private fun redrawAllWidgets(
+      context: Context,
+      prefs: SharedPreferences,
+  ) {
+    val manager = AppWidgetManager.getInstance(context)
+    val ids = manager.getAppWidgetIds(
+        ComponentName(context, DashboardHomeWidgetProvider::class.java),
+    )
+    if (ids.isEmpty()) return
+    onUpdate(context, manager, ids, prefs)
   }
 }
 

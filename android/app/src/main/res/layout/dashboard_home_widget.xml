@@ -56,6 +56,25 @@
             android:textColor="@color/widget_blue"
             android:textSize="11sp"
             android:textStyle="bold" />
+
+        <!-- Indeterminate spinner shown while a refresh is in flight.
+             onReceive(ACTION_REFRESH_START) hides widget_refresh and
+             reveals this. When the Dart side finishes publishing the
+             new snapshot, onUpdate runs again and flips visibility
+             back. Styled to sit exactly where widget_refresh sat so
+             there's no layout shift. -->
+        <ProgressBar
+            android:id="@+id/widget_refresh_spinner"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
+            android:layout_centerVertical="true"
+            android:minWidth="44dp"
+            android:minHeight="32dp"
+            android:padding="6dp"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/widget_blue"
+            android:visibility="gone" />
     </RelativeLayout>
 
     <!-- Tab bar: Markets / Stocks / Mutual Funds. Each tab is a

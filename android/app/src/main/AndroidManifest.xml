@@ -47,6 +47,13 @@
                      the active tab and re-renders. -->
                 <action android:name="com.econatlas.econatlas_app.WIDGET_SELECT_TAB" />
             </intent-filter>
+            <intent-filter>
+                <!-- Fired when the user taps the widget's Refresh
+                     button. onReceive flips the refreshing flag,
+                     redraws to show the spinner, and forwards to
+                     the HomeWidget background refresh intent. -->
+                <action android:name="com.econatlas.econatlas_app.WIDGET_REFRESH_START" />
+            </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dashboard_home_widget_info" />

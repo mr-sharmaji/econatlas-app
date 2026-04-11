@@ -157,6 +157,32 @@ class DashboardHomeWidgetService {
       useNetwork: shouldUseNetwork,
     );
 
+    // Widget default sort: keep the Markets tab in the user's own
+    // watchlist order (indices / commodities follow a deliberate
+    // layout in-app), but sort Stocks and Mutual Funds alphabetically
+    // by display_name so the widget's ListView always reads top-down
+    // in a predictable order. Matches what the user expects from a
+    // home-screen watchlist and avoids "why is XYZ at the bottom"
+    // confusion.
+    final sortedStocks = [...starredStocks]
+      ..sort((a, b) {
+        // Prefer live display_name when available, fall back to the
+        // saved StarredItem name.
+        final na = stockDetails[a.id]?.displayName ?? a.name;
+        final nb = stockDetails[b.id]?.displayName ?? b.name;
+        return na.toLowerCase().compareTo(nb.toLowerCase());
+      });
+    final sortedMfs = [...starredMfs]
+      ..sort((a, b) {
+        final na = mfDetails[a.id]?.displayName ??
+            mfDetails[a.id]?.schemeName ??
+            a.name;
+        final nb = mfDetails[b.id]?.displayName ??
+            mfDetails[b.id]?.schemeName ??
+            b.name;
+        return na.toLowerCase().compareTo(nb.toLowerCase());
+      });
+
     final items = <DashboardWidgetListItem>[];
     _appendSection(
       items,
@@ -183,14 +209,14 @@ class DashboardHomeWidgetService {
     _appendSection(
       items,
       title: 'Stocks',
-      count: starredStocks.length,
+      count: sortedStocks.length,
       content: [
-        if (starredStocks.isEmpty)
+        if (sortedStocks.isEmpty)
           const DashboardWidgetListItem.empty(
             title: 'Star stocks from Discover to see them here.',
           )
         else
-          for (final item in starredStocks)
+          for (final item in sortedStocks)
             _buildStockItem(
               item: item,
               live: stockDetails[item.id],
@@ -203,14 +229,14 @@ class DashboardHomeWidgetService {
     _appendSection(
       items,
       title: 'Mutual Funds',
-      count: starredMfs.length,
+      count: sortedMfs.length,
       content: [
-        if (starredMfs.isEmpty)
+        if (sortedMfs.isEmpty)
           const DashboardWidgetListItem.empty(
             title: 'Star mutual funds from Discover to see them here.',
           )
         else
-          for (final item in starredMfs)
+          for (final item in sortedMfs)
             _buildMfItem(
               item: item,
               live: mfDetails[item.id],
