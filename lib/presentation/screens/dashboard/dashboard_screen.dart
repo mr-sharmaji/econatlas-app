@@ -396,14 +396,23 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
 
     return RefreshIndicator(
       onRefresh: _refreshLiveData,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
-        children: [
-          if (showStaleNotice) ...[
-            const _FavoritesDataNotice(
-              message:
-                  'Showing saved favorites while live stock data catches up.',
+      // Dashboard watchlist feels too chunky when rendering the
+      // screener-sized tiles verbatim. Wrap the whole list in a
+      // MediaQuery that scales text down ~15 % so the reused
+      // StockListTile / MfListTile widgets look compact here
+      // without needing a separate widget variant.
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(0.85),
+        ),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
+          children: [
+            if (showStaleNotice) ...[
+              const _FavoritesDataNotice(
+                message:
+                    'Showing saved favorites while live stock data catches up.',
             ),
             const SizedBox(height: 8),
           ],
@@ -491,6 +500,7 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
             ),
         ],
       ),
+      ),
     );
   }
 
@@ -551,14 +561,20 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
 
     return RefreshIndicator(
       onRefresh: _refreshLiveData,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
-        children: [
-          if (showStaleNotice) ...[
-            const _FavoritesDataNotice(
-              message:
-                  'Showing saved favorites while live mutual fund data catches up.',
+      // Same text-scale compaction as the stock tab — see the
+      // comment on _buildStockTab for rationale.
+      child: MediaQuery(
+        data: MediaQuery.of(context).copyWith(
+          textScaler: const TextScaler.linear(0.85),
+        ),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
+          children: [
+            if (showStaleNotice) ...[
+              const _FavoritesDataNotice(
+                message:
+                    'Showing saved favorites while live mutual fund data catches up.',
             ),
             const SizedBox(height: 8),
           ],
@@ -639,6 +655,7 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
               ),
             ),
         ],
+      ),
       ),
     );
   }
@@ -882,14 +899,15 @@ class _FavoritesSummaryCard extends StatelessWidget {
             // Title row — tight spacing, chip pushed to the right.
             Row(
               children: [
-                Icon(icon, size: 16, color: AppTheme.accentBlue),
+                Icon(icon, size: 14, color: AppTheme.accentBlue),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     title,
-                    style: theme.textTheme.titleSmall?.copyWith(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 13,
+                      fontSize: 12,
+                      letterSpacing: 0.2,
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -1465,23 +1483,27 @@ class _HealthStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           value,
-          style: theme.textTheme.titleMedium?.copyWith(
+          style: TextStyle(
+            fontSize: 15,
             fontWeight: FontWeight.w800,
             color: color,
             fontFeatures: const [FontFeature.tabularFigures()],
+            height: 1.1,
           ),
         ),
+        const SizedBox(height: 1),
         Text(
           label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: Colors.white30,
-            fontSize: 10,
+          style: const TextStyle(
+            fontSize: 9,
+            color: Colors.white38,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.3,
           ),
         ),
       ],
@@ -1507,17 +1529,17 @@ class _MetricChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: isSubtle ? 0.10 : 0.18),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
       child: Text(
         label,
         style: TextStyle(
           color: color,
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: FontWeight.w700,
           fontFeatures: const [FontFeature.tabularFigures()],
         ),
@@ -1544,30 +1566,31 @@ class _PerformerChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
           Text(
             label,
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: const TextStyle(
               color: Colors.white54,
-              fontSize: 10,
+              fontSize: 9,
               fontWeight: FontWeight.w600,
+              letterSpacing: 0.3,
             ),
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               symbol,
-              style: theme.textTheme.bodySmall?.copyWith(
+              style: const TextStyle(
                 color: Colors.white,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
               maxLines: 1,
@@ -1577,8 +1600,9 @@ class _PerformerChip extends StatelessWidget {
           const SizedBox(width: 6),
           Text(
             _formatPercent(pct, digits: 1),
-            style: theme.textTheme.bodySmall?.copyWith(
+            style: TextStyle(
               color: color,
+              fontSize: 11,
               fontWeight: FontWeight.w800,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
