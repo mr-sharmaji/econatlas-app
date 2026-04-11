@@ -339,6 +339,10 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                   prices: chartPrices,
                   timestamps: chartTimestamps,
                   isShortRange: _selectedDays <= 90,
+                  // 1D (days == 0) uses the intraday endpoint which
+                  // returns 30-min ticks for a single session. Tell
+                  // the chart to format the x-axis as HH:mm IST.
+                  isIntraday: _selectedDays == 0,
                   pricePrefix: '\u20B9 ',
                 );
               },
