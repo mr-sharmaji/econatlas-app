@@ -182,7 +182,10 @@ final router = GoRouter(
         return StockDetailScreen(
           symbol: symbol,
           initialItem: item,
-          initialDays: initialDays ?? 90,
+          // Default range = 1D (intraday) so the chart opens on
+          // today's 30-min ticks. Callers that want a specific
+          // range can still pass `initialDays` via the extra map.
+          initialDays: initialDays ?? 0,
         );
       },
     ),
