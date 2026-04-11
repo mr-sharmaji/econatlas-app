@@ -153,37 +153,22 @@ class _StarredFavoritesTab extends ConsumerWidget {
       );
     }
 
-    // Live batch fetch: for each starred STOCK we hit /screener/stocks/
-    // {symbol}/detail in parallel on every tab open. This replaces the
-    // old frozen `StarredItem.percentChange` which captured a stale
-    // value at star-time. MFs still use the old path (we can extend
-    // this later with a mfLiveQuotesProvider).
-    final liveQuotesAsync = _isStockTab
-        ? ref.watch(starredStockLiveQuotesProvider)
-        : const AsyncValue<Map<String, DiscoverStockItem>>.data({});
+    // Live batch fetch replaces the old frozen `StarredItem.percentChange`
+    // that was captured at star-time and never refreshed. MFs still use
+    // the legacy path until a mfLiveQuotesProvider is added.
+    final liveQuotes = _isStockTab
+        ? ref.watch(starredStockLiveQuotesProvider).maybeWhen(
+              data: (q) => q,
+              orElse: () => const <String, DiscoverStockItem>{},
+            )
+        : const <String, DiscoverStockItem>{};
 
-    // Build "refreshed" StarredItems by overriding percentChange with
-    // the live quote. This keeps _StocksHealthCard's existing signature
-    // untouched (it reads percentChange off StarredItem).
-    final liveQuotes = liveQuotesAsync.maybeWhen(
-      data: (quotes) => quotes,
-      orElse: () => const <String, DiscoverStockItem>{},
-    );
-    final refreshed = starred
-        .map(
-          (s) => _isStockTab && liveQuotes[s.id] != null
-              ? StarredItem(
-                  type: s.type,
-                  id: s.id,
-                  name: s.name,
-                  timestamp: s.timestamp,
-                  percentChange: liveQuotes[s.id]!.percentChange,
-                )
-              : s,
-        )
+    double? effectivePct(StarredItem s) =>
+        liveQuotes[s.id]?.percentChange ?? s.percentChange;
+
+    final withChange = starred
+        .where((e) => effectivePct(e) != null)
         .toList(growable: false);
-    final withChange =
-        refreshed.where((e) => e.percentChange != null).toList(growable: false);
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -196,17 +181,17 @@ class _StarredFavoritesTab extends ConsumerWidget {
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 112),
         children: [
           if (_isStockTab && withChange.isNotEmpty) ...[
-            _StocksHealthCard(items: withChange),
+            _StocksHealthCard(items: withChange, overrides: liveQuotes),
             const SizedBox(height: 8),
           ],
           if (!_isStockTab && withChange.isNotEmpty) ...[
             _MfHealthCard(items: withChange),
             const SizedBox(height: 8),
           ],
-          for (final item in refreshed)
+          for (final item in starred)
             _StarredItemTile(
               item: item,
-              livePrice: _isStockTab ? liveQuotes[item.id]?.lastPrice : null,
+              liveQuote: liveQuotes[item.id],
             ),
         ],
       ),
@@ -216,27 +201,29 @@ class _StarredFavoritesTab extends ConsumerWidget {
 
 class _StocksHealthCard extends StatelessWidget {
   final List<StarredItem> items;
+  final Map<String, DiscoverStockItem> overrides;
 
-  const _StocksHealthCard({required this.items});
+  const _StocksHealthCard({
+    required this.items,
+    this.overrides = const {},
+  });
+
+  double _pct(StarredItem s) =>
+      overrides[s.id]?.percentChange ?? s.percentChange ?? 0;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final total = items.length;
-    final gainers = items.where((p) => (p.percentChange ?? 0) > 0).length;
-    final losers = items.where((p) => (p.percentChange ?? 0) < 0).length;
+    final gainers = items.where((p) => _pct(p) > 0).length;
+    final losers = items.where((p) => _pct(p) < 0).length;
     final unchanged = total - gainers - losers;
-    final avgChange = items.fold<double>(
-          0,
-          (sum, p) => sum + (p.percentChange ?? 0),
-        ) /
-        total;
+    final avgChange =
+        items.fold<double>(0, (sum, p) => sum + _pct(p)) / total;
     final avgColor = avgChange >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     final avgSign = avgChange >= 0 ? '+' : '';
 
-    // Best and worst performers
-    final sorted = [...items]
-      ..sort((a, b) => (b.percentChange ?? 0).compareTo(a.percentChange ?? 0));
+    final sorted = [...items]..sort((a, b) => _pct(b).compareTo(_pct(a)));
     final best = sorted.first;
     final worst = sorted.last;
 
@@ -268,7 +255,7 @@ class _StocksHealthCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    'Avg $avgSign${avgChange.toStringAsFixed(1)}% 3M',
+                    'Avg $avgSign${avgChange.toStringAsFixed(1)}%',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: avgColor,
                       fontWeight: FontWeight.w700,
@@ -316,7 +303,7 @@ class _StocksHealthCard extends StatelessWidget {
                     child: _PerformerChip(
                       label: 'Best',
                       symbol: best.id,
-                      pct: best.percentChange ?? 0,
+                      pct: _pct(best),
                       color: AppTheme.accentGreen,
                     ),
                   ),
@@ -325,7 +312,7 @@ class _StocksHealthCard extends StatelessWidget {
                     child: _PerformerChip(
                       label: 'Worst',
                       symbol: worst.id,
-                      pct: worst.percentChange ?? 0,
+                      pct: _pct(worst),
                       color: AppTheme.accentRed,
                     ),
                   ),
@@ -521,21 +508,19 @@ class _PerformerChip extends StatelessWidget {
 
 class _StarredItemTile extends StatelessWidget {
   final StarredItem item;
-  final double? livePrice;
+  final DiscoverStockItem? liveQuote;
 
-  const _StarredItemTile({required this.item, this.livePrice});
+  const _StarredItemTile({required this.item, this.liveQuote});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final pct = item.percentChange;
+    final pct = liveQuote?.percentChange ?? item.percentChange;
     final pctColor =
         (pct ?? 0) >= 0 ? AppTheme.accentGreen : AppTheme.accentRed;
     final isStock = item.type == 'stock';
     final title = isStock ? item.id : item.name;
     final subtitle = isStock ? item.name : null;
-    // Strict 1D default on the watchlist — no "3M" or "1Y" label.
-    final periodLabel = '';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -599,7 +584,7 @@ class _StarredItemTile extends StatelessWidget {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}%${periodLabel.isNotEmpty ? ' $periodLabel' : ''}',
+                    '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}%',
                     style: TextStyle(
                       color: pctColor,
                       fontSize: 10,
