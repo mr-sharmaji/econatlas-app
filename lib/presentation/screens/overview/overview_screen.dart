@@ -1034,10 +1034,19 @@ class _IpoSection extends ConsumerWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Price band: ${_priceBandText(item.priceBand)}',
+                            '${_priceBandLabel(item.ipoType)}: ${_priceBandText(item.ipoType, item.priceBand)}',
                             style: theme.textTheme.labelSmall
                                 ?.copyWith(color: Colors.white54),
                           ),
+                          if (_isTrustIpoType(item.ipoType)) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              'High-ticket issue; this is not a regular equity IPO.',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: Colors.white60,
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 6),
                           if (isClosed)
                             Text(
@@ -1298,13 +1307,53 @@ class _IpoSection extends ConsumerWidget {
     return '${gmp >= 0 ? '+' : ''}${gmp.toStringAsFixed(1)}%';
   }
 
-  String _priceBandText(String? priceBand) {
+  bool _isTrustIpoType(String ipoType) {
+    final normalized = ipoType.trim().toLowerCase();
+    return normalized == 'reit' || normalized == 'invit';
+  }
+
+  String _priceBandLabel(String ipoType) {
+    return _isTrustIpoType(ipoType) ? 'Unit price band' : 'Price band';
+  }
+
+  String _priceBandText(String ipoType, String? priceBand) {
     if (priceBand == null || priceBand.trim().isEmpty) return '—';
-    return priceBand.trim();
+    final raw = priceBand.trim();
+    if (!_isTrustIpoType(ipoType)) return raw;
+
+    final match = RegExp(
+      r'([0-9]+(?:,[0-9]{3})*(?:\.\d+)?)\s*(?:to|-|–)\s*([0-9]+(?:,[0-9]{3})*(?:\.\d+)?)',
+    ).firstMatch(raw);
+    if (match == null) return raw;
+
+    final low = double.tryParse(match.group(1)!.replaceAll(',', ''));
+    final high = double.tryParse(match.group(2)!.replaceAll(',', ''));
+    if (low == null || high == null) return raw;
+
+    String toLakhs(double value) => '₹${(value / 100000).toStringAsFixed(2)}L';
+    return '${toLakhs(low)} - ${toLakhs(high)}';
   }
 
   String _ipoTypeLabel(String ipoType) {
-    return ipoType.toLowerCase() == 'sme' ? 'SME' : 'Mainboard';
+    switch (ipoType.trim().toLowerCase()) {
+      case 'mainboard':
+        return 'Mainboard';
+      case 'sme':
+        return 'SME';
+      case 'reit':
+        return 'SM REIT';
+      case 'invit':
+        return 'InvIT';
+      default:
+        final cleaned = ipoType.trim();
+        if (cleaned.isEmpty) return 'IPO';
+        return cleaned
+            .split(RegExp(r'[_\-\s]+'))
+            .where((part) => part.isNotEmpty)
+            .map((part) =>
+                '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+            .join(' ');
+    }
   }
 
   String _closedOutcomeText(IpoItem item) {

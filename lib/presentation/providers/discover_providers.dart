@@ -200,99 +200,187 @@ enum DiscoverMutualFundPreset {
 extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
   String get apiValue {
     switch (this) {
-      case DiscoverMutualFundPreset.all: return 'all';
-      case DiscoverMutualFundPreset.equity: return 'equity';
-      case DiscoverMutualFundPreset.debt: return 'debt';
-      case DiscoverMutualFundPreset.hybrid: return 'hybrid';
-      case DiscoverMutualFundPreset.other: return 'other';
-      case DiscoverMutualFundPreset.indexFund: return 'index';
-      case DiscoverMutualFundPreset.largeCap: return 'large-cap';
-      case DiscoverMutualFundPreset.largeMidCap: return 'large-mid-cap';
-      case DiscoverMutualFundPreset.midCap: return 'mid-cap';
-      case DiscoverMutualFundPreset.smallCap: return 'small-cap';
-      case DiscoverMutualFundPreset.flexiCap: return 'flexi-cap';
-      case DiscoverMutualFundPreset.multiCap: return 'multi-cap';
-      case DiscoverMutualFundPreset.elss: return 'elss';
-      case DiscoverMutualFundPreset.valueMf: return 'value-mf';
-      case DiscoverMutualFundPreset.focused: return 'focused';
-      case DiscoverMutualFundPreset.sectoral: return 'sectoral';
-      case DiscoverMutualFundPreset.international: return 'international';
-      case DiscoverMutualFundPreset.liquid: return 'liquid';
-      case DiscoverMutualFundPreset.overnight: return 'overnight';
-      case DiscoverMutualFundPreset.moneyMarket: return 'money-market';
-      case DiscoverMutualFundPreset.ultraShort: return 'ultra-short';
-      case DiscoverMutualFundPreset.shortDuration: return 'short-duration';
-      case DiscoverMutualFundPreset.lowDuration: return 'low-duration';
-      case DiscoverMutualFundPreset.mediumDuration: return 'medium-duration';
-      case DiscoverMutualFundPreset.corporateBond: return 'corporate-bond';
-      case DiscoverMutualFundPreset.bankingPsu: return 'banking-psu';
-      case DiscoverMutualFundPreset.gilt: return 'gilt';
-      case DiscoverMutualFundPreset.dynamicBond: return 'dynamic-bond';
-      case DiscoverMutualFundPreset.floater: return 'floater';
-      case DiscoverMutualFundPreset.targetMaturity: return 'target-maturity';
-      case DiscoverMutualFundPreset.creditRisk: return 'credit-risk';
-      case DiscoverMutualFundPreset.aggressiveHybrid: return 'aggressive-hybrid';
-      case DiscoverMutualFundPreset.balancedHybrid: return 'balanced-hybrid';
-      case DiscoverMutualFundPreset.conservativeHybrid: return 'conservative-hybrid';
-      case DiscoverMutualFundPreset.arbitrage: return 'arbitrage';
-      case DiscoverMutualFundPreset.dynamicAssetAllocation: return 'dynamic-asset-allocation';
-      case DiscoverMutualFundPreset.multiAsset: return 'multi-asset';
-      case DiscoverMutualFundPreset.equitySavings: return 'equity-savings';
-      case DiscoverMutualFundPreset.fofDomestic: return 'fof-domestic';
-      case DiscoverMutualFundPreset.fofOverseas: return 'fof-overseas';
-      case DiscoverMutualFundPreset.goldSilver: return 'gold-silver';
-      case DiscoverMutualFundPreset.retirement: return 'retirement';
-      case DiscoverMutualFundPreset.children: return 'children';
-      case DiscoverMutualFundPreset.lowRisk: return 'low-risk';
+      case DiscoverMutualFundPreset.all:
+        return 'all';
+      case DiscoverMutualFundPreset.equity:
+        return 'equity';
+      case DiscoverMutualFundPreset.debt:
+        return 'debt';
+      case DiscoverMutualFundPreset.hybrid:
+        return 'hybrid';
+      case DiscoverMutualFundPreset.other:
+        return 'other';
+      case DiscoverMutualFundPreset.indexFund:
+        return 'index';
+      case DiscoverMutualFundPreset.largeCap:
+        return 'large-cap';
+      case DiscoverMutualFundPreset.largeMidCap:
+        return 'large-mid-cap';
+      case DiscoverMutualFundPreset.midCap:
+        return 'mid-cap';
+      case DiscoverMutualFundPreset.smallCap:
+        return 'small-cap';
+      case DiscoverMutualFundPreset.flexiCap:
+        return 'flexi-cap';
+      case DiscoverMutualFundPreset.multiCap:
+        return 'multi-cap';
+      case DiscoverMutualFundPreset.elss:
+        return 'elss';
+      case DiscoverMutualFundPreset.valueMf:
+        return 'value-mf';
+      case DiscoverMutualFundPreset.focused:
+        return 'focused';
+      case DiscoverMutualFundPreset.sectoral:
+        return 'sectoral';
+      case DiscoverMutualFundPreset.international:
+        return 'international';
+      case DiscoverMutualFundPreset.liquid:
+        return 'liquid';
+      case DiscoverMutualFundPreset.overnight:
+        return 'overnight';
+      case DiscoverMutualFundPreset.moneyMarket:
+        return 'money-market';
+      case DiscoverMutualFundPreset.ultraShort:
+        return 'ultra-short';
+      case DiscoverMutualFundPreset.shortDuration:
+        return 'short-duration';
+      case DiscoverMutualFundPreset.lowDuration:
+        return 'low-duration';
+      case DiscoverMutualFundPreset.mediumDuration:
+        return 'medium-duration';
+      case DiscoverMutualFundPreset.corporateBond:
+        return 'corporate-bond';
+      case DiscoverMutualFundPreset.bankingPsu:
+        return 'banking-psu';
+      case DiscoverMutualFundPreset.gilt:
+        return 'gilt';
+      case DiscoverMutualFundPreset.dynamicBond:
+        return 'dynamic-bond';
+      case DiscoverMutualFundPreset.floater:
+        return 'floater';
+      case DiscoverMutualFundPreset.targetMaturity:
+        return 'target-maturity';
+      case DiscoverMutualFundPreset.creditRisk:
+        return 'credit-risk';
+      case DiscoverMutualFundPreset.aggressiveHybrid:
+        return 'aggressive-hybrid';
+      case DiscoverMutualFundPreset.balancedHybrid:
+        return 'balanced-hybrid';
+      case DiscoverMutualFundPreset.conservativeHybrid:
+        return 'conservative-hybrid';
+      case DiscoverMutualFundPreset.arbitrage:
+        return 'arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation:
+        return 'dynamic-asset-allocation';
+      case DiscoverMutualFundPreset.multiAsset:
+        return 'multi-asset';
+      case DiscoverMutualFundPreset.equitySavings:
+        return 'equity-savings';
+      case DiscoverMutualFundPreset.fofDomestic:
+        return 'fof-domestic';
+      case DiscoverMutualFundPreset.fofOverseas:
+        return 'fof-overseas';
+      case DiscoverMutualFundPreset.goldSilver:
+        return 'gold-silver';
+      case DiscoverMutualFundPreset.retirement:
+        return 'retirement';
+      case DiscoverMutualFundPreset.children:
+        return 'children';
+      case DiscoverMutualFundPreset.lowRisk:
+        return 'low-risk';
     }
   }
 
   String get label {
     switch (this) {
-      case DiscoverMutualFundPreset.all: return 'All';
-      case DiscoverMutualFundPreset.equity: return 'Equity';
-      case DiscoverMutualFundPreset.debt: return 'Debt';
-      case DiscoverMutualFundPreset.hybrid: return 'Hybrid';
-      case DiscoverMutualFundPreset.other: return 'Other';
-      case DiscoverMutualFundPreset.indexFund: return 'Index';
-      case DiscoverMutualFundPreset.largeCap: return 'Large Cap';
-      case DiscoverMutualFundPreset.largeMidCap: return 'Large & Mid Cap';
-      case DiscoverMutualFundPreset.midCap: return 'Mid Cap';
-      case DiscoverMutualFundPreset.smallCap: return 'Small Cap';
-      case DiscoverMutualFundPreset.flexiCap: return 'Flexi Cap';
-      case DiscoverMutualFundPreset.multiCap: return 'Multi Cap';
-      case DiscoverMutualFundPreset.elss: return 'ELSS';
-      case DiscoverMutualFundPreset.valueMf: return 'Value';
-      case DiscoverMutualFundPreset.focused: return 'Focused';
-      case DiscoverMutualFundPreset.sectoral: return 'Sectoral & Thematic';
-      case DiscoverMutualFundPreset.international: return 'International';
-      case DiscoverMutualFundPreset.liquid: return 'Liquid';
-      case DiscoverMutualFundPreset.overnight: return 'Overnight';
-      case DiscoverMutualFundPreset.moneyMarket: return 'Money Market';
-      case DiscoverMutualFundPreset.ultraShort: return 'Ultra Short';
-      case DiscoverMutualFundPreset.shortDuration: return 'Short Duration';
-      case DiscoverMutualFundPreset.lowDuration: return 'Low Duration';
-      case DiscoverMutualFundPreset.mediumDuration: return 'Medium Duration';
-      case DiscoverMutualFundPreset.corporateBond: return 'Corporate Bond';
-      case DiscoverMutualFundPreset.bankingPsu: return 'Banking & PSU';
-      case DiscoverMutualFundPreset.gilt: return 'Gilt';
-      case DiscoverMutualFundPreset.dynamicBond: return 'Dynamic Bond';
-      case DiscoverMutualFundPreset.floater: return 'Floater';
-      case DiscoverMutualFundPreset.targetMaturity: return 'Target Maturity';
-      case DiscoverMutualFundPreset.creditRisk: return 'Credit Risk';
-      case DiscoverMutualFundPreset.aggressiveHybrid: return 'Aggressive';
-      case DiscoverMutualFundPreset.balancedHybrid: return 'Balanced';
-      case DiscoverMutualFundPreset.conservativeHybrid: return 'Conservative';
-      case DiscoverMutualFundPreset.arbitrage: return 'Arbitrage';
-      case DiscoverMutualFundPreset.dynamicAssetAllocation: return 'Dynamic Asset';
-      case DiscoverMutualFundPreset.multiAsset: return 'Multi Asset';
-      case DiscoverMutualFundPreset.equitySavings: return 'Equity Savings';
-      case DiscoverMutualFundPreset.fofDomestic: return 'FoF Domestic';
-      case DiscoverMutualFundPreset.fofOverseas: return 'FoF Overseas';
-      case DiscoverMutualFundPreset.goldSilver: return 'Gold & Silver';
-      case DiscoverMutualFundPreset.retirement: return 'Retirement';
-      case DiscoverMutualFundPreset.children: return 'Children';
-      case DiscoverMutualFundPreset.lowRisk: return 'Low Risk';
+      case DiscoverMutualFundPreset.all:
+        return 'All';
+      case DiscoverMutualFundPreset.equity:
+        return 'Equity';
+      case DiscoverMutualFundPreset.debt:
+        return 'Debt';
+      case DiscoverMutualFundPreset.hybrid:
+        return 'Hybrid';
+      case DiscoverMutualFundPreset.other:
+        return 'Other';
+      case DiscoverMutualFundPreset.indexFund:
+        return 'Index';
+      case DiscoverMutualFundPreset.largeCap:
+        return 'Large Cap';
+      case DiscoverMutualFundPreset.largeMidCap:
+        return 'Large & Mid Cap';
+      case DiscoverMutualFundPreset.midCap:
+        return 'Mid Cap';
+      case DiscoverMutualFundPreset.smallCap:
+        return 'Small Cap';
+      case DiscoverMutualFundPreset.flexiCap:
+        return 'Flexi Cap';
+      case DiscoverMutualFundPreset.multiCap:
+        return 'Multi Cap';
+      case DiscoverMutualFundPreset.elss:
+        return 'ELSS';
+      case DiscoverMutualFundPreset.valueMf:
+        return 'Value';
+      case DiscoverMutualFundPreset.focused:
+        return 'Focused';
+      case DiscoverMutualFundPreset.sectoral:
+        return 'Sectoral & Thematic';
+      case DiscoverMutualFundPreset.international:
+        return 'International';
+      case DiscoverMutualFundPreset.liquid:
+        return 'Liquid';
+      case DiscoverMutualFundPreset.overnight:
+        return 'Overnight';
+      case DiscoverMutualFundPreset.moneyMarket:
+        return 'Money Market';
+      case DiscoverMutualFundPreset.ultraShort:
+        return 'Ultra Short';
+      case DiscoverMutualFundPreset.shortDuration:
+        return 'Short Duration';
+      case DiscoverMutualFundPreset.lowDuration:
+        return 'Low Duration';
+      case DiscoverMutualFundPreset.mediumDuration:
+        return 'Medium Duration';
+      case DiscoverMutualFundPreset.corporateBond:
+        return 'Corporate Bond';
+      case DiscoverMutualFundPreset.bankingPsu:
+        return 'Banking & PSU';
+      case DiscoverMutualFundPreset.gilt:
+        return 'Gilt';
+      case DiscoverMutualFundPreset.dynamicBond:
+        return 'Dynamic Bond';
+      case DiscoverMutualFundPreset.floater:
+        return 'Floater';
+      case DiscoverMutualFundPreset.targetMaturity:
+        return 'Target Maturity';
+      case DiscoverMutualFundPreset.creditRisk:
+        return 'Credit Risk';
+      case DiscoverMutualFundPreset.aggressiveHybrid:
+        return 'Aggressive';
+      case DiscoverMutualFundPreset.balancedHybrid:
+        return 'Balanced';
+      case DiscoverMutualFundPreset.conservativeHybrid:
+        return 'Conservative';
+      case DiscoverMutualFundPreset.arbitrage:
+        return 'Arbitrage';
+      case DiscoverMutualFundPreset.dynamicAssetAllocation:
+        return 'Dynamic Asset';
+      case DiscoverMutualFundPreset.multiAsset:
+        return 'Multi Asset';
+      case DiscoverMutualFundPreset.equitySavings:
+        return 'Equity Savings';
+      case DiscoverMutualFundPreset.fofDomestic:
+        return 'FoF Domestic';
+      case DiscoverMutualFundPreset.fofOverseas:
+        return 'FoF Overseas';
+      case DiscoverMutualFundPreset.goldSilver:
+        return 'Gold & Silver';
+      case DiscoverMutualFundPreset.retirement:
+        return 'Retirement';
+      case DiscoverMutualFundPreset.children:
+        return 'Children';
+      case DiscoverMutualFundPreset.lowRisk:
+        return 'Low Risk';
     }
   }
 
@@ -718,7 +806,8 @@ class _DiscoverMutualFundPresetNotifier
   }
 }
 
-class _DiscoverStockFiltersNotifier extends StateNotifier<DiscoverStockFilters> {
+class _DiscoverStockFiltersNotifier
+    extends StateNotifier<DiscoverStockFilters> {
   _DiscoverStockFiltersNotifier() : super(const DiscoverStockFilters());
 
   void setFilters(DiscoverStockFilters next) {
@@ -728,7 +817,8 @@ class _DiscoverStockFiltersNotifier extends StateNotifier<DiscoverStockFilters> 
 
 class _DiscoverMutualFundFiltersNotifier
     extends StateNotifier<DiscoverMutualFundFilters> {
-  _DiscoverMutualFundFiltersNotifier() : super(const DiscoverMutualFundFilters());
+  _DiscoverMutualFundFiltersNotifier()
+      : super(const DiscoverMutualFundFilters());
 
   void setFilters(DiscoverMutualFundFilters next) {
     state = next;
@@ -741,9 +831,8 @@ final discoverSegmentProvider =
 });
 
 // autoDispose: filters/presets reset to defaults when screener screen is disposed
-final discoverStockPresetProvider =
-    StateNotifierProvider.autoDispose<_DiscoverStockPresetNotifier, DiscoverStockPreset>(
-        (ref) {
+final discoverStockPresetProvider = StateNotifierProvider.autoDispose<
+    _DiscoverStockPresetNotifier, DiscoverStockPreset>((ref) {
   return _DiscoverStockPresetNotifier();
 });
 
@@ -752,9 +841,8 @@ final discoverMutualFundPresetProvider = StateNotifierProvider.autoDispose<
   return _DiscoverMutualFundPresetNotifier();
 });
 
-final discoverStockFiltersProvider =
-    StateNotifierProvider.autoDispose<_DiscoverStockFiltersNotifier, DiscoverStockFilters>(
-        (ref) {
+final discoverStockFiltersProvider = StateNotifierProvider.autoDispose<
+    _DiscoverStockFiltersNotifier, DiscoverStockFilters>((ref) {
   return _DiscoverStockFiltersNotifier();
 });
 
@@ -767,12 +855,9 @@ final discoverRepoProvider = Provider<DiscoverRepository>((ref) {
   return ref.watch(discoverRepositoryProvider);
 });
 
-final discoverOverviewProvider =
-    FutureProvider.autoDispose.family<DiscoverOverview, DiscoverSegment>(
-        (ref, segment) {
-  return ref
-      .watch(discoverRepoProvider)
-      .getOverview(segment: segment.apiValue);
+final discoverOverviewProvider = FutureProvider.autoDispose
+    .family<DiscoverOverview, DiscoverSegment>((ref, segment) {
+  return ref.watch(discoverRepoProvider).getOverview(segment: segment.apiValue);
 });
 
 // Paginated state for stock/MF lists
@@ -833,8 +918,8 @@ class DiscoverStockListNotifier
     try {
       final preset = ref.read(discoverStockPresetProvider);
       final filters = ref.read(discoverStockFiltersProvider);
-      final response =
-          await _fetch(offset: current.items.length, preset: preset, filters: filters);
+      final response = await _fetch(
+          offset: current.items.length, preset: preset, filters: filters);
       final newItems = [...current.items, ...response.items];
       final total = response.totalCount ?? newItems.length;
       state = AsyncData(PaginatedListState<DiscoverStockItem>(
@@ -885,8 +970,8 @@ final discoverMutualFundsProvider = AsyncNotifierProvider.autoDispose<
     DiscoverMfListNotifier,
     PaginatedListState<DiscoverMutualFundItem>>(() => DiscoverMfListNotifier());
 
-class DiscoverMfListNotifier
-    extends AutoDisposeAsyncNotifier<PaginatedListState<DiscoverMutualFundItem>> {
+class DiscoverMfListNotifier extends AutoDisposeAsyncNotifier<
+    PaginatedListState<DiscoverMutualFundItem>> {
   static const _pageSize = 25;
 
   @override
@@ -909,8 +994,8 @@ class DiscoverMfListNotifier
     try {
       final preset = ref.read(discoverMutualFundPresetProvider);
       final filters = ref.read(discoverMutualFundFiltersProvider);
-      final response =
-          await _fetch(offset: current.items.length, preset: preset, filters: filters);
+      final response = await _fetch(
+          offset: current.items.length, preset: preset, filters: filters);
       final newItems = [...current.items, ...response.items];
       final total = response.totalCount ?? newItems.length;
       state = AsyncData(PaginatedListState<DiscoverMutualFundItem>(
@@ -956,9 +1041,8 @@ final discoverHomeDataProvider =
   return ref.watch(discoverRepoProvider).getHomeData();
 });
 
-final discoverSearchProvider =
-    FutureProvider.autoDispose.family<UnifiedSearchResponse, String>(
-        (ref, query) {
+final discoverSearchProvider = FutureProvider.autoDispose
+    .family<UnifiedSearchResponse, String>((ref, query) {
   if (query.trim().length < 2) {
     return const UnifiedSearchResponse(stocks: [], mutualFunds: []);
   }
@@ -966,8 +1050,7 @@ final discoverSearchProvider =
 });
 
 final discoverStockHistoryProvider = FutureProvider.autoDispose
-    .family<PriceHistoryResponse, ({String symbol, int days})>(
-        (ref, params) {
+    .family<PriceHistoryResponse, ({String symbol, int days})>((ref, params) {
   return ref
       .watch(discoverRepoProvider)
       .getStockHistory(symbol: params.symbol, days: params.days);
@@ -986,19 +1069,25 @@ final discoverStockDetailProvider =
   return ref.watch(discoverRepoProvider).getStockBySymbol(symbol: symbol);
 });
 
-final discoverMfDetailProvider =
-    FutureProvider.autoDispose.family<DiscoverMutualFundItem, String>((ref, schemeCode) {
-  return ref.watch(discoverRepoProvider).getMfBySchemeCode(schemeCode: schemeCode);
+final discoverMfDetailProvider = FutureProvider.autoDispose
+    .family<DiscoverMutualFundItem, String>((ref, schemeCode) {
+  return ref
+      .watch(discoverRepoProvider)
+      .getMfBySchemeCode(schemeCode: schemeCode);
 });
 
 final discoverStockPeersProvider = FutureProvider.autoDispose
     .family<List<DiscoverStockItem>, String>((ref, symbol) {
-  return ref.watch(discoverRepoProvider).getStockPeers(symbol: symbol, limit: 5);
+  return ref
+      .watch(discoverRepoProvider)
+      .getStockPeers(symbol: symbol, limit: 5);
 });
 
 final discoverMfPeersProvider = FutureProvider.autoDispose
     .family<List<DiscoverMutualFundItem>, String>((ref, schemeCode) {
-  return ref.watch(discoverRepoProvider).getMfPeers(schemeCode: schemeCode, limit: 5);
+  return ref
+      .watch(discoverRepoProvider)
+      .getMfPeers(schemeCode: schemeCode, limit: 5);
 });
 
 // ---------------------------------------------------------------------------
@@ -1006,19 +1095,20 @@ final discoverMfPeersProvider = FutureProvider.autoDispose
 // ---------------------------------------------------------------------------
 
 /// Key uses a CSV string (not List) so Riverpod family equality works correctly.
-final discoverStockSparklinesProvider = FutureProvider.autoDispose
-    .family<Map<String, List<PriceHistoryPoint>>, ({String symbolsCsv, int days})>(
-        (ref, params) {
-  final symbols = params.symbolsCsv.split(',').where((s) => s.isNotEmpty).toList();
+final discoverStockSparklinesProvider = FutureProvider.autoDispose.family<
+    Map<String, List<PriceHistoryPoint>>,
+    ({String symbolsCsv, int days})>((ref, params) {
+  final symbols =
+      params.symbolsCsv.split(',').where((s) => s.isNotEmpty).toList();
   return ref
       .watch(discoverRepoProvider)
       .getStockSparklines(symbols: symbols, days: params.days);
 });
 
 /// Key uses a CSV string (not List) so Riverpod family equality works correctly.
-final discoverMfSparklinesProvider = FutureProvider.autoDispose
-    .family<Map<String, List<PriceHistoryPoint>>, ({String codesCsv, int days})>(
-        (ref, params) {
+final discoverMfSparklinesProvider = FutureProvider.autoDispose.family<
+    Map<String, List<PriceHistoryPoint>>,
+    ({String codesCsv, int days})>((ref, params) {
   final codes = params.codesCsv.split(',').where((s) => s.isNotEmpty).toList();
   return ref
       .watch(discoverRepoProvider)
@@ -1097,8 +1187,7 @@ final discoverStockCompareProvider =
 // Market Mood
 // ---------------------------------------------------------------------------
 
-final discoverMarketMoodProvider =
-    FutureProvider.autoDispose<MarketMood>(
+final discoverMarketMoodProvider = FutureProvider.autoDispose<MarketMood>(
   (ref) {
     final repo = ref.watch(discoverRepositoryProvider);
     return repo.getMarketMood();
@@ -1169,7 +1258,9 @@ final starredStockLiveQuotesProvider =
   }
   final repo = ref.watch(discoverRepositoryProvider);
   final futures = stockSymbols.map(
-    (s) => repo.getStockBySymbol(symbol: s).then<MapEntry<String, DiscoverStockItem>?>(
+    (s) => repo
+        .getStockBySymbol(symbol: s)
+        .then<MapEntry<String, DiscoverStockItem>?>(
           (item) => MapEntry(s, item),
           onError: (_) => null,
         ),
@@ -1177,6 +1268,40 @@ final starredStockLiveQuotesProvider =
   final results = await Future.wait(futures);
   return {
     for (final e in results.whereType<MapEntry<String, DiscoverStockItem>>())
+      e.key: e.value,
+  };
+});
+
+/// Live detail snapshot for every starred mutual fund.
+///
+/// Mirrors [starredStockLiveQuotesProvider], but pulls the latest
+/// fund detail via /screener/mutual-funds/{scheme_code}/detail so the
+/// dashboard can show current NAV, 1Y return, score, and freshness.
+/// Individual fetch failures are ignored to preserve partial results.
+final starredMfLiveQuotesProvider =
+    FutureProvider.autoDispose<Map<String, DiscoverMutualFundItem>>(
+        (ref) async {
+  final starred = ref.watch(starredStocksProvider);
+  final schemeCodes = starred
+      .where((e) => e.type == 'mf')
+      .map((e) => e.id)
+      .toList(growable: false);
+  if (schemeCodes.isEmpty) {
+    return <String, DiscoverMutualFundItem>{};
+  }
+  final repo = ref.watch(discoverRepositoryProvider);
+  final futures = schemeCodes.map(
+    (code) => repo
+        .getMfBySchemeCode(schemeCode: code)
+        .then<MapEntry<String, DiscoverMutualFundItem>?>(
+          (item) => MapEntry(code, item),
+          onError: (_) => null,
+        ),
+  );
+  final results = await Future.wait(futures);
+  return {
+    for (final e
+        in results.whereType<MapEntry<String, DiscoverMutualFundItem>>())
       e.key: e.value,
   };
 });
