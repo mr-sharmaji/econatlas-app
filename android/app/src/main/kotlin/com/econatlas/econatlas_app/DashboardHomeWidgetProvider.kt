@@ -184,6 +184,21 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
   }
 
   override fun onReceive(context: Context, intent: Intent) {
+    // IMPORTANT: for ACTION_APPWIDGET_UPDATE we must clear the
+    // refreshing flag BEFORE super.onReceive() dispatches onUpdate,
+    // otherwise onUpdate reads the stale `true` value and keeps
+    // the spinner visible forever (the button stays GONE and the
+    // user sees a permanent loading state). Clearing here and
+    // then letting super run fixes the stuck spinner.
+    if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
+      val prefs = context.getSharedPreferences(
+          "HomeWidgetPreferences",
+          Context.MODE_PRIVATE,
+      )
+      if (prefs.getBoolean(PREF_REFRESHING, false)) {
+        prefs.edit().putBoolean(PREF_REFRESHING, false).apply()
+      }
+    }
     super.onReceive(context, intent)
     when (intent.action) {
       ACTION_SELECT_TAB -> {
@@ -224,20 +239,8 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
           redrawAllWidgets(context, prefs)
         }
       }
-      AppWidgetManager.ACTION_APPWIDGET_UPDATE -> {
-        // Normal update path — when the Dart side publishes a new
-        // snapshot via HomeWidget.updateWidget it fires this action.
-        // That means the refresh (if any) just completed, so clear
-        // the spinner flag before letting the base class run the
-        // standard onUpdate().
-        val prefs = context.getSharedPreferences(
-            "HomeWidgetPreferences",
-            Context.MODE_PRIVATE,
-        )
-        if (prefs.getBoolean(PREF_REFRESHING, false)) {
-          prefs.edit().putBoolean(PREF_REFRESHING, false).apply()
-        }
-      }
+      // ACTION_APPWIDGET_UPDATE is handled above super.onReceive()
+      // so the refreshing flag is cleared before onUpdate runs.
     }
   }
 
