@@ -219,6 +219,62 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
     await ref.read(starredMfLiveQuotesProvider.future);
   }
 
+  /// Show a bottom sheet with long-press row actions (currently just
+  /// Remove-from-watchlist). Triggered by a long-press on the row
+  /// because horizontal-swipe Dismissible was conflicting with
+  /// TabBarView's page-swipe gesture and causing accidental unstars.
+  Future<void> _showFavoriteActions(
+    BuildContext context,
+    StarredItem item,
+    String displayName,
+  ) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppTheme.cardDark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                child: Text(
+                  displayName,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(
+                  Icons.star_outline_rounded,
+                  color: AppTheme.accentRed,
+                ),
+                title: const Text('Remove from watchlist'),
+                onTap: () => Navigator.of(ctx).pop('remove'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.close_rounded),
+                title: const Text('Cancel'),
+                onTap: () => Navigator.of(ctx).pop(null),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+    if (choice == 'remove') {
+      await _removeFavoriteWithUndo(item);
+    }
+  }
+
   Future<void> _removeFavoriteWithUndo(StarredItem item) async {
     // Snapshot the item so the Undo path can restore with the exact
     // same name + freshness stamp.
@@ -323,10 +379,16 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
     // Prefetch per-row intraday sparkline data. One batched fetch for
     // all visible symbols, same provider the screener uses.
     final symbolsCsv = filteredRows.map((row) => row.symbol).join(',');
+    // days=7 instead of days=1 so the sparkline has at least one
+    // trading session's worth of points on a weekend / holiday (the
+    // backend query is `trade_date >= CURRENT_DATE - N days`, so
+    // days=1 on a Saturday returns just Friday — a single data
+    // point which renders as a flat stub). days=7 spans 5 trading
+    // sessions ≈ 5 points, enough for a visible trend line.
     final sparkAsync = symbolsCsv.isEmpty
         ? const AsyncValue<Map<String, List<PriceHistoryPoint>>>.data({})
         : ref.watch(discoverStockSparklinesProvider(
-            (symbolsCsv: symbolsCsv, days: 1),
+            (symbolsCsv: symbolsCsv, days: 7),
           ));
     final sparkMap = sparkAsync.valueOrNull ?? const {};
 
@@ -374,14 +436,17 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
               ),
             ),
           for (final row in filteredRows)
-            Dismissible(
+            // Long-press opens a bottom sheet with a "Remove from
+            // watchlist" action. We deliberately do NOT use
+            // Dismissible here because the dashboard lives inside a
+            // TabBarView and horizontal swipes were being intercepted
+            // by the Dismissible gesture detector, causing accidental
+            // unstars when the user just wanted to switch tabs.
+            GestureDetector(
               key: ValueKey('fav-stock-${row.item.id}'),
-              direction: DismissDirection.endToStart,
-              background: const _FavoritesDismissBackground(),
-              confirmDismiss: (_) async {
-                await _removeFavoriteWithUndo(row.item);
-                return true;
-              },
+              behavior: HitTestBehavior.opaque,
+              onLongPress: () =>
+                  _showFavoriteActions(context, row.item, row.displayName),
               child: Builder(
                 builder: (context) {
                   final live = row.live;
@@ -526,14 +591,13 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
               ),
             ),
           for (final row in filteredRows)
-            Dismissible(
+            // Long-press → remove sheet (see stock tab for rationale
+            // on why we no longer use Dismissible inside a TabBarView).
+            GestureDetector(
               key: ValueKey('fav-mf-${row.item.id}'),
-              direction: DismissDirection.endToStart,
-              background: const _FavoritesDismissBackground(),
-              confirmDismiss: (_) async {
-                await _removeFavoriteWithUndo(row.item);
-                return true;
-              },
+              behavior: HitTestBehavior.opaque,
+              onLongPress: () =>
+                  _showFavoriteActions(context, row.item, row.displayName),
               child: Builder(
                 builder: (context) {
                   final live = row.live;
@@ -807,28 +871,25 @@ class _FavoritesSummaryCard extends StatelessWidget {
     final avgColor = (summary.averageChange ?? 0) >= 0
         ? AppTheme.accentGreen
         : AppTheme.accentRed;
-    final coverageText = summary.freshest != null
-        ? '${Formatters.updatedFreshness(summary.freshest!)} · ${summary.measuredCount}/${summary.totalFavorites} tracked'
-        : summary.measuredCount > 0
-            ? 'Using saved favorite snapshots for ${summary.measuredCount}/${summary.totalFavorites} items'
-            : 'Waiting for fresh data';
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Title row — tight spacing, chip pushed to the right.
             Row(
               children: [
-                Icon(icon, size: 18, color: AppTheme.accentBlue),
-                const SizedBox(width: 8),
+                Icon(icon, size: 16, color: AppTheme.accentBlue),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     title,
                     style: theme.textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
+                      fontSize: 13,
                       color: theme.colorScheme.onSurface,
                     ),
                   ),
@@ -844,15 +905,18 @@ class _FavoritesSummaryCard extends StatelessWidget {
                     'No live moves yet',
                     style: theme.textTheme.bodySmall?.copyWith(
                       color: Colors.white38,
-                      fontSize: 11,
+                      fontSize: 10,
                     ),
                   ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
+            // Stats row — tighter horizontal spacing (12 instead of
+            // 16) and smaller vertical spacing on wrap (6 instead of
+            // 10) to compact the card.
             Wrap(
-              spacing: 16,
-              runSpacing: 10,
+              spacing: 14,
+              runSpacing: 6,
               children: [
                 _HealthStat(
                   label: 'Total',
@@ -876,38 +940,27 @@ class _FavoritesSummaryCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (summary.bestLabel != null && summary.worstLabel != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _PerformerChip(
-                      label: 'Best',
-                      symbol: summary.bestLabel!,
-                      pct: summary.bestValue ?? 0,
-                      color: AppTheme.accentGreen,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _PerformerChip(
-                      label: 'Worst',
-                      symbol: summary.worstLabel!,
-                      pct: summary.worstValue ?? 0,
-                      color: AppTheme.accentRed,
-                    ),
-                  ),
-                ],
+            // Best and Worst now stacked in separate rows so both
+            // symbol labels get the full card width to avoid
+            // mid-row ellipsis on longer fund names.
+            if (summary.bestLabel != null) ...[
+              const SizedBox(height: 8),
+              _PerformerChip(
+                label: 'Best',
+                symbol: summary.bestLabel!,
+                pct: summary.bestValue ?? 0,
+                color: AppTheme.accentGreen,
               ),
             ],
-            const SizedBox(height: 12),
-            Text(
-              coverageText,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.white38,
-                fontSize: 11,
+            if (summary.worstLabel != null) ...[
+              const SizedBox(height: 6),
+              _PerformerChip(
+                label: 'Worst',
+                symbol: summary.worstLabel!,
+                pct: summary.worstValue ?? 0,
+                color: AppTheme.accentRed,
               ),
-            ),
+            ],
             if (filterBuckets.isNotEmpty) ...[
               const SizedBox(height: 10),
               _buildFilterChipRow(theme),
@@ -1030,41 +1083,6 @@ class _FavoritesSortDropdown extends StatelessWidget {
               onChanged: (mode) {
                 if (mode != null) onChanged(mode);
               },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Red slide-away background shown behind a Dismissible row when the
-/// user swipes left to remove a favourite.
-class _FavoritesDismissBackground extends StatelessWidget {
-  const _FavoritesDismissBackground();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        color: AppTheme.accentRed.withValues(alpha: 0.80),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      alignment: Alignment.centerRight,
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.star_outline_rounded,
-              size: 18, color: Colors.white),
-          SizedBox(width: 6),
-          Text(
-            'Unstar',
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w700,
-              fontSize: 13,
             ),
           ),
         ],

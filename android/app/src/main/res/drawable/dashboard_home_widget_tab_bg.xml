@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Neutral pill background for widget tabs. The Kotlin provider
+     overrides this with dashboard_home_widget_tab_bg_selected.xml on
+     whichever tab is currently active. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <corners android:radius="12dp" />
+    <solid android:color="#1A3B82F6" />
+    <stroke
+        android:width="0.5dp"
+        android:color="#40FFFFFF" />
+</shape>

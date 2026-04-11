@@ -41,6 +41,12 @@
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
+            <intent-filter>
+                <!-- Custom action used by the widget's Markets /
+                     Stocks / Funds tab buttons. onReceive persists
+                     the active tab and re-renders. -->
+                <action android:name="com.econatlas.econatlas_app.WIDGET_SELECT_TAB" />
+            </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/dashboard_home_widget_info" />

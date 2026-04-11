@@ -10,7 +10,7 @@
         android:id="@+id/widget_header"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="10dp">
+        android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -26,18 +26,18 @@
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_text_primary"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/widget_subtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
+                android:layout_marginTop="1dp"
                 android:ellipsize="end"
                 android:maxLines="1"
                 android:textColor="@color/widget_text_secondary"
-                android:textSize="11sp" />
+                android:textSize="10sp" />
         </LinearLayout>
 
         <TextView
@@ -47,13 +47,69 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:background="@android:color/transparent"
-            android:paddingHorizontal="8dp"
+            android:paddingHorizontal="6dp"
             android:paddingVertical="4dp"
-            android:text="Refresh"
+            android:text="↻"
             android:textColor="@color/widget_blue"
-            android:textSize="12sp"
+            android:textSize="14sp"
             android:textStyle="bold" />
     </RelativeLayout>
+
+    <!-- Tab bar: Markets / Stocks / Mutual Funds. Each tab is a
+         TextView pending-intent that switches the active widget
+         tab via a broadcast into the provider. Only one is
+         highlighted at a time; the Kotlin side drives
+         setTextColor + setBackgroundResource for the selected
+         state. -->
+    <LinearLayout
+        android:id="@+id/widget_tabs"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingBottom="6dp"
+        android:weightSum="3">
+
+        <TextView
+            android:id="@+id/widget_tab_markets"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/dashboard_home_widget_tab_bg"
+            android:gravity="center"
+            android:paddingVertical="6dp"
+            android:text="Markets"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_tab_stocks"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/dashboard_home_widget_tab_bg"
+            android:gravity="center"
+            android:paddingVertical="6dp"
+            android:text="Stocks"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/widget_tab_mfs"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/dashboard_home_widget_tab_bg"
+            android:gravity="center"
+            android:paddingVertical="6dp"
+            android:text="Funds"
+            android:textColor="@color/widget_text_secondary"
+            android:textSize="11sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <ListView
         android:id="@+id/widget_list"

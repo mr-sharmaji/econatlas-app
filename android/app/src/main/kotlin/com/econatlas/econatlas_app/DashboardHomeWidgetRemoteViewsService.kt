@@ -29,7 +29,41 @@ private class DashboardHomeWidgetRemoteViewsFactory(
   override fun onDataSetChanged() {
     val prefs = context.getSharedPreferences("HomeWidgetPreferences", Context.MODE_PRIVATE)
     val raw = prefs.getString("dashboard_widget_snapshot", null)
-    items = DashboardWidgetRowParser.parse(raw)
+    val activeTab =
+        prefs.getString(
+            DashboardHomeWidgetProvider.PREF_ACTIVE_TAB,
+            DashboardHomeWidgetProvider.TAB_MARKETS,
+        ) ?: DashboardHomeWidgetProvider.TAB_MARKETS
+    // The snapshot is a single flat list with section headers. For
+    // the widget's tabbed UI we slice out just the segment whose
+    // preceding section header matches the active tab.
+    val all = DashboardWidgetRowParser.parse(raw)
+    items = filterByTab(all, activeTab)
+  }
+
+  private fun filterByTab(
+      all: List<DashboardWidgetRow>,
+      activeTab: String,
+  ): List<DashboardWidgetRow> {
+    val targetSection =
+        when (activeTab) {
+          DashboardHomeWidgetProvider.TAB_MARKETS -> "Markets"
+          DashboardHomeWidgetProvider.TAB_STOCKS -> "Stocks"
+          DashboardHomeWidgetProvider.TAB_MFS -> "Mutual Funds"
+          else -> "Markets"
+        }
+    val result = mutableListOf<DashboardWidgetRow>()
+    var inTarget = false
+    for (row in all) {
+      if (row.type == DashboardWidgetRowType.SECTION) {
+        inTarget = row.title.equals(targetSection, ignoreCase = true)
+        // Skip the section header itself — the tab already tells the
+        // user which section they're viewing.
+        continue
+      }
+      if (inTarget) result.add(row)
+    }
+    return result
   }
 
   override fun onDestroy() {
