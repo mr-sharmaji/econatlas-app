@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../data/models/discover.dart';
 import '../../data/services/recently_viewed_service.dart';
 import '../../data/services/starred_stocks_service.dart';
 import '../../domain/repositories/discover_repository.dart';
+import 'dashboard_widget_providers.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
 
@@ -1200,9 +1203,13 @@ final discoverMarketMoodProvider = FutureProvider.autoDispose<MarketMood>(
 
 class StarredStocksNotifier extends StateNotifier<List<StarredItem>> {
   late final StarredStocksService _service;
+  final Future<void> Function() _publishWidget;
 
-  StarredStocksNotifier(StarredStocksService service)
-      : _service = service,
+  StarredStocksNotifier(
+    StarredStocksService service, {
+    required Future<void> Function() publishWidget,
+  })  : _service = service,
+        _publishWidget = publishWidget,
         super(service.load());
 
   Future<void> toggle({
@@ -1217,6 +1224,7 @@ class StarredStocksNotifier extends StateNotifier<List<StarredItem>> {
       name: name,
       percentChange: percentChange,
     );
+    unawaited(_publishWidget());
   }
 
   bool isStarred({required String type, required String id}) {
@@ -1227,7 +1235,10 @@ class StarredStocksNotifier extends StateNotifier<List<StarredItem>> {
 final starredStocksProvider =
     StateNotifierProvider<StarredStocksNotifier, List<StarredItem>>((ref) {
   final prefs = ref.watch(sharedPreferencesProvider);
-  return StarredStocksNotifier(StarredStocksService(prefs));
+  return StarredStocksNotifier(
+    StarredStocksService(prefs),
+    publishWidget: () => ref.read(dashboardHomeWidgetServiceProvider).publish(),
+  );
 });
 
 /// Live 1D quotes for every starred symbol.

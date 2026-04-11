@@ -111,17 +111,28 @@ class AppConstants {
   static const String prefCacheWatchlist = 'cache_watchlist';
   static const String prefCacheLatestMarketAllTs = 'cache_latest_market_all_ts';
   static const String prefCacheLatestIndicesTs = 'cache_latest_indices_ts';
-  static const String prefCacheLatestCurrenciesTs = 'cache_latest_currencies_ts';
+  static const String prefCacheLatestCurrenciesTs =
+      'cache_latest_currencies_ts';
   static const String prefCacheLatestBondsTs = 'cache_latest_bonds_ts';
   static const String prefCacheLatestCommoditiesTs =
       'cache_latest_commodities_ts';
   static const String prefCacheLatestCryptoTs = 'cache_latest_crypto_ts';
+  static const String prefDashboardWidgetSnapshot = 'dashboard_widget_snapshot';
+  static const String prefDashboardWidgetSnapshotTs =
+      'dashboard_widget_snapshot_ts';
+
   /// USD/INR spot rate, cached separately from /market/latest so the
   /// commodities / crypto / dashboard screens can convert prices to INR
   /// instantly on cold start, without waiting for the full market
   /// snapshot provider (which can be slow or fail).
   static const String prefCacheUsdInrRate = 'cache_usd_inr_rate';
   static const String prefCacheUsdInrRateTs = 'cache_usd_inr_rate_ts';
+  static const String dashboardWidgetProviderQualifiedName =
+      'com.econatlas.econatlas_app.DashboardHomeWidgetProvider';
+  static const String dashboardWidgetPeriodicTaskUniqueName =
+      'dashboard_widget_periodic_refresh';
+  static const String dashboardWidgetPeriodicTaskName =
+      'dashboard_widget_periodic_refresh_task';
   static const String prefTaxSalary = 'tax_salary';
   static const String prefTaxDeductions = 'tax_deductions';
   static const String prefTaxRegime = 'tax_regime';

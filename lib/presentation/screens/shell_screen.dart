@@ -28,6 +28,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    unawaited(ref.read(dashboardHomeWidgetServiceProvider).publish());
     _refreshTimer = Timer.periodic(AppConstants.marketRefreshInterval, (_) {
       if (!mounted || _lifecycleState != AppLifecycleState.resumed) return;
       unawaited(_refreshAllData());
@@ -89,6 +90,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     ref.invalidate(ipoListProvider('upcoming'));
     ref.invalidate(ipoListProvider('closed'));
     ref.invalidate(ipoAlertsProvider);
+    unawaited(ref.read(dashboardHomeWidgetServiceProvider).publish());
   }
 
   void _openTool(String route) {

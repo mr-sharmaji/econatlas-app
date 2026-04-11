@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connectivity.dart';
 import '../../data/models/models.dart';
 import '../../core/constants.dart';
+import 'dashboard_widget_providers.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
 
@@ -299,6 +301,11 @@ class WatchlistNotifier extends StateNotifier<AsyncValue<List<String>>> {
     }
     if (next.hasValue) {
       _persistLocal(next.value!);
+      unawaited(
+        _ref
+            .read(dashboardHomeWidgetServiceProvider)
+            .publish(preferNetwork: false),
+      );
     }
     state = next;
   }
@@ -329,6 +336,9 @@ class WatchlistNotifier extends StateNotifier<AsyncValue<List<String>>> {
       _persistLocal(result.value!);
     }
     state = result;
+    if (result.hasValue) {
+      unawaited(_ref.read(dashboardHomeWidgetServiceProvider).publish());
+    }
   }
 
   Future<void> toggle(String asset) async {
@@ -418,8 +428,8 @@ class IpoAlertsNotifier extends StateNotifier<AsyncValue<Set<String>>> {
   }
 }
 
-final marketStoryProvider = FutureProvider.family<MarketStory,
-    ({String asset, String instrumentType})>(
+final marketStoryProvider =
+    FutureProvider.family<MarketStory, ({String asset, String instrumentType})>(
   (ref, params) async {
     final repo = ref.watch(marketRepositoryProvider);
     return repo.getMarketStory(
@@ -437,7 +447,8 @@ final marketScoresProvider = FutureProvider<Map<String, String>>((ref) async {
 
 /// Maps data cache keys to their corresponding timestamp keys.
 const _cacheTimestampKeys = <String, String>{
-  AppConstants.prefCacheLatestMarketAll: AppConstants.prefCacheLatestMarketAllTs,
+  AppConstants.prefCacheLatestMarketAll:
+      AppConstants.prefCacheLatestMarketAllTs,
   AppConstants.prefCacheLatestIndices: AppConstants.prefCacheLatestIndicesTs,
   AppConstants.prefCacheLatestCurrencies:
       AppConstants.prefCacheLatestCurrenciesTs,
@@ -471,7 +482,8 @@ final isCacheStaleProvider = Provider.family<bool, String>((ref, cacheKey) {
 
 /// Whether the most recent load for [cacheKey] was served from cache
 /// (i.e. the server was unreachable).
-final _servedFromCacheKeys = StateProvider.family<bool, String>((ref, _) => false);
+final _servedFromCacheKeys =
+    StateProvider.family<bool, String>((ref, _) => false);
 
 /// True when the latest data for [cacheKey] came from local cache, not server.
 final isServedFromCacheProvider =
