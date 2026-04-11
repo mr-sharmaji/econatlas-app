@@ -85,7 +85,11 @@ final router = GoRouter(
       builder: (context, state) {
         final asset = Uri.decodeComponent(state.pathParameters['asset']!);
         final price = state.extra as MarketPrice?;
-        return MarketDetailScreen(asset: asset, initialPrice: price);
+        return MarketDetailScreen(
+          asset: asset,
+          initialPrice: price,
+          instrumentTypeHint: 'index',
+        );
       },
     ),
     GoRoute(
@@ -94,7 +98,11 @@ final router = GoRouter(
       builder: (context, state) {
         final asset = Uri.decodeComponent(state.pathParameters['asset']!);
         final price = state.extra as MarketPrice?;
-        return MarketDetailScreen(asset: asset, initialPrice: price);
+        return MarketDetailScreen(
+          asset: asset,
+          initialPrice: price,
+          instrumentTypeHint: 'commodity',
+        );
       },
     ),
     GoRoute(
@@ -103,7 +111,11 @@ final router = GoRouter(
       builder: (context, state) {
         final asset = Uri.decodeComponent(state.pathParameters['asset']!);
         final price = state.extra as MarketPrice?;
-        return MarketDetailScreen(asset: asset, initialPrice: price);
+        return MarketDetailScreen(
+          asset: asset,
+          initialPrice: price,
+          instrumentTypeHint: 'crypto',
+        );
       },
     ),
     GoRoute(
@@ -198,7 +210,16 @@ final router = GoRouter(
         final item = state.extra is DiscoverMutualFundItem
             ? state.extra as DiscoverMutualFundItem
             : null;
-        return MfDetailScreen(schemeCode: schemeCode, initialItem: item);
+        // Optional ?name= query is passed by the home-screen widget
+        // so we can reconcile stale scheme codes (e.g. Regular-plan
+        // codes no longer in the snapshots table) by searching the
+        // display name.
+        final fallbackName = state.uri.queryParameters['name'];
+        return MfDetailScreen(
+          schemeCode: schemeCode,
+          initialItem: item,
+          fallbackName: fallbackName,
+        );
       },
     ),
     GoRoute(

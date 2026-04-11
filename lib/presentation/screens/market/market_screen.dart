@@ -1349,8 +1349,19 @@ class _CommodityTile extends StatelessWidget {
 class MarketDetailScreen extends ConsumerStatefulWidget {
   final String asset;
   final MarketPrice? initialPrice;
+  // Instrument type hint supplied by the route (index / commodity /
+  // crypto). Used when [initialPrice] is null (e.g. home-screen
+  // widget deep links which don't carry a MarketPrice in the state
+  // extra) so the detail screen knows whether to fetch commodity
+  // history and render INR units instead of raw USD/barrel.
+  final String? instrumentTypeHint;
 
-  const MarketDetailScreen({super.key, required this.asset, this.initialPrice});
+  const MarketDetailScreen({
+    super.key,
+    required this.asset,
+    this.initialPrice,
+    this.instrumentTypeHint,
+  });
 
   @override
   ConsumerState<MarketDetailScreen> createState() => _MarketDetailScreenState();
@@ -1489,7 +1500,9 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final initialInstType = widget.initialPrice?.instrumentType ?? 'index';
+    final initialInstType = widget.initialPrice?.instrumentType ??
+        widget.instrumentTypeHint ??
+        'index';
     final isCommodity = initialInstType == 'commodity';
     final isCrypto = initialInstType == 'crypto';
     final isRolling = isCommodity || isCrypto;

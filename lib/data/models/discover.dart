@@ -739,6 +739,27 @@ class MfFundInsight {
   bool get isNegative => sentiment == 'negative';
 }
 
+/// Parse a JSON list into a typed list, skipping any entries that
+/// fail to parse instead of bubbling the exception up. Used for
+/// nested holdings/sector lists where one malformed row shouldn't
+/// fail the whole detail response.
+List<T>? _parseListSafe<T>(
+  dynamic raw,
+  T Function(Map<String, dynamic> json) fromJson,
+) {
+  if (raw is! List) return null;
+  final result = <T>[];
+  for (final entry in raw) {
+    if (entry is! Map<String, dynamic>) continue;
+    try {
+      result.add(fromJson(entry));
+    } catch (_) {
+      // Skip malformed row.
+    }
+  }
+  return result;
+}
+
 @immutable
 class MfHolding {
   final String name;
@@ -747,11 +768,21 @@ class MfHolding {
 
   const MfHolding({required this.name, required this.percentage, this.sector});
 
-  factory MfHolding.fromJson(Map<String, dynamic> json) => MfHolding(
-    name: json['name'] as String,
-    percentage: (json['percentage'] as num).toDouble(),
-    sector: json['sector'] as String?,
-  );
+  /// Backend historically sent `{name, percentage}` but the ETMoney
+  /// enrichment path emits `{company_name, corpus_per}` plus extras
+  /// (isin, asset_type, market_value_crore). Accept either shape so
+  /// the detail fetch doesn't throw on either ingestion source.
+  factory MfHolding.fromJson(Map<String, dynamic> json) {
+    final rawName = (json['name'] ?? json['company_name']) as String?;
+    final rawPct =
+        (json['percentage'] ?? json['corpus_per'] ?? json['corpus_percent'])
+            as num?;
+    return MfHolding(
+      name: rawName ?? '',
+      percentage: (rawPct ?? 0).toDouble(),
+      sector: json['sector'] as String?,
+    );
+  }
 }
 
 @immutable
@@ -999,12 +1030,16 @@ class DiscoverMutualFundItem {
       ingestedAt: DateTime.parse(json['ingested_at'] as String),
       primarySource: json['primary_source'] as String?,
       secondarySource: json['secondary_source'] as String?,
-      topHoldings: (json['top_holdings'] as List<dynamic>?)
-          ?.map((e) => MfHolding.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      sectorAllocation: (json['sector_allocation'] as List<dynamic>?)
-          ?.map((e) => MfSectorAlloc.fromJson(e as Map<String, dynamic>))
-          .toList(),
+      // Defensive: swallow per-row parse errors so a single bad
+      // holding/sector entry can't poison the whole detail fetch.
+      topHoldings: _parseListSafe(
+        json['top_holdings'],
+        (m) => MfHolding.fromJson(m),
+      ),
+      sectorAllocation: _parseListSafe(
+        json['sector_allocation'],
+        (m) => MfSectorAlloc.fromJson(m),
+      ),
       assetAllocation: json['asset_allocation'] != null
           ? MfAssetAllocation.fromJson(json['asset_allocation'] as Map<String, dynamic>)
           : null,

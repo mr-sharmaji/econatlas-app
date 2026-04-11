@@ -554,7 +554,15 @@ class DashboardHomeWidgetService {
         previous?.change ?? '',
       ),
       changeTone: _toneFor(live?.returns1y ?? item.percentChange),
-      route: _widgetRoute('/discover/mf/${Uri.encodeComponent(item.id)}'),
+      // Pass the display name as a fallback query so the detail
+      // screen can reconcile stale scheme codes (e.g. a starred
+      // Regular plan code that no longer exists in the backend's
+      // Direct-only snapshots table) by searching the name and
+      // redirecting to the matching scheme_code.
+      route: _widgetRoute(
+        '/discover/mf/${Uri.encodeComponent(item.id)}'
+        '?name=${Uri.encodeQueryComponent(item.name)}',
+      ),
     );
   }
 

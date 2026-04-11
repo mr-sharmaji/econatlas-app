@@ -19,8 +19,17 @@ import 'widgets/stat_card.dart';
 class MfDetailScreen extends ConsumerStatefulWidget {
   final String schemeCode;
   final DiscoverMutualFundItem? initialItem;
+  // Optional display name supplied by deep links (e.g. home-screen
+  // widget). When the schemeCode 404s we fall back to searching
+  // this name via the screener so stale codes still resolve.
+  final String? fallbackName;
 
-  const MfDetailScreen({super.key, required this.schemeCode, this.initialItem});
+  const MfDetailScreen({
+    super.key,
+    required this.schemeCode,
+    this.initialItem,
+    this.fallbackName,
+  });
 
   @override
   ConsumerState<MfDetailScreen> createState() => _MfDetailScreenState();
@@ -52,14 +61,26 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       return _buildContent(theme, item);
     }
 
-    final detailAsync = ref.watch(discoverMfDetailProvider(widget.schemeCode));
+    // Use the fallback-aware provider when a display name is
+    // available (deep link from widget); otherwise the plain
+    // schemeCode lookup is enough.
+    final hasFallback = (widget.fallbackName ?? '').trim().isNotEmpty;
+    final detailAsync = hasFallback
+        ? ref.watch(
+            discoverMfDetailWithFallbackProvider(
+              (schemeCode: widget.schemeCode, fallbackName: widget.fallbackName),
+            ),
+          )
+        : ref.watch(discoverMfDetailProvider(widget.schemeCode));
     return detailAsync.when(
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('Loading...')),
         body: const ShimmerMfDetail(),
       ),
       error: (err, _) => Scaffold(
-        appBar: AppBar(title: Text(widget.schemeCode)),
+        appBar: AppBar(
+          title: Text(widget.fallbackName ?? widget.schemeCode),
+        ),
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -69,8 +90,22 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const Text('Error loading fund details'),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () =>
-                    ref.invalidate(discoverMfDetailProvider(widget.schemeCode)),
+                onPressed: () {
+                  if (hasFallback) {
+                    ref.invalidate(
+                      discoverMfDetailWithFallbackProvider(
+                        (
+                          schemeCode: widget.schemeCode,
+                          fallbackName: widget.fallbackName,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ref.invalidate(
+                      discoverMfDetailProvider(widget.schemeCode),
+                    );
+                  }
+                },
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Retry'),
               ),

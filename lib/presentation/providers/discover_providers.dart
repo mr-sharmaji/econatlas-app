@@ -1079,6 +1079,33 @@ final discoverMfDetailProvider = FutureProvider.autoDispose
       .getMfBySchemeCode(schemeCode: schemeCode);
 });
 
+/// Detail lookup with a display-name fallback. When a stale or
+/// regular-plan scheme code (e.g. 101762 for HDFC Flexi Cap) is
+/// deep-linked from the home-screen widget, the snapshots table
+/// doesn't have it — only the Direct Plan codes are ingested. In
+/// that case fall back to a screener search on the display name
+/// and return the first result (sorted by score server-side).
+final discoverMfDetailWithFallbackProvider = FutureProvider.autoDispose
+    .family<DiscoverMutualFundItem, ({String schemeCode, String? fallbackName})>(
+  (ref, key) async {
+    final repo = ref.watch(discoverRepoProvider);
+    try {
+      return await repo.getMfBySchemeCode(schemeCode: key.schemeCode);
+    } catch (_) {
+      final name = key.fallbackName?.trim();
+      if (name == null || name.isEmpty) rethrow;
+      final remote = ref.watch(remoteDataSourceProvider);
+      final results = await remote.getDiscoverMutualFunds(
+        preset: 'all',
+        search: name,
+        limit: 1,
+      );
+      if (results.items.isEmpty) rethrow;
+      return results.items.first;
+    }
+  },
+);
+
 final discoverStockPeersProvider = FutureProvider.autoDispose
     .family<List<DiscoverStockItem>, String>((ref, symbol) {
   return ref
