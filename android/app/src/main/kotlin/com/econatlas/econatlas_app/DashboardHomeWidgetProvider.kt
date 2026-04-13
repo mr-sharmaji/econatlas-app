@@ -73,6 +73,21 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
       appWidgetIds: IntArray,
       widgetData: SharedPreferences,
   ) {
+    // Ensure the foreground service is running. Safe to call
+    // repeatedly — onStartCommand only schedules the next alarm,
+    // it does NOT trigger an immediate refresh (which would loop).
+    try {
+      WidgetRefreshService.start(context)
+    } catch (_: Exception) { /* best-effort */ }
+    _onUpdateImpl(context, appWidgetManager, appWidgetIds, widgetData)
+  }
+
+  private fun _onUpdateImpl(
+      context: Context,
+      appWidgetManager: AppWidgetManager,
+      appWidgetIds: IntArray,
+      widgetData: SharedPreferences,
+  ) {
     val snapshot = DashboardWidgetHeaderSnapshot.from(widgetData)
     val activeTab = widgetData.getString(PREF_ACTIVE_TAB, TAB_MARKETS) ?: TAB_MARKETS
     val isRefreshing = widgetData.getBoolean(PREF_REFRESHING, false)
@@ -319,7 +334,7 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
         ComponentName(context, DashboardHomeWidgetProvider::class.java),
     )
     if (ids.isEmpty()) return
-    onUpdate(context, manager, ids, prefs)
+    _onUpdateImpl(context, manager, ids, prefs)
   }
 
   /**
