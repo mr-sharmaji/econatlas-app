@@ -1575,7 +1575,11 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     final chartTzId = ref.watch(chartTimezoneProvider).id;
     final displayUnit = display?.$2;
     final isCurrency = instType == 'currency';
-    final oneDayLabel = (isRolling || isCurrency) ? '24H' : '1D';
+    // Use the backend's change_window to decide the label.
+    // "24h" = truly rolling intraday feed (crude oil, gold, crypto)
+    // "session" = daily reference price (iron ore, coal, fertilizers)
+    final changeWindow = currentPrice?.changeWindow ?? (isRolling ? '24h' : 'session');
+    final oneDayLabel = (changeWindow == '24h' || isCurrency) ? '24H' : '1D';
     final hasAuthoritativeTick =
         latestResolvedPrice != null || intradayChartList.isNotEmpty;
     final watchlistAssets =
@@ -1855,7 +1859,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                     : close;
 
                 final rangeLabel = is1D
-                    ? ((isCommodity || isCurrency)
+                    ? (changeWindow == '24h'
                         ? '24H Range'
                         : 'Session Range')
                     : 'Period Range';
