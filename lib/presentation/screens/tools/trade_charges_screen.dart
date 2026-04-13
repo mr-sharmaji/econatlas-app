@@ -652,6 +652,12 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     return rule.sideCharge(buyValue) + rule.sideCharge(sellValue);
   }
 
+  // Statutory rates updated 2025-26. Key revisions:
+  // - STT on equity options: 0.0625% → 0.1% (Oct 1, 2024)
+  // - STT on equity futures: 0.0125% → 0.02% (Oct 1, 2024)
+  // - NSE equity options txn: slab-based → flat 0.03553% (Oct 1, 2024)
+  // - SEBI fee: ₹10/Cr (18% GST applicable from Apr 2025)
+  // - IPFT: ₹10/Cr equity, ₹50/Cr options premium, ₹5/Cr currency
   _StatutoryRates _statutoryRates({
     required TradeSegment segment,
     required TradeExchange exchange,
@@ -659,67 +665,73 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     switch (segment) {
       case TradeSegment.equityDelivery:
         return _StatutoryRates(
-          sttBuyRate: 0.001,
+          sttBuyRate: 0.001,        // 0.1% both sides
           sttSellRate: 0.001,
           exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0000375 : 0.0000297,
-          stampDutyBuyRate: 0.00015,
+              exchange == TradeExchange.bse ? 0.0000375 : 0.0000307,
+          stampDutyBuyRate: 0.00015, // ₹1500/Cr
           ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
         );
       case TradeSegment.equityIntraday:
         return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.00025,
+          sttSellRate: 0.00025,     // 0.025% sell side
           exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0000375 : 0.0000297,
-          stampDutyBuyRate: 0.00003,
+              exchange == TradeExchange.bse ? 0.0000375 : 0.0000307,
+          stampDutyBuyRate: 0.00003, // ₹300/Cr
           ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
         );
       case TradeSegment.equityFutures:
         return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.0002,
-          exchangeTxnRate: exchange == TradeExchange.bse ? 0.000019 : 0.0000173,
-          stampDutyBuyRate: 0.00002,
+          sttSellRate: 0.0002,      // 0.02% sell side (revised Oct 2024)
+          exchangeTxnRate:
+              exchange == TradeExchange.bse ? 0.0 : 0.0000183,
+          stampDutyBuyRate: 0.00002, // ₹200/Cr
           ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
         );
       case TradeSegment.equityOptions:
         return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.001,
-          exchangeTxnRate: exchange == TradeExchange.bse ? 0.000325 : 0.0003503,
-          stampDutyBuyRate: 0.00003,
-          ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
+          sttSellRate: 0.001,       // 0.1% sell side on premium (revised Oct 2024)
+          exchangeTxnRate:
+              exchange == TradeExchange.bse ? 0.000325 : 0.0003553,
+          stampDutyBuyRate: 0.00003, // ₹300/Cr
+          ipftRate: exchange == TradeExchange.nse ? 0.000005 : 0.0, // ₹50/Cr premium
         );
       case TradeSegment.currencyFutures:
-        return const _StatutoryRates(
+        return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.0,
-          exchangeTxnRate: 0.0000035,
-          stampDutyBuyRate: 0.000001,
-          ipftRate: 0.0,
+          sttSellRate: 0.0,         // No STT on currency
+          exchangeTxnRate:
+              exchange == TradeExchange.bse ? 0.0000045 : 0.0000035,
+          stampDutyBuyRate: 0.000001, // ₹10/Cr
+          ipftRate: exchange == TradeExchange.nse ? 0.0000005 : 0.0, // ₹5/Cr
         );
       case TradeSegment.currencyOptions:
-        return const _StatutoryRates(
+        return _StatutoryRates(
           sttBuyRate: 0.0,
           sttSellRate: 0.0,
-          exchangeTxnRate: 0.000311,
+          exchangeTxnRate:
+              exchange == TradeExchange.bse ? 0.00001 : 0.000311,
           stampDutyBuyRate: 0.000001,
           ipftRate: 0.0,
         );
       case TradeSegment.commodityFutures:
-        return const _StatutoryRates(
+        return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.0001,
-          exchangeTxnRate: 0.000021,
-          stampDutyBuyRate: 0.00002,
+          sttSellRate: 0.0001,      // 0.01% CTT sell side (non-agri)
+          exchangeTxnRate:
+              exchange == TradeExchange.mcx ? 0.000021 : 0.000001,
+          stampDutyBuyRate: 0.00002, // ₹200/Cr
           ipftRate: 0.0,
         );
       case TradeSegment.commodityOptions:
-        return const _StatutoryRates(
+        return _StatutoryRates(
           sttBuyRate: 0.0,
-          sttSellRate: 0.0005,
-          exchangeTxnRate: 0.000418,
+          sttSellRate: 0.0005,      // 0.05% CTT sell side
+          exchangeTxnRate:
+              exchange == TradeExchange.mcx ? 0.000418 : 0.000001,
           stampDutyBuyRate: 0.00003,
           ipftRate: 0.0,
         );
@@ -879,12 +891,15 @@ class _BrokerPreset {
   }
 }
 
+// Broker charges updated 2025-26 from official pricing pages.
+// Sources: zerodha.com/charges, upstox.com/brokerage-charges,
+// groww.in/pricing, angelone.in/exchange-transaction-charges
 const Map<String, _BrokerPreset> _brokerPresets = {
   'Zerodha': _BrokerPreset(
     name: 'Zerodha',
-    tagline: 'Delivery free, ₹20 flat options, 0.03% capped intraday/F&O',
-    dpChargePerSellTransaction: 15.93,
-    dpChargeIncludesGst: true,
+    tagline: 'Delivery free · ₹20 flat F&O · AMC free (BSDA up to ₹4L)',
+    dpChargePerSellTransaction: 15.34,
+    dpChargeIncludesGst: false,
     rules: {
       TradeSegment.equityDelivery: _BrokerageRule.free(),
       TradeSegment.equityIntraday:
@@ -902,13 +917,13 @@ const Map<String, _BrokerPreset> _brokerPresets = {
   ),
   'Upstox': _BrokerPreset(
     name: 'Upstox',
-    tagline: '₹20 delivery/options, capped % brokerage for intraday/futures',
-    dpChargePerSellTransaction: 20.0,
+    tagline: '₹20 delivery · 0.05% intraday/futures · AMC ₹150+GST/yr',
+    dpChargePerSellTransaction: 18.50,
     dpChargeIncludesGst: false,
     rules: {
       TradeSegment.equityDelivery: _BrokerageRule.flat(20),
       TradeSegment.equityIntraday:
-          _BrokerageRule.percentCap(pct: 0.001, cap: 20),
+          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.equityFutures:
           _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.currencyFutures:
@@ -922,25 +937,25 @@ const Map<String, _BrokerPreset> _brokerPresets = {
   ),
   'Groww': _BrokerPreset(
     name: 'Groww',
-    tagline: 'Cash 0.1%/₹20 with minimum floor, flat options/F&O',
-    dpChargePerSellTransaction: 23.6,
-    dpChargeIncludesGst: true,
+    tagline: '0.1%/₹20 equity · ₹20 flat F&O · Min ₹5 · AMC free',
+    dpChargePerSellTransaction: 20.0,
+    dpChargeIncludesGst: false,
     rules: {
       TradeSegment.equityDelivery: _BrokerageRule.percentCap(
-        pct: 0.001,
-        cap: 20,
-        minCharge: 5,
-        minChargePercentCap: 0.025,
+        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
       ),
       TradeSegment.equityIntraday: _BrokerageRule.percentCap(
-        pct: 0.001,
-        cap: 20,
-        minCharge: 5,
-        minChargePercentCap: 0.025,
+        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
       ),
-      TradeSegment.equityFutures: _BrokerageRule.flat(20),
-      TradeSegment.currencyFutures: _BrokerageRule.flat(20),
-      TradeSegment.commodityFutures: _BrokerageRule.flat(20),
+      TradeSegment.equityFutures: _BrokerageRule.percentCap(
+        pct: 0.0005, cap: 20, minCharge: 5,
+      ),
+      TradeSegment.currencyFutures: _BrokerageRule.percentCap(
+        pct: 0.0005, cap: 20, minCharge: 5,
+      ),
+      TradeSegment.commodityFutures: _BrokerageRule.percentCap(
+        pct: 0.0005, cap: 20, minCharge: 5,
+      ),
       TradeSegment.equityOptions: _BrokerageRule.flat(20),
       TradeSegment.currencyOptions: _BrokerageRule.flat(20),
       TradeSegment.commodityOptions: _BrokerageRule.flat(20),
@@ -948,21 +963,16 @@ const Map<String, _BrokerPreset> _brokerPresets = {
   ),
   'Angel One': _BrokerPreset(
     name: 'Angel One',
-    tagline: 'Cash 0.1%/₹20 with floor, flat options/F&O',
-    dpChargePerSellTransaction: 23.6,
-    dpChargeIncludesGst: true,
+    tagline: '0.1%/₹20 equity · ₹20 flat F&O · Min ₹5 · AMC ₹240+GST/yr',
+    dpChargePerSellTransaction: 25.50, // ₹20 + CDSL ₹5.50
+    dpChargeIncludesGst: false,
     rules: {
+      // Revised Nov 17, 2025: delivery was free → now 0.1%/₹20
       TradeSegment.equityDelivery: _BrokerageRule.percentCap(
-        pct: 0.001,
-        cap: 20,
-        minCharge: 5,
-        minChargePercentCap: 0.025,
+        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
       ),
       TradeSegment.equityIntraday: _BrokerageRule.percentCap(
-        pct: 0.001,
-        cap: 20,
-        minCharge: 5,
-        minChargePercentCap: 0.025,
+        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
       ),
       TradeSegment.equityFutures: _BrokerageRule.flat(20),
       TradeSegment.currencyFutures: _BrokerageRule.flat(20),
