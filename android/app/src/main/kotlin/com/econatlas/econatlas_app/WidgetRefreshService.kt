@@ -102,7 +102,8 @@ class WidgetRefreshService : Service() {
     private fun buildNotification(): Notification {
         val prefs = getSharedPreferences("HomeWidgetPreferences", MODE_PRIVATE)
         val raw = prefs.getString("dashboard_widget_snapshot", null)
-        val (title, body) = parseSnapshotForNotification(raw)
+        val niftyLine = parseNiftyLine(raw)
+        val syncAgo = _lastRefreshAgo()
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
@@ -114,14 +115,26 @@ class WidgetRefreshService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
-            .setContentTitle(title)
-            .setContentText(body)
+            .setContentTitle(niftyLine)
+            .setContentText(syncAgo)
             .setOngoing(true)
             .setSilent(true)
             .setContentIntent(pendingIntent)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
+    }
+
+    private var _lastRefreshTs: Long = System.currentTimeMillis()
+
+    private fun _lastRefreshAgo(): String {
+        val elapsed = (System.currentTimeMillis() - _lastRefreshTs) / 1000
+        _lastRefreshTs = System.currentTimeMillis()
+        return when {
+            elapsed < 60 -> "Synced just now"
+            elapsed < 3600 -> "Synced ${elapsed / 60} min ago"
+            else -> "Synced ${elapsed / 3600}h ago"
+        }
     }
 
     private fun createNotificationChannel() {
@@ -139,56 +152,7 @@ class WidgetRefreshService : Service() {
         }
     }
 
-    /**
-     * Parse the widget snapshot JSON to extract a glanceable market
-     * summary for the persistent notification.
-     *
-     * Returns (title, body) e.g.:
-     *   ("Nifty 23,840 (-0.87%)", "Sensex 76,847 · Gold ₹93,400")
-     */
-    private fun parseSnapshotForNotification(raw: String?): Pair<String, String> {
-        val defaultTitle = "EconAtlas · Syncing market data"
-        val defaultBody = "Widget refreshes every 2 minutes"
-        if (raw.isNullOrBlank()) return Pair(defaultTitle, defaultBody)
-
-        return try {
-            val json = JSONObject(raw)
-            val items = json.optJSONArray("items") ?: return Pair(defaultTitle, defaultBody)
-
-            val summaryParts = mutableListOf<String>()
-            var title = defaultTitle
-
-            for (i in 0 until items.length()) {
-                val item = items.optJSONObject(i) ?: continue
-                val type = item.optString("type")
-                if (type == "section") continue
-
-                val name = item.optString("title")
-                val value = item.optString("value")
-                val change = item.optString("change")
-
-                if (name.isBlank() || value.isBlank()) continue
-
-                // First market item becomes the notification title
-                if (title == defaultTitle && type == "market" && change.isNotBlank()) {
-                    title = "$name $value ($change)"
-                    continue
-                }
-
-                // Rest become body summary (keep it short)
-                if (summaryParts.size < 3) {
-                    summaryParts.add("$name $value")
-                }
-            }
-
-            val body = if (summaryParts.isNotEmpty()) {
-                summaryParts.joinToString(" · ")
-            } else {
-                defaultBody
-            }
-            Pair(title, body)
-        } catch (_: Exception) {
-            Pair(defaultTitle, defaultBody)
-        }
+    private fun parseNiftyLine(@Suppress("UNUSED_PARAMETER") raw: String?): String {
+        return "Market Sync Active"
     }
 }
