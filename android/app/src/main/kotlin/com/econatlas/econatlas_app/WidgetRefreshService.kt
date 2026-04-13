@@ -75,6 +75,12 @@ class WidgetRefreshService : Service() {
                 registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK))
             }
             Log.i(TAG, "Widget refresh service started")
+            // One immediate refresh on first creation so the
+            // notification doesn't sit on "Starting sync..." for
+            // 2 minutes. Safe here because onCreate only fires
+            // ONCE per service lifecycle (not on every onStartCommand).
+            triggerWidgetRefresh()
+            scheduleNextAlarm()
         } catch (e: Exception) {
             Log.e(TAG, "Service onCreate failed: ${e.message}", e)
             stopSelf()
