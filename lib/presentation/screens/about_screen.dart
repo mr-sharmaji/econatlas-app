@@ -75,7 +75,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           const AboutContent(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
           Card(
             child: Column(
               children: [
@@ -85,9 +85,34 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   subtitle: Text(_versionText),
                   onTap: _onVersionTap,
                 ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.update_rounded),
+                  title: const Text('Data sources'),
+                  subtitle: const Text(
+                    'NSE, Yahoo Finance, Upstox, AMFI, ETMoney, Groww, RBI, FRED, Trading Economics',
+                  ),
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.auto_awesome_rounded),
+                  title: const Text('AI powered by'),
+                  subtitle: const Text(
+                    'OpenRouter free models for Artha chatbot and market verdicts',
+                  ),
+                ),
               ],
             ),
           ),
+          const SizedBox(height: 12),
+          Text(
+            'Built with \u2764\uFE0F for Indian investors',
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );

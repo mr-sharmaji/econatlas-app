@@ -219,21 +219,56 @@ class _FirstLaunchWelcomeState extends ConsumerState<FirstLaunchWelcome> {
           kind: _SetupPageKind.intro,
           title: 'Welcome to EconAtlas',
           description:
-              'Your daily market workspace for tracking signals, opportunities and risk in one app.',
+              'Your personal market intelligence app for Indian and global markets. Track stocks, mutual funds, commodities, crypto, and macro data \u2014 all in one place.',
           bullets: [
-            'Overview shows key headlines, market sentiment, volatility pulse, institutional flows, and IPO tracker.',
-            'Watchlist keeps your selected assets first so daily checks stay focused.',
-            'Market gives live status, point and % change, and detailed charts for each asset.',
-            'Economy tracks macro indicators for India, US, Europe, and Japan.',
-            'Discover focuses on India with beginner-friendly Stock and Mutual Fund screening plus compare mode.',
-            'Quick tools are always available from the floating action button.',
+            'Real-time market data across 2,000+ Indian stocks, 20+ commodities, 10+ crypto, 35+ currencies, and global indices.',
+            'Smart notifications for market opens/closes, Gift Nifty signals, commodity spikes, and FII/DII activity.',
+            'Home-screen widget with live prices, refreshing every 2 minutes.',
+          ],
+        ),
+        _SetupPageData(
+          kind: _SetupPageKind.intro,
+          title: 'Discover & Analyze',
+          description:
+              'Find the right stocks and mutual funds with powerful screeners and AI-powered analysis.',
+          bullets: [
+            'Stock screener with 90+ fundamental metrics, technical scores, action tags, and sector rankings.',
+            'Mutual fund screener with expense ratios, risk levels, category rankings, and holdings breakdown.',
+            'AI-powered verdict cards showing Bullish/Bearish signals with reasoning for every asset.',
+            'Compare stocks and funds side-by-side on key metrics.',
+          ],
+        ),
+        _SetupPageData(
+          kind: _SetupPageKind.intro,
+          title: 'Artha \u2014 Your AI Market Analyst',
+          description:
+              'Ask anything about markets in English or Hindi. Artha reads your watchlist, queries live data, and gives actionable insights.',
+          bullets: [
+            '"How did the market close today?" \u2014 instant summary with sector leaders.',
+            '"Review my watchlist" \u2014 analysis of your starred stocks and MFs.',
+            '"Compare TCS vs Infosys" \u2014 side-by-side with AI verdict.',
+            '"Best mutual funds for 10 years" \u2014 screener-backed recommendations.',
+            'Tax calculator, IPO updates, macro data \u2014 all through conversation.',
+          ],
+        ),
+        _SetupPageData(
+          kind: _SetupPageKind.intro,
+          title: 'Track Everything',
+          description:
+              'Stay on top of markets 24/7 with comprehensive tracking across all asset classes.',
+          bullets: [
+            'Overview \u2014 headlines, market sentiment, volatility pulse, FII/DII flows, IPO tracker.',
+            'Market \u2014 live indices, commodities, crypto, currencies, bonds with 24H/1D/1W/1M/3M/6M/1Y/3Y/5Y charts.',
+            'Watchlist \u2014 your starred assets with sparklines, sorted by sector or performance.',
+            'Economy \u2014 macro indicators (GDP, inflation, repo rate, trade balance) for India, US, Europe, Japan.',
+            'Quick Tools \u2014 trade charges calculator, tax hub, currency converter.',
           ],
         ),
         _SetupPageData(
           kind: _SetupPageKind.watchlist,
-          title: 'Choose watchlist assets',
+          title: 'Choose your watchlist',
           description:
-              'Pick assets for your dashboard watchlist. You can edit this anytime.',
+              'Pick the assets you want to track daily. These appear in your dashboard and home-screen widget. You can always change this later.',
           bullets: [],
         ),
       ];
