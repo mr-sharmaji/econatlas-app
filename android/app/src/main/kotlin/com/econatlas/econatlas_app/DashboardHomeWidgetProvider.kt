@@ -54,11 +54,11 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
 
   override fun onEnabled(context: Context) {
     super.onEnabled(context)
-    // Start the foreground service when the first widget instance
-    // is added to the home screen. The service refreshes widget
-    // data every 2 minutes and shows a persistent notification
-    // with a glanceable market summary.
-    WidgetRefreshService.start(context)
+    try {
+      WidgetRefreshService.start(context)
+    } catch (e: Exception) {
+      android.util.Log.w("WidgetProvider", "Service start failed: ${e.message}")
+    }
   }
 
   override fun onDisabled(context: Context) {
@@ -241,10 +241,11 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     // the spinner visible forever (the button stays GONE and the
     // user sees a permanent loading state). Clearing here and
     // then letting super run fixes the stuck spinner.
-    // Ensure the foreground refresh service is running whenever
-    // the widget provider processes any broadcast. Handles the
-    // case where the service was killed by the OS or the device
-    // rebooted — the next widget update re-starts it.
+    // Best-effort: try to keep the refresh service alive.
+    // Wrapped in try/catch so a service start failure (e.g.
+    // missing SCHEDULE_EXACT_ALARM on Android 12+) never crashes
+    // the widget provider's onReceive — the widget still works
+    // without the background service, just refreshes less often.
     try {
       val mgr = AppWidgetManager.getInstance(context)
       val ids = mgr.getAppWidgetIds(
@@ -253,7 +254,9 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
       if (ids.isNotEmpty()) {
         WidgetRefreshService.start(context)
       }
-    } catch (_: Exception) { /* best-effort */ }
+    } catch (e: Exception) {
+      android.util.Log.w("WidgetProvider", "Service restart failed: ${e.message}")
+    }
 
     if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
       val prefs = context.getSharedPreferences(

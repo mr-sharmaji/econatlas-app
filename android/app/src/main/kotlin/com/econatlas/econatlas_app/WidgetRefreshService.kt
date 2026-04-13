@@ -66,20 +66,28 @@ class WidgetRefreshService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        createNotificationChannel()
-        startForeground(NOTIFICATION_ID, buildNotification())
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK), RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK))
+        try {
+            createNotificationChannel()
+            startForeground(NOTIFICATION_ID, buildNotification())
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK), RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK))
+            }
+            Log.i(TAG, "Widget refresh service started")
+        } catch (e: Exception) {
+            Log.e(TAG, "Service onCreate failed: ${e.message}", e)
+            stopSelf()
         }
-        Log.i(TAG, "Widget refresh service started (interval=${REFRESH_INTERVAL_MS / 1000}s)")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        // First refresh immediately, then schedule repeating alarm
-        triggerWidgetRefresh()
-        scheduleNextAlarm()
+        try {
+            triggerWidgetRefresh()
+            scheduleNextAlarm()
+        } catch (e: Exception) {
+            Log.e(TAG, "onStartCommand failed: ${e.message}", e)
+        }
         return START_STICKY
     }
 
@@ -91,17 +99,34 @@ class WidgetRefreshService : Service() {
     }
 
     private fun scheduleNextAlarm() {
-        val am = getSystemService(AlarmManager::class.java) ?: return
-        val pi = PendingIntent.getBroadcast(
-            this, NOTIFICATION_ID,
-            Intent(ACTION_ALARM_TICK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val trigger = SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
-        } else {
-            am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
+        try {
+            val am = getSystemService(AlarmManager::class.java) ?: return
+            // Android 12+ requires SCHEDULE_EXACT_ALARM permission.
+            // If not granted, fall back to inexact alarm.
+            val pi = PendingIntent.getBroadcast(
+                this, NOTIFICATION_ID,
+                Intent(ACTION_ALARM_TICK),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            val trigger = SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                if (am.canScheduleExactAlarms()) {
+                    am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
+                } else {
+                    // Fallback: inexact alarm (may be batched by OS)
+                    am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
+            } else {
+                am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "AlarmManager scheduling failed, using Handler fallback: ${e.message}")
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                triggerWidgetRefresh()
+                scheduleNextAlarm()
+            }, REFRESH_INTERVAL_MS)
         }
     }
 
