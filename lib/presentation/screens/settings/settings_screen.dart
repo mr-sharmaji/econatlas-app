@@ -206,17 +206,6 @@ class SettingsScreen extends ConsumerWidget {
                   trailing: const Icon(Icons.chevron_right, size: 20),
                   onTap: () => context.push('/watchlist'),
                 ),
-                Divider(
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                    color: Colors.white.withValues(alpha: 0.06)),
-                ListTile(
-                  leading: const Icon(Icons.restore_rounded),
-                  title: const Text('Reset watchlist to defaults'),
-                  onTap: () =>
-                      ref.read(watchlistProvider.notifier).resetToDefaults(),
-                ),
               ],
             ),
           ),
