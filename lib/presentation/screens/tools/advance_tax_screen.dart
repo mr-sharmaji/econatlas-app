@@ -17,7 +17,7 @@ class AdvanceTaxScreen extends ConsumerStatefulWidget {
 }
 
 class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
-    with WidgetsBindingObserver {
+    {
   final TextEditingController _liabilityController = TextEditingController();
   final TextEditingController _paidController = TextEditingController();
   DateTime _paymentDateIst =
@@ -28,7 +28,7 @@ class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // Observer removed (keyboard bug fix).
     final prefs = ref.read(sharedPreferencesProvider);
     final todayIst = _nowIst();
     _liabilityController.text = formatIndianAmountInput(
@@ -49,21 +49,13 @@ class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    // Observer cleanup removed.
     _liabilityController.dispose();
     _paidController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeMetrics() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (MediaQuery.viewInsetsOf(context).bottom <= 0) {
-        FocusManager.instance.primaryFocus?.unfocus();
-      }
-    });
-  }
+  // didChangeMetrics removed — caused keyboard dismiss bug.
 
   @override
   Widget build(BuildContext context) {

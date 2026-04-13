@@ -18,7 +18,7 @@ class IncomeTaxScreen extends ConsumerStatefulWidget {
 }
 
 class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
-    with WidgetsBindingObserver {
+    {
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _deductionController = TextEditingController();
 
@@ -30,7 +30,8 @@ class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // WidgetsBindingObserver removed — was only used for
+    // didChangeMetrics which caused the keyboard dismiss bug.
     final prefs = ref.read(sharedPreferencesProvider);
     _salaryController.text = formatIndianAmountInput(
       prefs.getString(AppConstants.prefTaxSalary) ?? '0',
@@ -50,21 +51,16 @@ class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    // Observer cleanup no longer needed.
     _salaryController.dispose();
     _deductionController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeMetrics() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (MediaQuery.viewInsetsOf(context).bottom <= 0) {
-        FocusManager.instance.primaryFocus?.unfocus();
-      }
-    });
-  }
+  // didChangeMetrics was removed — it was dismissing the keyboard
+  // during the keyboard open animation because viewInsetsOf reports
+  // bottom=0 transiently during the animation. This made it
+  // impossible to type in the income/deduction fields.
 
   @override
   Widget build(BuildContext context) {

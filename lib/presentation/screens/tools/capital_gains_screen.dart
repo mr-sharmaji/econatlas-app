@@ -17,7 +17,7 @@ class CapitalGainsScreen extends ConsumerStatefulWidget {
 }
 
 class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
-    with WidgetsBindingObserver {
+    {
   final TextEditingController _buyValueController = TextEditingController();
   final TextEditingController _sellValueController = TextEditingController();
 
@@ -28,7 +28,7 @@ class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
+    // Observer removed (keyboard bug fix).
     final prefs = ref.read(sharedPreferencesProvider);
     final today = _todayIst();
     _buyValueController.text = formatIndianAmountInput(
@@ -49,21 +49,13 @@ class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    // Observer cleanup removed.
     _buyValueController.dispose();
     _sellValueController.dispose();
     super.dispose();
   }
 
-  @override
-  void didChangeMetrics() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (MediaQuery.viewInsetsOf(context).bottom <= 0) {
-        FocusManager.instance.primaryFocus?.unfocus();
-      }
-    });
-  }
+  // didChangeMetrics removed — caused keyboard dismiss bug.
 
   @override
   Widget build(BuildContext context) {
