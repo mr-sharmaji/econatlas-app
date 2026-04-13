@@ -52,6 +52,21 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     const val TAB_MFS = "mfs"
   }
 
+  override fun onEnabled(context: Context) {
+    super.onEnabled(context)
+    // Start the foreground service when the first widget instance
+    // is added to the home screen. The service refreshes widget
+    // data every 2 minutes and shows a persistent notification
+    // with a glanceable market summary.
+    WidgetRefreshService.start(context)
+  }
+
+  override fun onDisabled(context: Context) {
+    // Last widget removed — stop the refresh service.
+    WidgetRefreshService.stop(context)
+    super.onDisabled(context)
+  }
+
   override fun onUpdate(
       context: Context,
       appWidgetManager: AppWidgetManager,
@@ -226,6 +241,20 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     // the spinner visible forever (the button stays GONE and the
     // user sees a permanent loading state). Clearing here and
     // then letting super run fixes the stuck spinner.
+    // Ensure the foreground refresh service is running whenever
+    // the widget provider processes any broadcast. Handles the
+    // case where the service was killed by the OS or the device
+    // rebooted — the next widget update re-starts it.
+    try {
+      val mgr = AppWidgetManager.getInstance(context)
+      val ids = mgr.getAppWidgetIds(
+          android.content.ComponentName(context, DashboardHomeWidgetProvider::class.java),
+      )
+      if (ids.isNotEmpty()) {
+        WidgetRefreshService.start(context)
+      }
+    } catch (_: Exception) { /* best-effort */ }
+
     if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
       val prefs = context.getSharedPreferences(
           "HomeWidgetPreferences",
@@ -321,6 +350,7 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
           context.packageName,
           R.layout.dashboard_home_widget_noanim,
       ).apply {
+        // Header: swap Refresh pill ↔ spinner
         setViewVisibility(
             R.id.widget_refresh,
             if (showSpinner) View.GONE else View.VISIBLE,
@@ -329,6 +359,20 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
             R.id.widget_refresh_spinner,
             if (showSpinner) View.VISIBLE else View.GONE,
         )
+        // Body: when refreshing, hide the list and show a centered
+        // "Loading..." message. When done, hide the message and
+        // restore the list (onUpdate handles that on data arrival).
+        setViewVisibility(
+            R.id.widget_list,
+            if (showSpinner) View.GONE else View.VISIBLE,
+        )
+        setViewVisibility(
+            R.id.widget_empty,
+            if (showSpinner) View.VISIBLE else View.GONE,
+        )
+        if (showSpinner) {
+          setTextViewText(R.id.widget_empty, "Loading...")
+        }
       }
       manager.partiallyUpdateAppWidget(widgetId, patch)
     }
