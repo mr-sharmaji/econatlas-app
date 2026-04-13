@@ -241,22 +241,12 @@ class DashboardHomeWidgetProvider : HomeWidgetProvider() {
     // the spinner visible forever (the button stays GONE and the
     // user sees a permanent loading state). Clearing here and
     // then letting super run fixes the stuck spinner.
-    // Best-effort: try to keep the refresh service alive.
-    // Wrapped in try/catch so a service start failure (e.g.
-    // missing SCHEDULE_EXACT_ALARM on Android 12+) never crashes
-    // the widget provider's onReceive — the widget still works
-    // without the background service, just refreshes less often.
-    try {
-      val mgr = AppWidgetManager.getInstance(context)
-      val ids = mgr.getAppWidgetIds(
-          android.content.ComponentName(context, DashboardHomeWidgetProvider::class.java),
-      )
-      if (ids.isNotEmpty()) {
-        WidgetRefreshService.start(context)
-      }
-    } catch (e: Exception) {
-      android.util.Log.w("WidgetProvider", "Service restart failed: ${e.message}")
-    }
+    // NOTE: Do NOT auto-start the refresh service here. Every
+    // Dart HomeWidget.updateWidget fires ACTION_APPWIDGET_UPDATE
+    // → onReceive → start service → triggerWidgetRefresh →
+    // Dart publish → ACTION_APPWIDGET_UPDATE → infinite loop.
+    // The service starts only from onEnabled (first widget added)
+    // and the WorkManager periodic task handles restarts.
 
     if (intent.action == AppWidgetManager.ACTION_APPWIDGET_UPDATE) {
       val prefs = context.getSharedPreferences(

@@ -83,7 +83,11 @@ class WidgetRefreshService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            triggerWidgetRefresh()
+            // Only schedule the next alarm — do NOT trigger an
+            // immediate refresh here. The Dart side's periodic
+            // WorkManager task handles the actual data fetch.
+            // Triggering here would create a loop: start service →
+            // refresh → Dart publish → onReceive → restart service → ...
             scheduleNextAlarm()
         } catch (e: Exception) {
             Log.e(TAG, "onStartCommand failed: ${e.message}", e)
