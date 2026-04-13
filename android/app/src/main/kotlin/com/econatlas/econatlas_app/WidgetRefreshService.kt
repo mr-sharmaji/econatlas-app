@@ -132,20 +132,7 @@ class WidgetRefreshService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val syncText = if (_lastSyncMs == 0L) {
-            "Starting sync..."
-        } else {
-            val elapsed = (System.currentTimeMillis() - _lastSyncMs) / 1000
-            when {
-                elapsed < 60 -> "Synced just now"
-                elapsed < 3600 -> "Synced ${elapsed / 60} min ago"
-                else -> {
-                    // Show absolute time instead of vague "Nh ago"
-                    val fmt = java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault())
-                    "Last sync ${fmt.format(java.util.Date(_lastSyncMs))}"
-                }
-            }
-        }
+        val syncText: String? = null  // no subtitle
 
         val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
         val pendingIntent = PendingIntent.getActivity(
