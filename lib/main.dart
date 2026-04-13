@@ -80,7 +80,11 @@ Future<void> _configureDashboardWidgetBackground() async {
   await Workmanager().registerPeriodicTask(
     AppConstants.dashboardWidgetPeriodicTaskUniqueName,
     AppConstants.dashboardWidgetPeriodicTaskName,
-    frequency: const Duration(minutes: 30),
+    // 15 min is Android's minimum for WorkManager periodic tasks.
+    // Was 30 min — reduced for more timely widget updates during
+    // market hours. In practice Android may still batch/delay this
+    // by a few minutes for battery optimization.
+    frequency: const Duration(minutes: 15),
     existingWorkPolicy: ExistingPeriodicWorkPolicy.update,
   );
   await HomeWidget.registerInteractivityCallback(
