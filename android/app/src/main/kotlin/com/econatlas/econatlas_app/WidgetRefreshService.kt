@@ -11,7 +11,10 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -52,15 +55,16 @@ class WidgetRefreshService : Service() {
         }
     }
 
-    // AlarmManager fires reliably even in doze (setExactAndAllowWhileIdle).
-    // Handler.postDelayed gets deferred when the screen is off, causing
-    // "Synced 12 min ago" at midnight instead of "Synced just now".
-    private val alarmReceiver = object : BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-            if (intent?.action == ACTION_ALARM_TICK) {
-                triggerWidgetRefresh()
-                scheduleNextAlarm()
-            }
+    // WakeLock + Handler: holds a partial wake lock so the CPU stays
+    // awake and Handler.postDelayed fires exactly every 2 minutes,
+    // even with screen off / doze. AlarmManager was limited to 1
+    // exact alarm per 9 min in doze — too slow for live markets.
+    private var wakeLock: PowerManager.WakeLock? = null
+    private val handler = Handler(Looper.getMainLooper())
+    private val refreshRunnable = object : Runnable {
+        override fun run() {
+            triggerWidgetRefresh()
+            handler.postDelayed(this, REFRESH_INTERVAL_MS)
         }
     }
 
@@ -69,18 +73,18 @@ class WidgetRefreshService : Service() {
         try {
             createNotificationChannel()
             startForeground(NOTIFICATION_ID, buildNotification())
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK), RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(alarmReceiver, IntentFilter(ACTION_ALARM_TICK))
-            }
-            Log.i(TAG, "Widget refresh service started")
-            // One immediate refresh on first creation so the
-            // notification doesn't sit on "Starting sync..." for
-            // 2 minutes. Safe here because onCreate only fires
-            // ONCE per service lifecycle (not on every onStartCommand).
+
+            // Acquire partial WakeLock — keeps CPU running but
+            // allows screen to turn off. Released in onDestroy.
+            val pm = getSystemService(PowerManager::class.java)
+            wakeLock = pm?.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK,
+                "EconAtlas::WidgetRefresh",
+            )?.apply { acquire() }
+
+            Log.i(TAG, "Service started — WakeLock acquired, first refresh now")
             triggerWidgetRefresh()
-            scheduleNextAlarm()
+            handler.postDelayed(refreshRunnable, REFRESH_INTERVAL_MS)
         } catch (e: Exception) {
             Log.e(TAG, "Service onCreate failed: ${e.message}", e)
             stopSelf()
@@ -88,66 +92,18 @@ class WidgetRefreshService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        try {
-            // Only schedule the next alarm — do NOT trigger an
-            // immediate refresh here. The Dart side's periodic
-            // WorkManager task handles the actual data fetch.
-            // Triggering here would create a loop: start service →
-            // refresh → Dart publish → onReceive → restart service → ...
-            scheduleNextAlarm()
-        } catch (e: Exception) {
-            Log.e(TAG, "onStartCommand failed: ${e.message}", e)
-        }
+        // No-op — handler already running from onCreate.
         return START_STICKY
     }
 
     override fun onDestroy() {
-        cancelAlarm()
-        try { unregisterReceiver(alarmReceiver) } catch (_: Exception) {}
-        Log.i(TAG, "Widget refresh service stopped")
-        super.onDestroy()
-    }
-
-    private fun scheduleNextAlarm() {
+        handler.removeCallbacks(refreshRunnable)
         try {
-            val am = getSystemService(AlarmManager::class.java) ?: return
-            // Android 12+ requires SCHEDULE_EXACT_ALARM permission.
-            // If not granted, fall back to inexact alarm.
-            val pi = PendingIntent.getBroadcast(
-                this, NOTIFICATION_ID,
-                Intent(ACTION_ALARM_TICK),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            val trigger = SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                if (am.canScheduleExactAlarms()) {
-                    am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
-                } else {
-                    // Fallback: inexact alarm (may be batched by OS)
-                    am.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
-                }
-            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
-            } else {
-                am.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, trigger, pi)
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "AlarmManager scheduling failed, using Handler fallback: ${e.message}")
-            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
-                triggerWidgetRefresh()
-                scheduleNextAlarm()
-            }, REFRESH_INTERVAL_MS)
-        }
-    }
-
-    private fun cancelAlarm() {
-        val am = getSystemService(AlarmManager::class.java) ?: return
-        val pi = PendingIntent.getBroadcast(
-            this, NOTIFICATION_ID,
-            Intent(ACTION_ALARM_TICK),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        am.cancel(pi)
+            wakeLock?.let { if (it.isHeld) it.release() }
+        } catch (_: Exception) {}
+        wakeLock = null
+        Log.i(TAG, "Service destroyed — WakeLock released")
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
