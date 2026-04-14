@@ -56,14 +56,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     final theme = Theme.of(context);
     // Expert mode removed — always show full details
 
-    if (widget.initialItem != null) {
-      item = widget.initialItem!;
-      return _buildContent(theme, item);
-    }
-
-    // Use the fallback-aware provider when a display name is
-    // available (deep link from widget); otherwise the plain
-    // schemeCode lookup is enough.
+    // Always fetch the full detail payload — the screener list item
+    // (passed via initialItem) only carries summary fields, so fields
+    // like topHoldings, assetAllocation, and holdingsAsOf are missing
+    // unless we hit /detail. initialItem is used purely as a
+    // placeholder during the initial load to avoid a shimmer flash.
     final hasFallback = (widget.fallbackName ?? '').trim().isNotEmpty;
     final detailAsync = hasFallback
         ? ref.watch(
@@ -73,10 +70,16 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
           )
         : ref.watch(discoverMfDetailProvider(widget.schemeCode));
     return detailAsync.when(
-      loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Loading...')),
-        body: const ShimmerMfDetail(),
-      ),
+      loading: () {
+        if (widget.initialItem != null) {
+          item = widget.initialItem!;
+          return _buildContent(theme, item);
+        }
+        return Scaffold(
+          appBar: AppBar(title: const Text('Loading...')),
+          body: const ShimmerMfDetail(),
+        );
+      },
       error: (err, _) => Scaffold(
         appBar: AppBar(
           title: Text(widget.fallbackName ?? widget.schemeCode),
@@ -307,6 +310,12 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             // 13. Fund Manager
             if (item.fundManagers != null && item.fundManagers!.isNotEmpty) ...[
               _buildFundManagerCard(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 14. Top Holdings
+            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
+              _buildTopHoldingsCard(theme),
               const SizedBox(height: 8),
             ],
 
@@ -1338,6 +1347,92 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                 ],
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // -- Top Holdings Card --
+
+  Widget _buildTopHoldingsCard(ThemeData theme) {
+    final holdings = item.topHoldings!.take(10).toList();
+    final maxPct = holdings
+        .map((h) => h.percentage)
+        .fold<double>(0, (a, b) => b > a ? b : a);
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Top Holdings',
+                    style: theme.textTheme.titleSmall
+                        ?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                if (item.holdingsAsOf != null)
+                  Text(
+                    'As of ${_formatDate(item.holdingsAsOf!)}',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: Colors.white38),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...holdings.map((h) {
+              final frac = maxPct > 0 ? (h.percentage / maxPct) : 0.0;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            h.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: theme.textTheme.bodySmall
+                                ?.copyWith(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${h.percentage.toStringAsFixed(2)}%',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.accentBlue,
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (h.sector != null && h.sector!.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        h.sector!,
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: Colors.white54),
+                      ),
+                    ],
+                    const SizedBox(height: 6),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: frac.clamp(0.0, 1.0),
+                        minHeight: 6,
+                        backgroundColor: Colors.white12,
+                        valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppTheme.accentBlue),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),
