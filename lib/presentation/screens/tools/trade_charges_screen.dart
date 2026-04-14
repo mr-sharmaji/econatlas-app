@@ -897,19 +897,19 @@ class _BrokerPreset {
 const Map<String, _BrokerPreset> _brokerPresets = {
   'Zerodha': _BrokerPreset(
     name: 'Zerodha',
-    tagline: 'Delivery free · ₹20 flat F&O · AMC free (BSDA up to ₹4L)',
+    tagline: 'Delivery free · 0.05%/₹20 intraday/F&O · AMC free',
     dpChargePerSellTransaction: 15.34,
     dpChargeIncludesGst: false,
     rules: {
       TradeSegment.equityDelivery: _BrokerageRule.free(),
       TradeSegment.equityIntraday:
-          _BrokerageRule.percentCap(pct: 0.0003, cap: 20),
+          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.equityFutures:
-          _BrokerageRule.percentCap(pct: 0.0003, cap: 20),
+          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.currencyFutures:
-          _BrokerageRule.percentCap(pct: 0.0003, cap: 20),
+          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.commodityFutures:
-          _BrokerageRule.percentCap(pct: 0.0003, cap: 20),
+          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
       TradeSegment.equityOptions: _BrokerageRule.flat(20),
       TradeSegment.currencyOptions: _BrokerageRule.flat(20),
       TradeSegment.commodityOptions: _BrokerageRule.flat(20),
