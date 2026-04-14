@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/error_utils.dart';
 import '../../../core/market_status_helper.dart' show normalizeMarketPhase;
+import '../../../core/refresh_helper.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
@@ -216,13 +217,17 @@ class _StarredFavoritesTabState extends ConsumerState<_StarredFavoritesTab> {
   }
 
   Future<void> _refreshLiveData() async {
-    if (_isStockTab) {
-      ref.invalidate(starredStockLiveQuotesProvider);
-      await ref.read(starredStockLiveQuotesProvider.future);
-      return;
-    }
-    ref.invalidate(starredMfLiveQuotesProvider);
-    await ref.read(starredMfLiveQuotesProvider.future);
+    // ref.refresh(provider.future) is the canonical "rebuild and
+    // wait" pattern — invalidate + read can return the already-
+    // resolved future on autoDispose providers and dismiss the
+    // pull-to-refresh indicator before any new data arrives.
+    try {
+      if (_isStockTab) {
+        await refreshFuture(ref, starredStockLiveQuotesProvider.future);
+      } else {
+        await refreshFuture(ref, starredMfLiveQuotesProvider.future);
+      }
+    } catch (_) {}
   }
 
   /// Show a bottom sheet with long-press row actions (currently just

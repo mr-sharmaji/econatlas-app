@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/mf_list_tile.dart';
@@ -431,12 +432,13 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                   children: [
                     RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(discoverMutualFundsProvider);
-                        // Wait for the refetch to complete; otherwise
-                        // the indicator dismisses before data arrives.
+                        // ref.refresh(provider.future) is the canonical
+                        // rebuild-and-wait pattern. invalidate + read
+                        // can return the already-resolved future on
+                        // autoDispose providers.
                         try {
-                          await ref
-                              .read(discoverMutualFundsProvider.future);
+                          await refreshFuture(
+                              ref, discoverMutualFundsProvider.future);
                         } catch (_) {}
                       },
                       child: ListView.builder(

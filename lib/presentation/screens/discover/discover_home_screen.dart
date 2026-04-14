@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/discover.dart';
@@ -246,8 +247,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(discoverHomeDataProvider);
-        await ref.read(discoverHomeDataProvider.future);
+        // ref.refresh(provider.future) is the canonical
+        // rebuild-and-wait pattern; invalidate + read can return
+        // the already-resolved future on autoDispose providers.
+        try {
+          await refreshFuture(ref, discoverHomeDataProvider.future);
+        } catch (_) {}
       },
       child: ListView.builder(
         controller: _scrollController,
@@ -287,8 +292,12 @@ class _DiscoverHomeScreenState extends ConsumerState<DiscoverHomeScreen>
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(discoverHomeDataProvider);
-        await ref.read(discoverHomeDataProvider.future);
+        // ref.refresh(provider.future) is the canonical
+        // rebuild-and-wait pattern; invalidate + read can return
+        // the already-resolved future on autoDispose providers.
+        try {
+          await refreshFuture(ref, discoverHomeDataProvider.future);
+        } catch (_) {}
       },
       child: ListView.builder(
         itemCount: sections.length,

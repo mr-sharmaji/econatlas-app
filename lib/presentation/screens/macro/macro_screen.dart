@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../../core/square_badge_assets.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
@@ -216,16 +217,15 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(allMacroIndicatorsProvider);
           ref.invalidate(indiaHistoryProvider);
           ref.invalidate(usHistoryProvider);
           ref.invalidate(macroForecastsProvider);
           ref.invalidate(econCalendarProvider);
-          // Wait for the primary provider to actually finish loading;
-          // without this await the indicator dismisses before any
-          // data arrives.
+          // ref.refresh re-runs the provider AND returns the new
+          // future — invalidate + read can return the already-
+          // resolved future on autoDispose providers.
           try {
-            await ref.read(allMacroIndicatorsProvider.future);
+            await refreshFuture(ref, allMacroIndicatorsProvider.future);
           } catch (_) {}
         },
         child: latestAsync.when(
@@ -703,11 +703,8 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
       appBar: AppBar(title: Text(displayName(widget.indicatorName))),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(macroHistoryProvider(country));
-          // Wait for the refetch to complete; otherwise the indicator
-          // dismisses before any data arrives.
           try {
-            await ref.read(macroHistoryProvider(country).future);
+            await refreshFuture(ref, macroHistoryProvider(country).future);
           } catch (_) {}
         },
         child: ListView(padding: const EdgeInsets.all(16), children: [

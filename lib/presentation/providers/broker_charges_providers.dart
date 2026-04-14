@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/connectivity.dart';
 import '../../core/constants.dart';
+import '../../core/refresh_helper.dart';
 import '../../data/models/broker_charges.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
@@ -19,9 +20,8 @@ Future<void> forceRefreshBrokerCharges(WidgetRef ref) async {
   final prefs = ref.read(sharedPreferencesProvider);
   await prefs.remove(AppConstants.prefCacheBrokerCharges);
   await prefs.remove(AppConstants.prefCacheBrokerChargesTs);
-  ref.invalidate(brokerChargesProvider);
   try {
-    await ref.read(brokerChargesProvider.future);
+    await refreshFuture(ref, brokerChargesProvider.future);
   } catch (_) {}
 }
 

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connectivity.dart';
+import '../../core/refresh_helper.dart';
 import '../../data/models/market_price.dart';
 import '../../core/constants.dart';
 import 'repository_providers.dart';
@@ -15,9 +16,8 @@ Future<void> forceRefreshLatestCommodities(WidgetRef ref) async {
   final prefs = ref.read(sharedPreferencesProvider);
   await prefs.remove(AppConstants.prefCacheLatestCommodities);
   await prefs.remove(AppConstants.prefCacheLatestCommoditiesTs);
-  ref.invalidate(latestCommoditiesProvider);
   try {
-    await ref.read(latestCommoditiesProvider.future);
+    await refreshFuture(ref, latestCommoditiesProvider.future);
   } catch (_) {}
 }
 

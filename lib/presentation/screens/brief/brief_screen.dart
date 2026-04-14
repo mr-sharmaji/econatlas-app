@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/brief.dart';
@@ -66,12 +67,16 @@ class _BriefScreenState extends ConsumerState<BriefScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(briefPostMarketProvider(market));
           ref.invalidate(briefTopGainersProvider(market));
           ref.invalidate(briefTopLosersProvider(market));
           ref.invalidate(briefMostActiveProvider(market));
           ref.invalidate(briefSectorPulseProvider(market));
-          try { await ref.read(briefPostMarketProvider(market).future); } catch (_) {}
+          // ref.refresh(provider.future) is the canonical
+          // rebuild-and-wait pattern.
+          try {
+            await refreshFuture(
+                ref, briefPostMarketProvider(market).future);
+          } catch (_) {}
         },
         child: ListView(
           controller: _scrollController,

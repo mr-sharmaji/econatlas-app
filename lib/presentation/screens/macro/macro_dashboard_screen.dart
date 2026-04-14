@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../../core/square_badge_assets.dart';
 import '../../../core/theme.dart';
 import '../../../core/utils.dart';
@@ -442,12 +443,16 @@ class _MacroDashboardScreenState extends ConsumerState<MacroDashboardScreen> {
 
   Future<void> _refresh() async {
     ref.read(macroRefreshNonceProvider.notifier).state++;
-    await Future.wait([
-      ref.refresh(allMacroIndicatorsProvider.future),
-      ref.refresh(econCalendarProvider.future),
-      ref.refresh(macroMetadataByCountryProvider(_selectedCountry).future),
-      ref.refresh(economyCountryFocusProvider(_selectedCountry).future),
-    ]);
+    try {
+      await Future.wait([
+        refreshFuture(ref, allMacroIndicatorsProvider.future),
+        refreshFuture(ref, econCalendarProvider.future),
+        refreshFuture(
+            ref, macroMetadataByCountryProvider(_selectedCountry).future),
+        refreshFuture(
+            ref, economyCountryFocusProvider(_selectedCountry).future),
+      ]);
+    } catch (_) {}
   }
 
   @override

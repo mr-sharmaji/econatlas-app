@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connectivity.dart';
+import '../../core/refresh_helper.dart';
 import '../../data/models/market_price.dart';
 import '../../core/constants.dart';
 import 'repository_providers.dart';
@@ -23,9 +24,12 @@ Future<void> forceRefreshLatestCrypto(WidgetRef ref) async {
   final prefs = ref.read(sharedPreferencesProvider);
   await prefs.remove(AppConstants.prefCacheLatestCrypto);
   await prefs.remove(AppConstants.prefCacheLatestCryptoTs);
-  ref.invalidate(latestCryptoProvider);
+  // ref.refresh(provider.future) re-runs the provider AND returns
+  // the new future synchronously. invalidate + read can return the
+  // already-resolved future on autoDispose providers — refresh is
+  // the canonical "rebuild and wait" pattern.
   try {
-    await ref.read(latestCryptoProvider.future);
+    await refreshFuture(ref, latestCryptoProvider.future);
   } catch (_) {}
 }
 

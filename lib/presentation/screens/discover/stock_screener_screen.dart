@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/error_utils.dart';
+import '../../../core/refresh_helper.dart';
 import '../../providers/discover_providers.dart';
 import '../../widgets/shimmer_loading.dart';
 import 'widgets/stock_list_tile.dart';
@@ -406,12 +407,14 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                   children: [
                     RefreshIndicator(
                       onRefresh: () async {
-                        ref.invalidate(discoverStocksProvider);
-                        // Wait for the refetch to complete; otherwise
-                        // the indicator dismisses before any data
-                        // arrives.
+                        // ref.refresh(provider.future) is the canonical
+                        // rebuild-and-wait pattern. invalidate + read
+                        // can return the already-resolved future on
+                        // autoDispose providers, dismissing the
+                        // indicator before fresh data arrives.
                         try {
-                          await ref.read(discoverStocksProvider.future);
+                          await refreshFuture(
+                              ref, discoverStocksProvider.future);
                         } catch (_) {}
                       },
                       child: ListView.builder(

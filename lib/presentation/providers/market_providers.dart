@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/connectivity.dart';
+import '../../core/refresh_helper.dart';
 import '../../data/models/models.dart';
 import '../../core/constants.dart';
 import 'dashboard_widget_providers.dart';
@@ -175,9 +176,11 @@ Future<void> _forceRefreshLatestMarket(
   await prefs.remove(cacheKey);
   final tsKey = _cacheTimestampKeys[cacheKey];
   if (tsKey != null) await prefs.remove(tsKey);
-  ref.invalidate(provider);
+  // ref.refresh(provider.future) is the canonical "rebuild and wait"
+  // pattern for autoDispose providers — invalidate + read can return
+  // the already-resolved future without triggering a rebuild.
   try {
-    await ref.read(provider.future);
+    await refreshFuture(ref, provider.future);
   } catch (_) {}
 }
 
@@ -242,9 +245,8 @@ Future<void> forceRefreshAssetCatalog(WidgetRef ref) async {
   final prefs = ref.read(sharedPreferencesProvider);
   await prefs.remove(AppConstants.prefCacheAssetCatalog);
   await prefs.remove(AppConstants.prefCacheAssetCatalogTs);
-  ref.invalidate(assetCatalogProvider);
   try {
-    await ref.read(assetCatalogProvider.future);
+    await refreshFuture(ref, assetCatalogProvider.future);
   } catch (_) {}
 }
 
