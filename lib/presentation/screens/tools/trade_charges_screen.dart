@@ -1,16 +1,18 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants.dart';
+import '../../../core/error_utils.dart';
 import '../../../core/utils.dart';
 import '../../../data/models/broker_charges.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
+import 'tax/tax_ui.dart';
 
+/// Trade segment (category × sub-type).
 enum TradeSegment {
   equityDelivery,
   equityIntraday,
@@ -23,6 +25,11 @@ enum TradeSegment {
 }
 
 enum TradeExchange { nse, bse, mcx }
+
+/// Accent colors used by the other tool screens (capital gains / tax).
+const Color _accentGreen = Color(0xFF00E676);
+const Color _accentRed = Color(0xFFFF5252);
+const Color _accentAmber = Color(0xFFFFAB40);
 
 class TradeChargesScreen extends ConsumerStatefulWidget {
   const TradeChargesScreen({super.key});
@@ -86,54 +93,35 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final chargesAsync = ref.watch(brokerChargesProvider);
 
-    return chargesAsync.when(
-      loading: () => Scaffold(
-        appBar: AppBar(title: const Text('Trade Charges')),
-        body: const Center(child: CircularProgressIndicator()),
-      ),
-      error: (err, _) => Scaffold(
-        appBar: AppBar(title: const Text('Trade Charges')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.cloud_off_rounded, size: 48,
-                    color: Colors.white38),
-                const SizedBox(height: 12),
-                Text(
-                  'Could not load broker charges',
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  err.toString(),
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.white54),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                FilledButton.icon(
-                  onPressed: () =>
-                      ref.invalidate(brokerChargesProvider),
-                  icon: const Icon(Icons.refresh_rounded),
-                  label: const Text('Retry'),
-                ),
-              ],
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Trade Charges'),
+        actions: [
+          IconButton(
+            tooltip: 'Refresh rates',
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.invalidate(brokerChargesProvider),
           ),
-        ),
+        ],
       ),
-      data: (data) => _buildBody(data),
+      body: chargesAsync.when(
+        loading: () => const Padding(
+          padding: EdgeInsets.all(14),
+          child: ShimmerCard(height: 320),
+        ),
+        error: (err, _) => ErrorView(
+          message: friendlyErrorMessage(err),
+          onRetry: () => ref.invalidate(brokerChargesProvider),
+        ),
+        data: (data) => _buildBody(theme, data),
+      ),
     );
   }
 
-  Widget _buildBody(BrokerChargesResponse data) {
-    final theme = Theme.of(context);
-
+  Widget _buildBody(ThemeData theme, BrokerChargesResponse data) {
     // Ensure selected broker exists in API data
     if (!_custom && !data.brokers.containsKey(_broker)) {
       _broker = data.brokers.keys.firstOrNull ?? 'zerodha';
@@ -142,464 +130,526 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     final broker = _selectedBroker(data);
     final breakdown = _calculate(data, broker);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Trade Charges')),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
-        children: [
-          // ── Header card ──
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white12),
-              gradient: const LinearGradient(
-                colors: [Color(0xFF0F2A4A), Color(0xFF11345A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Charges estimator',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Brokerage + statutory levies for Indian markets. Uses segment-wise rates and broker plan rules.',
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: Colors.white70),
-                ),
-                if (data.lastUpdated.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    'Rates updated: ${_formatDate(data.lastUpdated)}',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white38),
-                  ),
-                ],
+    return Stack(
+      children: [
+        ListView(
+          padding: const EdgeInsets.fromLTRB(14, 14, 14, 150),
+          children: [
+            // ── Helper card ──
+            taxHelperCard(
+              theme: theme,
+              title: 'How this estimator works',
+              points: [
+                'Broker brokerage + govt. / exchange levies on both sides.',
+                'STT, stamp duty, SEBI fee & GST follow 2025-26 rates.',
+                if (data.lastUpdated.isNotEmpty)
+                  'Rates refreshed ${_formatDate(data.lastUpdated)}.',
               ],
             ),
-          ),
-          const SizedBox(height: 10),
+            const SizedBox(height: 10),
 
-          // ── Trade setup card ──
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Trade setup',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  AdaptiveSelectField<TradeSegment>(
-                    label: 'Segment',
-                    value: _segment,
-                    decoration: const InputDecoration(
-                      labelText: 'Segment',
-                      prefixIcon: Icon(Icons.candlestick_chart),
-                    ),
-                    options: TradeSegment.values
-                        .map(
-                          (s) => AdaptiveSelectOption(
-                            value: s,
-                            label: _segmentLabel(s),
+            // ── Trade setup card ──
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Trade setup',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
-                        )
-                        .toList(growable: false),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      _segment = value;
-                      _ensureValidExchange();
-                      final prefs = ref.read(sharedPreferencesProvider);
-                      prefs.setInt(
-                          AppConstants.prefChargesSegment, _segment.index);
-                      prefs.setInt(
-                        AppConstants.prefChargesExchange,
-                        _exchange.index,
-                      );
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  AdaptiveSelectField<TradeExchange>(
-                    label: 'Exchange',
-                    value: _exchange,
-                    decoration: const InputDecoration(
-                      labelText: 'Exchange',
-                      prefixIcon: Icon(Icons.hub_outlined),
+                        ),
+                        TextButton.icon(
+                          onPressed: _resetDefaults,
+                          icon: const Icon(Icons.restart_alt_rounded),
+                          label: const Text('Reset'),
+                        ),
+                      ],
                     ),
-                    options: _allowedExchanges(_segment)
-                        .map(
-                          (e) => AdaptiveSelectOption(
-                            value: e,
-                            label: _exchangeLabel(e),
-                          ),
-                        )
-                        .toList(growable: false),
-                    onChanged: (value) {
-                      if (value == null) return;
-                      _exchange = value;
-                      ref.read(sharedPreferencesProvider).setInt(
-                            AppConstants.prefChargesExchange,
-                            _exchange.index,
-                          );
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _buyController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Buy price (\u20b9)',
-                      prefixIcon: Icon(Icons.south_rounded),
-                    ),
-                    onChanged: (v) {
-                      ref.read(sharedPreferencesProvider).setString(
-                            AppConstants.prefChargesBuyPrice,
-                            v.trim(),
-                          );
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _sellController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Sell price (\u20b9)',
-                      prefixIcon: Icon(Icons.north_rounded),
-                    ),
-                    onChanged: (v) {
-                      ref.read(sharedPreferencesProvider).setString(
-                            AppConstants.prefChargesSellPrice,
-                            v.trim(),
-                          );
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: _qtyController,
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                    ],
-                    decoration: const InputDecoration(
-                      labelText: 'Quantity / lot units',
-                      prefixIcon: Icon(Icons.format_list_numbered_rounded),
-                    ),
-                    onChanged: (v) {
-                      ref.read(sharedPreferencesProvider).setString(
-                            AppConstants.prefChargesQuantity,
-                            v.trim(),
-                          );
-                      setState(() {});
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // ── Broker plan card ──
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Broker plan',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
-                  ),
-                  const SizedBox(height: 10),
-                  SwitchListTile.adaptive(
-                    value: _custom,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Use custom brokerage'),
-                    subtitle: const Text(
-                        'Override broker preset with your own rates'),
-                    onChanged: (value) {
-                      _custom = value;
-                      ref.read(sharedPreferencesProvider).setBool(
-                            AppConstants.prefChargesCustomBroker,
-                            value,
-                          );
-                      setState(() {});
-                    },
-                  ),
-                  if (!_custom) ...[
                     const SizedBox(height: 8),
-                    AdaptiveSelectField<String>(
-                      label: 'Broker',
-                      value: _broker,
-                      decoration: const InputDecoration(
-                        labelText: 'Broker',
-                        prefixIcon: Icon(Icons.apartment_rounded),
+                    AdaptiveSelectField<TradeSegment>(
+                      label: 'Segment',
+                      value: _segment,
+                      decoration: modernTaxInputDecoration(
+                        theme,
+                        label: 'Segment',
+                        icon: Icons.candlestick_chart_rounded,
                       ),
-                      options: data.brokers.entries
+                      options: TradeSegment.values
                           .map(
-                            (e) => AdaptiveSelectOption(
-                              value: e.key,
-                              label: e.value.name,
+                            (s) => AdaptiveSelectOption(
+                              value: s,
+                              label: _segmentLabel(s),
+                              subtitle: _segmentSubtitle(s),
+                              searchTokens: [
+                                _segmentLabel(s),
+                                _segmentCategory(s),
+                              ],
                             ),
                           )
                           .toList(growable: false),
                       onChanged: (value) {
                         if (value == null) return;
-                        _broker = value;
+                        _segment = value;
+                        _ensureValidExchange();
+                        final prefs = ref.read(sharedPreferencesProvider);
+                        prefs.setInt(
+                            AppConstants.prefChargesSegment, _segment.index);
+                        prefs.setInt(
+                          AppConstants.prefChargesExchange,
+                          _exchange.index,
+                        );
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    AdaptiveSelectField<TradeExchange>(
+                      label: 'Exchange',
+                      value: _exchange,
+                      decoration: modernTaxInputDecoration(
+                        theme,
+                        label: 'Exchange',
+                        icon: Icons.hub_rounded,
+                      ),
+                      options: _allowedExchanges(_segment)
+                          .map(
+                            (e) => AdaptiveSelectOption(
+                              value: e,
+                              label: _exchangeLabel(e),
+                              subtitle: _exchangeFullName(e),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        _exchange = value;
+                        ref.read(sharedPreferencesProvider).setInt(
+                              AppConstants.prefChargesExchange,
+                              _exchange.index,
+                            );
+                        setState(() {});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    // Buy + Sell side by side
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _buyController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: modernTaxInputDecoration(
+                              theme,
+                              label: 'Buy price (\u20b9)',
+                              icon: Icons.south_rounded,
+                            ),
+                            onChanged: (v) {
+                              ref.read(sharedPreferencesProvider).setString(
+                                    AppConstants.prefChargesBuyPrice,
+                                    v.trim(),
+                                  );
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: _sellController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: modernTaxInputDecoration(
+                              theme,
+                              label: 'Sell price (\u20b9)',
+                              icon: Icons.north_rounded,
+                            ),
+                            onChanged: (v) {
+                              ref.read(sharedPreferencesProvider).setString(
+                                    AppConstants.prefChargesSellPrice,
+                                    v.trim(),
+                                  );
+                              setState(() {});
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: _qtyController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      decoration: modernTaxInputDecoration(
+                        theme,
+                        label: 'Quantity / lot units',
+                        icon: Icons.format_list_numbered_rounded,
+                      ),
+                      onChanged: (v) {
                         ref.read(sharedPreferencesProvider).setString(
-                              AppConstants.prefChargesBroker,
+                              AppConstants.prefChargesQuantity,
+                              v.trim(),
+                            );
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Broker plan card ──
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Broker plan',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 10),
+                    if (!_custom)
+                      AdaptiveSelectField<String>(
+                        label: 'Broker',
+                        value: _broker,
+                        decoration: modernTaxInputDecoration(
+                          theme,
+                          label: 'Broker',
+                          icon: Icons.apartment_rounded,
+                        ),
+                        options: data.brokers.entries
+                            .map(
+                              (e) => AdaptiveSelectOption(
+                                value: e.key,
+                                label: e.value.name,
+                                subtitle: e.value.tagline,
+                                searchTokens: [e.value.name, e.value.tagline],
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) return;
+                          _broker = value;
+                          ref.read(sharedPreferencesProvider).setString(
+                                AppConstants.prefChargesBroker,
+                                value,
+                              );
+                          setState(() {});
+                        },
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextField(
+                            controller: _customBrokeragePctController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: modernTaxInputDecoration(
+                              theme,
+                              label: 'Brokerage % per side',
+                              helper: '0.03 means 0.03% of side value',
+                              icon: Icons.percent_rounded,
+                            ),
+                            onChanged: (v) {
+                              ref.read(sharedPreferencesProvider).setString(
+                                    AppConstants.prefChargesCustomBrokeragePct,
+                                    v.trim(),
+                                  );
+                              setState(() {});
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _customCapController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: modernTaxInputDecoration(
+                              theme,
+                              label: 'Cap per order (\u20b9)',
+                              icon: Icons.hourglass_bottom_rounded,
+                            ),
+                            onChanged: (v) {
+                              ref.read(sharedPreferencesProvider).setString(
+                                    AppConstants.prefChargesCustomCap,
+                                    v.trim(),
+                                  );
+                              setState(() {});
+                            },
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: _customFlatController,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.]')),
+                            ],
+                            decoration: modernTaxInputDecoration(
+                              theme,
+                              label: 'Flat fee for options (\u20b9)',
+                              icon: Icons.price_change_rounded,
+                            ),
+                            onChanged: (_) => setState(() {}),
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 8),
+                    // Broker info strip (only when preset, not custom)
+                    if (!_custom) _brokerInfoStrip(theme, broker),
+                    const SizedBox(height: 4),
+                    SwitchListTile.adaptive(
+                      value: _custom,
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      title: const Text('Use custom brokerage'),
+                      subtitle: const Text(
+                          'Override with your own rate / cap / flat fee'),
+                      onChanged: (value) {
+                        _custom = value;
+                        ref.read(sharedPreferencesProvider).setBool(
+                              AppConstants.prefChargesCustomBroker,
                               value,
                             );
                         setState(() {});
                       },
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      broker.tagline,
-                      style: theme.textTheme.bodySmall
-                          ?.copyWith(color: Colors.white70),
-                    ),
-                    // Broker meta details
-                    if (broker.amcYearly > 0 ||
-                        broker.callTradeFee > 0 ||
-                        broker.dpChargePerSellTransaction > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Wrap(
-                          spacing: 12,
-                          runSpacing: 4,
-                          children: [
-                            if (broker.dpChargePerSellTransaction > 0)
-                              _metaChip(
-                                'DP',
-                                '\u20b9${broker.dpChargePerSellTransaction.toStringAsFixed(2)}',
-                              ),
-                            if (broker.amcYearly > 0)
-                              _metaChip(
-                                'AMC/yr',
-                                '\u20b9${broker.amcYearly.toStringAsFixed(0)}',
-                              ),
-                            if (broker.callTradeFee > 0)
-                              _metaChip(
-                                'Call trade',
-                                '\u20b9${broker.callTradeFee.toStringAsFixed(0)}',
-                              ),
-                          ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // ── Charges breakdown card ──
+            Card(
+              margin: EdgeInsets.zero,
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Charges breakdown',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                         ),
-                      ),
-                  ] else ...[
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: _customBrokeragePctController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        _turnoverChip(theme, breakdown.turnover),
                       ],
-                      decoration: const InputDecoration(
-                        labelText: 'Brokerage % per side',
-                        helperText: 'Example: 0.03 means 0.03% of side value',
+                    ),
+                    const SizedBox(height: 12),
+                    _breakdownRow(theme, 'Brokerage', breakdown.brokerage,
+                        icon: Icons.account_balance_wallet_rounded),
+                    _breakdownRow(theme, 'STT / CTT', breakdown.sttOrCtt,
+                        icon: Icons.receipt_long_rounded),
+                    _breakdownRow(theme, 'Exchange transaction',
+                        breakdown.exchangeTxn,
+                        icon: Icons.swap_horiz_rounded),
+                    _breakdownRow(
+                        theme, 'SEBI turnover fee', breakdown.sebi,
+                        icon: Icons.verified_user_rounded),
+                    _breakdownRow(theme, 'Stamp duty', breakdown.stampDuty,
+                        icon: Icons.approval_rounded),
+                    if (breakdown.ipft > 0)
+                      _breakdownRow(
+                          theme, 'IPFT / investor fund', breakdown.ipft,
+                          icon: Icons.shield_rounded),
+                    if (breakdown.dpCharge > 0)
+                      _breakdownRow(theme, 'DP charge', breakdown.dpCharge,
+                          icon: Icons.savings_rounded),
+                    _breakdownRow(theme, 'GST (18%)', breakdown.gst,
+                        icon: Icons.policy_rounded),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Colors.white.withValues(alpha: 0.08),
                       ),
-                      onChanged: (v) {
-                        ref.read(sharedPreferencesProvider).setString(
-                              AppConstants.prefChargesCustomBrokeragePct,
-                              v.trim(),
-                            );
-                        setState(() {});
-                      },
+                    ),
+                    _breakdownRow(
+                      theme,
+                      'Total charges',
+                      breakdown.totalCharges,
+                      strong: true,
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _customCapController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText: 'Cap per order (\u20b9)',
+                    Text(
+                      breakdown.notes,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.6),
                       ),
-                      onChanged: (v) {
-                        ref.read(sharedPreferencesProvider).setString(
-                              AppConstants.prefChargesCustomCap,
-                              v.trim(),
-                            );
-                        setState(() {});
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    TextField(
-                      controller: _customFlatController,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                      ],
-                      decoration: const InputDecoration(
-                        labelText:
-                            'Flat fee per executed order (\u20b9) for options',
-                      ),
-                      onChanged: (_) => setState(() {}),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
+          ],
+        ),
 
-          // ── Charges breakdown card ──
-          Card(
-            margin: EdgeInsets.zero,
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        // ── Glass result bar (bottom) ──
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: glassResultBar(
+            theme: theme,
+            bottomInset: MediaQuery.of(context).padding.bottom,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    'Charges breakdown',
-                    style: theme.textTheme.titleSmall
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Total charges',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: Colors.white.withValues(alpha: 0.6),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '\u20b9 ${Formatters.fullPrice(breakdown.totalCharges)}',
+                          style: theme.textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 10),
-                  _row('Brokerage', breakdown.brokerage),
-                  _row('STT / CTT', breakdown.sttOrCtt),
-                  _row('Exchange transaction', breakdown.exchangeTxn),
-                  _row('SEBI turnover fee', breakdown.sebi),
-                  _row('Stamp duty', breakdown.stampDuty),
-                  if (breakdown.ipft > 0)
-                    _row('IPFT / investor fund', breakdown.ipft),
-                  if (breakdown.dpCharge > 0)
-                    _row('DP charge', breakdown.dpCharge),
-                  _row('GST (18%)', breakdown.gst),
-                  const Divider(height: 22),
-                  _row('Total charges', breakdown.totalCharges, strong: true),
-                  const SizedBox(height: 8),
-                  Text(
-                    breakdown.notes,
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: Colors.white60),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'Net P&L',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _signedRupee(breakdown.netPnl),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: breakdown.netPnl >= 0
+                              ? _accentGreen
+                              : _accentRed,
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              spacing: 8,
-              children: [
-                TextButton.icon(
-                  onPressed: _restoreLast,
-                  icon: const Icon(Icons.restore_rounded),
-                  label: const Text('Restore Last'),
-                ),
-                TextButton.icon(
-                  onPressed: _resetDefaults,
-                  icon: const Icon(Icons.restart_alt_rounded),
-                  label: const Text('Reset'),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: ClipRRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: Container(
-            color: theme.colorScheme.surface.withValues(alpha: 0.96),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Total charges: \u20b9 ${Formatters.fullPrice(breakdown.totalCharges)}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontFeatures: const [FontFeature.tabularFigures()],
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.flag_rounded,
+                    size: 14,
+                    color: _accentAmber.withValues(alpha: 0.85),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Net P&L after charges: \u20b9 ${Formatters.fullPrice(breakdown.netPnl)}',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: breakdown.netPnl >= 0
-                        ? const Color(0xFF32D583)
-                        : const Color(0xFFFF6B6B),
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(width: 6),
+                  Text(
+                    'Break-even move: \u20b9 ${Formatters.fullPrice(breakdown.breakEven)} per unit',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: Colors.white.withValues(alpha: 0.72),
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Break-even move: \u20b9 ${Formatters.fullPrice(breakdown.breakEven)} per unit',
-                  style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.white54),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _metaChip(String label, String value) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        '$label $value',
-        style: const TextStyle(fontSize: 11, color: Colors.white54),
-      ),
-    );
-  }
+  // ── Widget helpers ─────────────────────────────────────────────────
 
-  Widget _row(String label, double amount, {bool strong = false}) {
+  Widget _breakdownRow(
+    ThemeData theme,
+    String label,
+    double amount, {
+    IconData? icon,
+    bool strong = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: Row(
         children: [
+          if (icon != null) ...[
+            Container(
+              width: 26,
+              height: 26,
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Icon(
+                icon,
+                size: 15,
+                color: Colors.white.withValues(alpha: 0.85),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ] else
+            const SizedBox(width: 36),
           Expanded(
             child: Text(
               label,
               style: TextStyle(
-                  fontWeight: strong ? FontWeight.w700 : FontWeight.w500),
+                fontWeight: strong ? FontWeight.w700 : FontWeight.w500,
+                color: strong ? Colors.white : Colors.white.withValues(alpha: 0.88),
+              ),
             ),
           ),
           Text(
             '\u20b9 ${Formatters.fullPrice(amount)}',
             style: TextStyle(
               fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+              fontSize: strong ? 15 : null,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
@@ -607,6 +657,110 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
       ),
     );
   }
+
+  Widget _turnoverChip(ThemeData theme, double turnover) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.sync_alt_rounded,
+              size: 12, color: Colors.white.withValues(alpha: 0.75)),
+          const SizedBox(width: 5),
+          Text(
+            'Turnover \u20b9 ${Formatters.fullPrice(turnover)}',
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _brokerInfoStrip(ThemeData theme, _ResolvedBroker broker) {
+    final chips = <Widget>[];
+    if (broker.dpChargePerSellTransaction > 0) {
+      chips.add(_infoChip(theme, Icons.savings_rounded, 'DP',
+          '\u20b9${broker.dpChargePerSellTransaction.toStringAsFixed(2)}'));
+    }
+    if (broker.amcYearly > 0) {
+      chips.add(_infoChip(theme, Icons.event_repeat_rounded, 'AMC/yr',
+          '\u20b9${broker.amcYearly.toStringAsFixed(0)}'));
+    }
+    if (broker.callTradeFee > 0) {
+      chips.add(_infoChip(theme, Icons.call_rounded, 'Call trade',
+          '\u20b9${broker.callTradeFee.toStringAsFixed(0)}'));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          broker.tagline,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.white.withValues(alpha: 0.72),
+          ),
+        ),
+        if (chips.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: chips),
+        ],
+      ],
+    );
+  }
+
+  Widget _infoChip(ThemeData theme, IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: Colors.white.withValues(alpha: 0.7)),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.white.withValues(alpha: 0.62),
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _signedRupee(double amount) {
+    final sign = amount >= 0 ? '' : '-';
+    return '$sign\u20b9 ${Formatters.fullPrice(amount.abs())}';
+  }
+
+  // ── Calculation logic ──────────────────────────────────────────────
 
   void _ensureValidExchange() {
     final allowed = _allowedExchanges(_segment);
@@ -642,6 +796,17 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     }
   }
 
+  String _exchangeFullName(TradeExchange exchange) {
+    switch (exchange) {
+      case TradeExchange.nse:
+        return 'National Stock Exchange';
+      case TradeExchange.bse:
+        return 'Bombay Stock Exchange';
+      case TradeExchange.mcx:
+        return 'Multi Commodity Exchange';
+    }
+  }
+
   String _segmentLabel(TradeSegment segment) {
     switch (segment) {
       case TradeSegment.equityDelivery:
@@ -660,6 +825,43 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
         return 'Commodity Futures';
       case TradeSegment.commodityOptions:
         return 'Commodity Options';
+    }
+  }
+
+  String _segmentCategory(TradeSegment segment) {
+    switch (segment) {
+      case TradeSegment.equityDelivery:
+      case TradeSegment.equityIntraday:
+      case TradeSegment.equityFutures:
+      case TradeSegment.equityOptions:
+        return 'Equity';
+      case TradeSegment.currencyFutures:
+      case TradeSegment.currencyOptions:
+        return 'Currency';
+      case TradeSegment.commodityFutures:
+      case TradeSegment.commodityOptions:
+        return 'Commodity';
+    }
+  }
+
+  String _segmentSubtitle(TradeSegment segment) {
+    switch (segment) {
+      case TradeSegment.equityDelivery:
+        return 'Buy → hold → sell on another day';
+      case TradeSegment.equityIntraday:
+        return 'Buy & square-off same day';
+      case TradeSegment.equityFutures:
+        return 'Stock / index futures';
+      case TradeSegment.equityOptions:
+        return 'Stock / index options — flat ₹20 per order';
+      case TradeSegment.currencyFutures:
+        return 'USD/INR etc. futures (NSE only)';
+      case TradeSegment.currencyOptions:
+        return 'Currency options (NSE only)';
+      case TradeSegment.commodityFutures:
+        return 'Gold / Silver / Crude futures (MCX)';
+      case TradeSegment.commodityOptions:
+        return 'Commodity options (MCX)';
     }
   }
 
@@ -792,6 +994,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
       totalCharges: totalCharges,
       netPnl: netPnl,
       breakEven: breakEven,
+      turnover: turnover,
       notes:
           '${_exchangeLabel(_exchange)} rates. Option exercise STT is not modeled. Broker pricing can change; confirm before order.',
     );
@@ -800,7 +1003,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
   String _formatDate(String isoDate) {
     try {
       final dt = DateTime.parse(isoDate);
-      final months = [
+      const months = [
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
       ];
@@ -808,32 +1011,6 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     } catch (_) {
       return isoDate;
     }
-  }
-
-  void _restoreLast() {
-    final prefs = ref.read(sharedPreferencesProvider);
-    _buyController.text =
-        prefs.getString(AppConstants.prefChargesBuyPrice) ?? '100';
-    _sellController.text =
-        prefs.getString(AppConstants.prefChargesSellPrice) ?? '102';
-    _qtyController.text =
-        prefs.getString(AppConstants.prefChargesQuantity) ?? '100';
-    _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'zerodha';
-    _segment = TradeSegment.values.elementAt(
-      (prefs.getInt(AppConstants.prefChargesSegment) ?? 0)
-          .clamp(0, TradeSegment.values.length - 1),
-    );
-    _exchange = TradeExchange.values.elementAt(
-      (prefs.getInt(AppConstants.prefChargesExchange) ?? 0)
-          .clamp(0, TradeExchange.values.length - 1),
-    );
-    _custom = prefs.getBool(AppConstants.prefChargesCustomBroker) ?? false;
-    _customBrokeragePctController.text =
-        prefs.getString(AppConstants.prefChargesCustomBrokeragePct) ?? '0.03';
-    _customCapController.text =
-        prefs.getString(AppConstants.prefChargesCustomCap) ?? '20';
-    _ensureValidExchange();
-    setState(() {});
   }
 
   void _resetDefaults() {
@@ -970,7 +1147,8 @@ class _ResolvedBroker {
     required double capPerOrder,
     required double flatPerOrder,
   }) {
-    final pctRule = _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder);
+    final pctRule =
+        _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder);
     final flatRule = _BrokerageRule.flat(flatPerOrder);
     return _ResolvedBroker(
       name: 'Custom',
@@ -1009,6 +1187,7 @@ class _ChargeResult {
   final double totalCharges;
   final double netPnl;
   final double breakEven;
+  final double turnover;
   final String notes;
 
   const _ChargeResult({
@@ -1023,6 +1202,7 @@ class _ChargeResult {
     required this.totalCharges,
     required this.netPnl,
     required this.breakEven,
+    required this.turnover,
     required this.notes,
   });
 }
