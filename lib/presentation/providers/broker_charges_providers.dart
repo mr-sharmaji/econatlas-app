@@ -19,9 +19,20 @@ final brokerChargesProvider =
     final raw = prefs.getString(cacheKey);
     if (raw == null || raw.trim().isEmpty) return null;
     try {
-      return BrokerChargesResponse.fromJson(
+      final parsed = BrokerChargesResponse.fromJson(
         jsonDecode(raw) as Map<String, dynamic>,
       );
+      // Cache-version gate: any cache saved before the amc_note field
+      // was added to the API response will have an empty amc_note for
+      // every broker. That's distinguishable from "API returned no
+      // AMC info" because at least one broker (e.g. Zerodha) always
+      // has a populated amc_note on the server. Drop those stale caches
+      // so the UI doesn't hide the AMC block on first open after update.
+      final anyAmcNote = parsed.brokers.values.any(
+        (b) => b.amcNote.trim().isNotEmpty || b.amcRules.isNotEmpty,
+      );
+      if (!anyAmcNote) return null;
+      return parsed;
     } catch (_) {
       return null;
     }
