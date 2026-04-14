@@ -165,27 +165,41 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     final theme = Theme.of(context);
     final chargesAsync = ref.watch(brokerChargesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Trade Charges'),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh rates',
-            icon: const Icon(Icons.refresh_rounded),
-            onPressed: () => ref.invalidate(brokerChargesProvider),
+    // Wrap the whole Scaffold in a GestureDetector so tapping any empty
+    // area dismisses the keyboard AND clears focus from the TextField.
+    // TextField / dropdown / button taps are consumed by their widgets
+    // first and don't reach this handler.
+    //
+    // NB: we deliberately use this tap-outside pattern instead of
+    // WidgetsBindingObserver.didChangeMetrics — the other tool screens
+    // in this app removed didChangeMetrics because viewInsets.bottom
+    // drops to 0 transiently during the keyboard OPEN animation, which
+    // caused premature unfocus and made it impossible to type.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Trade Charges'),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh rates',
+              icon: const Icon(Icons.refresh_rounded),
+              onPressed: () => ref.invalidate(brokerChargesProvider),
+            ),
+          ],
+        ),
+        body: chargesAsync.when(
+          loading: () => const Padding(
+            padding: EdgeInsets.all(14),
+            child: ShimmerCard(height: 320),
           ),
-        ],
-      ),
-      body: chargesAsync.when(
-        loading: () => const Padding(
-          padding: EdgeInsets.all(14),
-          child: ShimmerCard(height: 320),
+          error: (err, _) => ErrorView(
+            message: friendlyErrorMessage(err),
+            onRetry: () => ref.invalidate(brokerChargesProvider),
+          ),
+          data: (data) => _buildBody(theme, data),
         ),
-        error: (err, _) => ErrorView(
-          message: friendlyErrorMessage(err),
-          onRetry: () => ref.invalidate(brokerChargesProvider),
-        ),
-        data: (data) => _buildBody(theme, data),
       ),
     );
   }
