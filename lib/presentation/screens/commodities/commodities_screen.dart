@@ -128,6 +128,14 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
           ref.invalidate(latestCommoditiesProvider);
           ref.invalidate(commodityHistoryProvider(widget.asset));
           ref.invalidate(commodityIntradayProvider(widget.asset));
+          // Wait for the providers to finish loading; otherwise the
+          // indicator dismisses before any data arrives.
+          try {
+            await Future.wait([
+              ref.read(latestCommoditiesProvider.future),
+              ref.read(commodityHistoryProvider(widget.asset).future),
+            ]);
+          } catch (_) {}
         },
         child: ListView(
           padding: const EdgeInsets.all(16),

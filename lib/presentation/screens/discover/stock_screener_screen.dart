@@ -407,6 +407,12 @@ class _StockScreenerScreenState extends ConsumerState<StockScreenerScreen> {
                     RefreshIndicator(
                       onRefresh: () async {
                         ref.invalidate(discoverStocksProvider);
+                        // Wait for the refetch to complete; otherwise
+                        // the indicator dismisses before any data
+                        // arrives.
+                        try {
+                          await ref.read(discoverStocksProvider.future);
+                        } catch (_) {}
                       },
                       child: ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),

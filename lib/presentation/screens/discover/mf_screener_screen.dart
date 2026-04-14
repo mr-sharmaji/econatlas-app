@@ -432,6 +432,12 @@ class _MfScreenerScreenState extends ConsumerState<MfScreenerScreen> {
                     RefreshIndicator(
                       onRefresh: () async {
                         ref.invalidate(discoverMutualFundsProvider);
+                        // Wait for the refetch to complete; otherwise
+                        // the indicator dismisses before data arrives.
+                        try {
+                          await ref
+                              .read(discoverMutualFundsProvider.future);
+                        } catch (_) {}
                       },
                       child: ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),

@@ -124,6 +124,17 @@ class _CryptoDetailScreenState extends ConsumerState<CryptoDetailScreen> {
           ref.invalidate(latestCryptoProvider);
           ref.invalidate(cryptoHistoryProvider(widget.asset));
           ref.invalidate(cryptoIntradayProvider(widget.asset));
+          // Wait for the providers to actually finish loading; without
+          // this await the indicator dismisses before any data arrives.
+          try {
+            await Future.wait([
+              ref.read(latestCryptoProvider.future),
+              ref.read(cryptoHistoryProvider(widget.asset).future),
+            ]);
+          } catch (_) {
+            // Network/parse errors surface in each provider's own
+            // error UI; we don't want them to also block the refresh.
+          }
         },
         child: ListView(
           padding: const EdgeInsets.all(16),

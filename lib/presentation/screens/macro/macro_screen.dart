@@ -221,6 +221,12 @@ class _MacroScreenState extends ConsumerState<MacroScreen> {
           ref.invalidate(usHistoryProvider);
           ref.invalidate(macroForecastsProvider);
           ref.invalidate(econCalendarProvider);
+          // Wait for the primary provider to actually finish loading;
+          // without this await the indicator dismisses before any
+          // data arrives.
+          try {
+            await ref.read(allMacroIndicatorsProvider.future);
+          } catch (_) {}
         },
         child: latestAsync.when(
           loading: () => ListView(physics: const AlwaysScrollableScrollPhysics(), children: const [ShimmerList(itemCount: 6)]),
@@ -696,7 +702,14 @@ class _MacroDetailScreenState extends ConsumerState<MacroDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: Text(displayName(widget.indicatorName))),
       body: RefreshIndicator(
-        onRefresh: () async => ref.invalidate(macroHistoryProvider(country)),
+        onRefresh: () async {
+          ref.invalidate(macroHistoryProvider(country));
+          // Wait for the refetch to complete; otherwise the indicator
+          // dismisses before any data arrives.
+          try {
+            await ref.read(macroHistoryProvider(country).future);
+          } catch (_) {}
+        },
         child: ListView(padding: const EdgeInsets.all(16), children: [
           if (widget.initialIndicator != null) ...[_topCard(theme, histAsync.valueOrNull), const SizedBox(height: 16)],
           Text('Historical Data', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
