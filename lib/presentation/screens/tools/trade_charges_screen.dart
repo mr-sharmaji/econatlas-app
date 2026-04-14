@@ -42,6 +42,9 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
   final _buyController = TextEditingController();
   final _sellController = TextEditingController();
   final _qtyController = TextEditingController();
+  // Lot size — only meaningful for futures/options segments. For equity
+  // delivery/intraday the input is hidden and lot size is implicitly 1.
+  final _lotSizeController = TextEditingController();
 
   TradeSegment _segment = TradeSegment.equityDelivery;
   TradeExchange _exchange = TradeExchange.nse;
@@ -62,6 +65,8 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
         prefs.getString(AppConstants.prefChargesSellPrice) ?? '102';
     _qtyController.text =
         prefs.getString(AppConstants.prefChargesQuantity) ?? '100';
+    _lotSizeController.text =
+        prefs.getString(AppConstants.prefChargesLotSize) ?? '75';
     _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'zerodha';
     _segment = TradeSegment.values.elementAt(
       (prefs.getInt(AppConstants.prefChargesSegment) ?? 0)
@@ -85,10 +90,74 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     _buyController.dispose();
     _sellController.dispose();
     _qtyController.dispose();
+    _lotSizeController.dispose();
     _customBrokeragePctController.dispose();
     _customCapController.dispose();
     _customFlatController.dispose();
     super.dispose();
+  }
+
+  // ── Segment-mode classification ────────────────────────────────────
+  //
+  // Shares-mode segments trade in raw shares (equity delivery + intraday).
+  // Lot-mode segments trade in contract lots × lot size (all futures and
+  // all options across equity/currency/commodity). For lot-mode segments
+  // we show a separate "Lot size" input and rename Quantity → "Lots".
+  bool get _isLotBased {
+    switch (_segment) {
+      case TradeSegment.equityDelivery:
+      case TradeSegment.equityIntraday:
+        return false;
+      case TradeSegment.equityFutures:
+      case TradeSegment.equityOptions:
+      case TradeSegment.currencyFutures:
+      case TradeSegment.currencyOptions:
+      case TradeSegment.commodityFutures:
+      case TradeSegment.commodityOptions:
+        return true;
+    }
+  }
+
+  bool get _isOptionsSegment {
+    return _segment == TradeSegment.equityOptions ||
+        _segment == TradeSegment.currencyOptions ||
+        _segment == TradeSegment.commodityOptions;
+  }
+
+  /// Contextual labels — "Buy price" is wrong for futures (entry price)
+  /// and options (premium paid). Terminology follows market convention.
+  String get _buyLabel {
+    if (_isOptionsSegment) return 'Premium paid (\u20b9)';
+    if (_isLotBased) return 'Entry price (\u20b9)';
+    return 'Buy price (\u20b9)';
+  }
+
+  String get _sellLabel {
+    if (_isOptionsSegment) return 'Premium received (\u20b9)';
+    if (_isLotBased) return 'Exit price (\u20b9)';
+    return 'Sell price (\u20b9)';
+  }
+
+  String get _qtyLabel =>
+      _isLotBased ? 'Number of lots' : 'Quantity (shares)';
+
+  /// Typical lot size hint per segment — shown as helper text so users
+  /// know what to put in the Lot size field. Not enforced; users can
+  /// override for stock-specific F&O where lot sizes vary.
+  String get _lotSizeHelper {
+    switch (_segment) {
+      case TradeSegment.equityFutures:
+      case TradeSegment.equityOptions:
+        return 'Nifty 50: 75 · Bank Nifty: 30 · Stock F&O: varies';
+      case TradeSegment.currencyFutures:
+      case TradeSegment.currencyOptions:
+        return 'USDINR: 1000 · EURINR: 1000 · GBPINR: 1000';
+      case TradeSegment.commodityFutures:
+      case TradeSegment.commodityOptions:
+        return 'Gold: 100g · Gold Mini: 10g · Silver: 30kg · Crude: 100 bbl';
+      default:
+        return '';
+    }
   }
 
   @override
@@ -238,7 +307,9 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       },
                     ),
                     const SizedBox(height: 10),
-                    // Buy + Sell side by side
+                    // Buy/Entry + Sell/Exit side by side (labels depend
+                    // on segment — "Premium paid/received" for options,
+                    // "Entry/Exit price" for other lot-based segments).
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -253,8 +324,10 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                             ],
                             decoration: modernTaxInputDecoration(
                               theme,
-                              label: 'Buy price (\u20b9)',
-                              icon: Icons.south_rounded,
+                              label: _buyLabel,
+                              icon: _isOptionsSegment
+                                  ? Icons.call_made_rounded
+                                  : Icons.south_rounded,
                             ),
                             onChanged: (v) {
                               ref.read(sharedPreferencesProvider).setString(
@@ -277,8 +350,10 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                             ],
                             decoration: modernTaxInputDecoration(
                               theme,
-                              label: 'Sell price (\u20b9)',
-                              icon: Icons.north_rounded,
+                              label: _sellLabel,
+                              icon: _isOptionsSegment
+                                  ? Icons.call_received_rounded
+                                  : Icons.north_rounded,
                             ),
                             onChanged: (v) {
                               ref.read(sharedPreferencesProvider).setString(
@@ -292,26 +367,93 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: _qtyController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                          decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                      ],
-                      decoration: modernTaxInputDecoration(
-                        theme,
-                        label: 'Quantity / lot units',
-                        icon: Icons.format_list_numbered_rounded,
+                    // Lots + Lot size (for F&O segments) OR Quantity
+                    // (for equity delivery/intraday).
+                    if (_isLotBased)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _qtyController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9.]')),
+                              ],
+                              decoration: modernTaxInputDecoration(
+                                theme,
+                                label: _qtyLabel,
+                                icon: Icons.inventory_2_rounded,
+                              ),
+                              onChanged: (v) {
+                                ref.read(sharedPreferencesProvider).setString(
+                                      AppConstants.prefChargesQuantity,
+                                      v.trim(),
+                                    );
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: TextField(
+                              controller: _lotSizeController,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                      decimal: true),
+                              inputFormatters: [
+                                FilteringTextInputFormatter.allow(
+                                    RegExp(r'[0-9.]')),
+                              ],
+                              decoration: modernTaxInputDecoration(
+                                theme,
+                                label: 'Lot size',
+                                icon: Icons.view_module_rounded,
+                              ),
+                              onChanged: (v) {
+                                ref.read(sharedPreferencesProvider).setString(
+                                      AppConstants.prefChargesLotSize,
+                                      v.trim(),
+                                    );
+                                setState(() {});
+                              },
+                            ),
+                          ),
+                        ],
+                      )
+                    else
+                      TextField(
+                        controller: _qtyController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                        ],
+                        decoration: modernTaxInputDecoration(
+                          theme,
+                          label: _qtyLabel,
+                          icon: Icons.format_list_numbered_rounded,
+                        ),
+                        onChanged: (v) {
+                          ref.read(sharedPreferencesProvider).setString(
+                                AppConstants.prefChargesQuantity,
+                                v.trim(),
+                              );
+                          setState(() {});
+                        },
                       ),
-                      onChanged: (v) {
-                        ref.read(sharedPreferencesProvider).setString(
-                              AppConstants.prefChargesQuantity,
-                              v.trim(),
-                            );
-                        setState(() {});
-                      },
-                    ),
+                    if (_isLotBased && _lotSizeHelper.isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _lotSizeHelper,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.55),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -931,21 +1073,21 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
   String _segmentSubtitle(TradeSegment segment) {
     switch (segment) {
       case TradeSegment.equityDelivery:
-        return 'Buy → hold → sell on another day';
+        return 'Shares, held across sessions · STT on buy + sell';
       case TradeSegment.equityIntraday:
-        return 'Buy & square-off same day';
+        return 'Shares, same-day square-off · STT sell side only';
       case TradeSegment.equityFutures:
-        return 'Stock / index futures';
+        return 'Lots × lot size (Nifty 75, BankNifty 30) · STT 0.02% sell';
       case TradeSegment.equityOptions:
-        return 'Stock / index options — flat ₹20 per order';
+        return 'Premium × lots × lot size · STT 0.1% premium sell';
       case TradeSegment.currencyFutures:
-        return 'USD/INR etc. futures (NSE only)';
+        return 'Rate × contract size (USDINR = \$1000) · no STT · NSE only';
       case TradeSegment.currencyOptions:
-        return 'Currency options (NSE only)';
+        return 'Premium × contract size · no STT · NSE only';
       case TradeSegment.commodityFutures:
-        return 'Gold / Silver / Crude futures (MCX)';
+        return 'Price × contract size (Gold 100g, Silver 30kg) · CTT 0.01% · MCX';
       case TradeSegment.commodityOptions:
-        return 'Commodity options (MCX)';
+        return 'Premium × contract size · CTT 0.05% premium sell · MCX';
     }
   }
 
@@ -1017,10 +1159,19 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     final qty =
         math.max(0.0, double.tryParse(_qtyController.text.trim()) ?? 0.0);
 
-    final buyValue = buy * qty;
-    final sellValue = sell * qty;
+    // For lot-based segments (futures/options), effective units traded
+    // = number of lots × lot size. For equity delivery/intraday, lot
+    // size is implicitly 1 (the user's "qty" is already share count).
+    final lotSize = _isLotBased
+        ? math.max(
+            0.0, double.tryParse(_lotSizeController.text.trim()) ?? 0.0)
+        : 1.0;
+    final effectiveQty = qty * lotSize;
+
+    final buyValue = buy * effectiveQty;
+    final sellValue = sell * effectiveQty;
     final turnover = buyValue + sellValue;
-    final grossPnl = (sell - buy) * qty;
+    final grossPnl = (sell - buy) * effectiveQty;
 
     final segKey = _segmentKey(_segment);
     final exchKey = _exchangeKey(_exchange);
@@ -1064,7 +1215,27 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
         dpCharge +
         gst;
     final netPnl = grossPnl - totalCharges;
-    final breakEven = qty > 0 ? totalCharges / qty : 0.0;
+    // Break-even move per unit — works for both modes. For F&O, this
+    // is per-unit of the underlying (e.g. per share of Nifty), not
+    // per lot, so the user can compare it directly to the LTP.
+    final breakEven = effectiveQty > 0 ? totalCharges / effectiveQty : 0.0;
+
+    final notes = StringBuffer(
+      '${_exchangeLabel(_exchange)} rates, 2025-26. Broker pricing can '
+      'change; confirm before order.',
+    );
+    if (_isOptionsSegment) {
+      notes.write(
+        ' Options exercise STT (0.125% of intrinsic value on ITM expiry) '
+        'is not modeled — applies only to positions held to expiry.',
+      );
+    }
+    if (_isLotBased) {
+      notes.write(
+        ' Turnover uses lots × lot size × price; verify the lot size '
+        'for your specific contract before placing the order.',
+      );
+    }
 
     return _ChargeResult(
       brokerage: brokerage,
@@ -1079,8 +1250,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
       netPnl: netPnl,
       breakEven: breakEven,
       turnover: turnover,
-      notes:
-          '${_exchangeLabel(_exchange)} rates. Option exercise STT is not modeled. Broker pricing can change; confirm before order.',
+      notes: notes.toString(),
     );
   }
 
@@ -1101,6 +1271,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     _buyController.text = '100';
     _sellController.text = '102';
     _qtyController.text = '100';
+    _lotSizeController.text = '75';
     _segment = TradeSegment.equityDelivery;
     _exchange = TradeExchange.nse;
     _broker = 'zerodha';
@@ -1113,6 +1284,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     prefs.setString(AppConstants.prefChargesBuyPrice, '100');
     prefs.setString(AppConstants.prefChargesSellPrice, '102');
     prefs.setString(AppConstants.prefChargesQuantity, '100');
+    prefs.setString(AppConstants.prefChargesLotSize, '75');
     prefs.setInt(AppConstants.prefChargesSegment, _segment.index);
     prefs.setInt(AppConstants.prefChargesExchange, _exchange.index);
     prefs.setString(AppConstants.prefChargesBroker, _broker);
