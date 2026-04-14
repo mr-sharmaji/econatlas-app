@@ -217,18 +217,27 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               ],
             ),
             // 1D change (previous trading day → latest NAV). Rendered
-            // as a small line under the NAV row, Groww-style.
+            // as a pill badge under the NAV row, matching the period
+            // change badge above it.
             if (item.pointToPointReturns?.return1d != null) ...[
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Builder(builder: (_) {
                 final d = item.pointToPointReturns!.return1d!;
                 final up = d >= 0;
                 final c = up ? AppTheme.accentGreen : AppTheme.accentRed;
-                return Text(
-                  '${up ? "+" : ""}${d.toStringAsFixed(2)}%  1D',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: c,
-                    fontWeight: FontWeight.w600,
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: c.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    '${up ? "+" : ""}${d.toStringAsFixed(2)}%  1D',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: c,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 );
               }),
