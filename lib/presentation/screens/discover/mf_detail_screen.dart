@@ -271,23 +271,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const SizedBox(height: 8),
             ],
 
-            // 8. Asset Allocation
-            if (item.assetAllocation != null) ...[
-              _buildHoldingsSection(theme),
-              const SizedBox(height: 8),
-            ],
-
-            // 9. Top Holdings
-            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
-              _buildTopHoldingsCard(theme),
-              const SizedBox(height: 8),
-            ],
-
-            // 10. Risk & Performance
+            // 8. Risk & Performance
             _buildRiskPerformanceCard(theme),
             const SizedBox(height: 8),
 
-            // 11. Fund Ranking
+            // 9. Fund Ranking
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null &&
                     item.subCategoryTotal != null)) ...[
@@ -295,13 +283,25 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const SizedBox(height: 8),
             ],
 
-            // 12. Key Metrics
+            // 10. Key Metrics
             _buildMetricsCard(theme),
             const SizedBox(height: 8),
 
-            // 13. Peer Comparison
+            // 11. Peer Comparison
             _buildPeerComparison(theme),
             const SizedBox(height: 8),
+
+            // 12. Asset Allocation
+            if (item.assetAllocation != null) ...[
+              _buildHoldingsSection(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 13. Top Holdings
+            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
+              _buildTopHoldingsCard(theme),
+              const SizedBox(height: 8),
+            ],
 
             // 14. Fund Manager
             if (item.fundManagers != null && item.fundManagers!.isNotEmpty) ...[
