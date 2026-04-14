@@ -130,8 +130,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
       ),
     );
 
-    // Use API return values for known periods (more reliable than chart calc).
-    // Fall back to chart-based computation for periods without API data.
+    // Header badge always shows point-to-point % change over the
+    // selected window, computed from the raw NAV history. The Returns
+    // card below already surfaces annualized CAGR for 1Y/3Y/5Y, so
+    // reusing those API values here would just duplicate that figure
+    // and hide the absolute move the chart actually depicts.
     List<double> chartPrices = [];
     List<DateTime> chartTimestamps = [];
     historyAsync.whenData((history) {
@@ -139,29 +142,16 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         chartPrices = history.points.map((p) => p.value).toList();
         chartTimestamps = history.points.map((p) => p.date).toList();
 
-        // Prefer API return values for known periods
-        double? apiReturn;
-        if (_selectedDays == 365) {
-          apiReturn = item.returns1y;
-        } else if (_selectedDays == 1095) {
-          apiReturn = item.returns3y;
-        } else if (_selectedDays == 1825) {
-          apiReturn = item.returns5y;
-        }
-        if (apiReturn != null) {
-          _periodChange = apiReturn;
-        } else {
-          // Compute from raw NAV history for short periods (1W, 1M, 3M, 6M)
-          if (chartPrices.length >= 2) {
-            final first = chartPrices.first;
-            final last = chartPrices.last;
-            if (first > 0) _periodChange = ((last - first) / first) * 100;
-          }
-        }
-        // Override last chart point with live NAV for visual display only
+        // Override last chart point with live NAV for visual display.
         if (chartPrices.isNotEmpty) {
           chartPrices[chartPrices.length - 1] = item.nav;
         }
+
+        // Point-to-point change: match what the chart visually shows
+        // (first raw NAV → live NAV at right edge).
+        final first = chartPrices.first;
+        final last = chartPrices.last;
+        if (first > 0) _periodChange = ((last - first) / first) * 100;
       }
     });
 
@@ -287,11 +277,17 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const SizedBox(height: 8),
             ],
 
-            // 9. Risk & Performance
+            // 9. Top Holdings
+            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
+              _buildTopHoldingsCard(theme),
+              const SizedBox(height: 8),
+            ],
+
+            // 10. Risk & Performance
             _buildRiskPerformanceCard(theme),
             const SizedBox(height: 8),
 
-            // 10. Fund Ranking
+            // 11. Fund Ranking
             if ((item.categoryRank != null && item.categoryTotal != null) ||
                 (item.subCategoryRank != null &&
                     item.subCategoryTotal != null)) ...[
@@ -299,23 +295,17 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
               const SizedBox(height: 8),
             ],
 
-            // 11. Key Metrics
+            // 12. Key Metrics
             _buildMetricsCard(theme),
             const SizedBox(height: 8),
 
-            // 12. Peer Comparison
+            // 13. Peer Comparison
             _buildPeerComparison(theme),
             const SizedBox(height: 8),
 
-            // 13. Fund Manager
+            // 14. Fund Manager
             if (item.fundManagers != null && item.fundManagers!.isNotEmpty) ...[
               _buildFundManagerCard(theme),
-              const SizedBox(height: 8),
-            ],
-
-            // 14. Top Holdings
-            if (item.topHoldings != null && item.topHoldings!.isNotEmpty) ...[
-              _buildTopHoldingsCard(theme),
               const SizedBox(height: 8),
             ],
 
