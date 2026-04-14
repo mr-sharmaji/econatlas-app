@@ -7,6 +7,20 @@ import '../../core/constants.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
 
+/// Force a fresh network fetch for [latestCommoditiesProvider],
+/// bypassing the cached-return-then-background-refresh path.
+///
+/// See `forceRefreshLatestCrypto` for the rationale — same pattern.
+Future<void> forceRefreshLatestCommodities(WidgetRef ref) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.remove(AppConstants.prefCacheLatestCommodities);
+  await prefs.remove(AppConstants.prefCacheLatestCommoditiesTs);
+  ref.invalidate(latestCommoditiesProvider);
+  try {
+    await ref.read(latestCommoditiesProvider.future);
+  } catch (_) {}
+}
+
 final latestCommoditiesProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   final prefs = ref.watch(sharedPreferencesProvider);

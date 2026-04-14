@@ -125,14 +125,14 @@ class _CommodityDetailScreenState extends ConsumerState<CommodityDetailScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(latestCommoditiesProvider);
           ref.invalidate(commodityHistoryProvider(widget.asset));
           ref.invalidate(commodityIntradayProvider(widget.asset));
-          // Wait for the providers to finish loading; otherwise the
-          // indicator dismisses before any data arrives.
+          // forceRefreshLatestCommodities bypasses the cached-return
+          // path so the indicator actually waits for the network
+          // fetch instead of dismissing on the cached return.
           try {
             await Future.wait([
-              ref.read(latestCommoditiesProvider.future),
+              forceRefreshLatestCommodities(ref),
               ref.read(commodityHistoryProvider(widget.asset).future),
             ]);
           } catch (_) {}

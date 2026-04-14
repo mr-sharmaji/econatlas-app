@@ -23,6 +23,19 @@ final latestMarketPricesProvider =
   );
 });
 
+/// Force a fresh network fetch for [latestMarketPricesProvider],
+/// bypassing the cached-return-then-background-refresh path baked
+/// into `_loadLatestMarketWithCache`. Pull-to-refresh handlers should
+/// `await` this rather than just invalidating + reading, because the
+/// shared helper returns cached data instantly when present and only
+/// fires the network refresh in a non-awaited microtask.
+Future<void> forceRefreshLatestMarketPrices(WidgetRef ref) =>
+    _forceRefreshLatestMarket(
+      ref,
+      provider: latestMarketPricesProvider,
+      cacheKey: AppConstants.prefCacheLatestMarketAll,
+    );
+
 /// Dedicated provider for the USD/INR spot rate.
 ///
 /// The commodities / crypto / dashboard screens need this to convert
@@ -110,6 +123,13 @@ final latestIndicesProvider =
   );
 });
 
+Future<void> forceRefreshLatestIndices(WidgetRef ref) =>
+    _forceRefreshLatestMarket(
+      ref,
+      provider: latestIndicesProvider,
+      cacheKey: AppConstants.prefCacheLatestIndices,
+    );
+
 final latestCurrenciesProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   return _loadLatestMarketWithCache(
@@ -119,6 +139,13 @@ final latestCurrenciesProvider =
   );
 });
 
+Future<void> forceRefreshLatestCurrencies(WidgetRef ref) =>
+    _forceRefreshLatestMarket(
+      ref,
+      provider: latestCurrenciesProvider,
+      cacheKey: AppConstants.prefCacheLatestCurrencies,
+    );
+
 final latestBondsProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   return _loadLatestMarketWithCache(
@@ -127,6 +154,32 @@ final latestBondsProvider =
     cacheKey: AppConstants.prefCacheLatestBonds,
   );
 });
+
+Future<void> forceRefreshLatestBonds(WidgetRef ref) =>
+    _forceRefreshLatestMarket(
+      ref,
+      provider: latestBondsProvider,
+      cacheKey: AppConstants.prefCacheLatestBonds,
+    );
+
+/// Shared force-refresh helper for the latest-market providers. Clears
+/// the underlying SharedPreferences cache key and timestamp so the
+/// shared `_loadLatestMarketWithCache` helper falls through to the
+/// awaitable network path, then invalidates and awaits the future.
+Future<void> _forceRefreshLatestMarket(
+  WidgetRef ref, {
+  required AutoDisposeFutureProvider<List<MarketPrice>> provider,
+  required String cacheKey,
+}) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.remove(cacheKey);
+  final tsKey = _cacheTimestampKeys[cacheKey];
+  if (tsKey != null) await prefs.remove(tsKey);
+  ref.invalidate(provider);
+  try {
+    await ref.read(provider.future);
+  } catch (_) {}
+}
 
 final marketHistoryProvider = FutureProvider.autoDispose
     .family<List<MarketPrice>, String>((ref, asset) async {
@@ -182,6 +235,18 @@ final marketByTypeProvider = FutureProvider.autoDispose
   );
   return response.prices;
 });
+
+/// Force a fresh network fetch for [assetCatalogProvider].
+/// See `_forceRefreshLatestMarket` rationale.
+Future<void> forceRefreshAssetCatalog(WidgetRef ref) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.remove(AppConstants.prefCacheAssetCatalog);
+  await prefs.remove(AppConstants.prefCacheAssetCatalogTs);
+  ref.invalidate(assetCatalogProvider);
+  try {
+    await ref.read(assetCatalogProvider.future);
+  } catch (_) {}
+}
 
 final assetCatalogProvider =
     FutureProvider.autoDispose<AssetCatalogResponse>((ref) async {

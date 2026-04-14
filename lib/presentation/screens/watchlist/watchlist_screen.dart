@@ -37,7 +37,10 @@ class _WatchlistScreenState extends ConsumerState<WatchlistScreen> {
       body: RefreshIndicator(
         onRefresh: () async {
           await ref.read(watchlistProvider.notifier).load();
-          ref.invalidate(assetCatalogProvider);
+          // forceRefreshAssetCatalog clears the cache key so the
+          // provider hits the network instead of returning cached
+          // data instantly via its background-microtask path.
+          await forceRefreshAssetCatalog(ref);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),

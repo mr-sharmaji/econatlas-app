@@ -7,6 +7,28 @@ import '../../core/constants.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
 
+/// Force a fresh network fetch for [latestCryptoProvider], bypassing
+/// the cached-return-then-background-refresh path.
+///
+/// Pull-to-refresh handlers should `await` this rather than just
+/// invalidating the provider, because the provider returns cached data
+/// instantly and only fires the network refresh in a non-awaited
+/// `Future.microtask` — so a plain invalidate + await would dismiss
+/// the indicator before any new data arrived.
+///
+/// The trick: clear the SharedPreferences cache key first. With the
+/// cache empty, the provider's `loadCached()` returns empty and the
+/// "No cache — fetch from server" path runs, which actually awaits.
+Future<void> forceRefreshLatestCrypto(WidgetRef ref) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.remove(AppConstants.prefCacheLatestCrypto);
+  await prefs.remove(AppConstants.prefCacheLatestCryptoTs);
+  ref.invalidate(latestCryptoProvider);
+  try {
+    await ref.read(latestCryptoProvider.future);
+  } catch (_) {}
+}
+
 final latestCryptoProvider =
     FutureProvider.autoDispose<List<MarketPrice>>((ref) async {
   final prefs = ref.watch(sharedPreferencesProvider);

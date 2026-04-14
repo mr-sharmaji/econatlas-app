@@ -97,10 +97,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
           RefreshIndicator(
             onRefresh: () async {
               await ref.read(watchlistProvider.notifier).load(silent: true);
-              await Future.wait([
-                ref.refresh(latestMarketPricesProvider.future),
-                ref.refresh(latestCommoditiesProvider.future),
-              ]);
+              // Use the forceRefresh helpers — `ref.refresh(...future)`
+              // would return cached data instantly because both
+              // providers use a return-cached + microtask-refresh
+              // pattern internally.
+              try {
+                await Future.wait([
+                  forceRefreshLatestMarketPrices(ref),
+                  forceRefreshLatestCommodities(ref),
+                ]);
+              } catch (_) {}
             },
             child: ListView(
               controller: _scrollController,

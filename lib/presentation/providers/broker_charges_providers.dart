@@ -8,6 +8,23 @@ import '../../data/models/broker_charges.dart';
 import 'repository_providers.dart';
 import 'settings_providers.dart';
 
+/// Force a fresh network fetch for [brokerChargesProvider], bypassing
+/// the cached-return-then-background-refresh path.
+///
+/// Pull-to-refresh (and the AppBar refresh button on the trade charges
+/// screen) should `await` this rather than just invalidating, because
+/// the provider returns cached data instantly when present and only
+/// fires the network refresh in a non-awaited microtask.
+Future<void> forceRefreshBrokerCharges(WidgetRef ref) async {
+  final prefs = ref.read(sharedPreferencesProvider);
+  await prefs.remove(AppConstants.prefCacheBrokerCharges);
+  await prefs.remove(AppConstants.prefCacheBrokerChargesTs);
+  ref.invalidate(brokerChargesProvider);
+  try {
+    await ref.read(brokerChargesProvider.future);
+  } catch (_) {}
+}
+
 final brokerChargesProvider =
     FutureProvider.autoDispose<BrokerChargesResponse>((ref) async {
   final prefs = ref.watch(sharedPreferencesProvider);

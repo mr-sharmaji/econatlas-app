@@ -67,7 +67,6 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(latestMarketPricesProvider);
           ref.invalidate(institutionalFlowsOverviewProvider);
           ref.invalidate(allMacroIndicatorsProvider);
           ref.invalidate(newsProvider);
@@ -75,9 +74,10 @@ class _OverviewScreenState extends ConsumerState<OverviewScreen> {
           ref.invalidate(ipoListProvider('upcoming'));
           ref.invalidate(ipoListProvider('closed'));
           ref.invalidate(ipoAlertsProvider);
-          await ref
-              .read(latestMarketPricesProvider.future)
-              .catchError((_) => <MarketPrice>[]);
+          // forceRefreshLatestMarketPrices clears the cache key so
+          // the provider hits the network instead of returning cached
+          // data instantly.
+          await forceRefreshLatestMarketPrices(ref);
         },
         child: ListView(
           physics: const AlwaysScrollableScrollPhysics(),

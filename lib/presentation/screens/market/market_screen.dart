@@ -121,9 +121,11 @@ class _IndicesTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(latestMarketPricesProvider);
         ref.invalidate(marketScoresProvider);
-        await ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]);
+        // forceRefreshLatestMarketPrices clears the SharedPreferences
+        // cache key so the provider falls through to the awaitable
+        // network path instead of returning cached data instantly.
+        await forceRefreshLatestMarketPrices(ref);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 6),
@@ -227,9 +229,8 @@ class _CurrenciesTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(latestCurrenciesProvider);
         ref.invalidate(marketScoresProvider);
-        await ref.read(latestCurrenciesProvider.future).catchError((_) => <MarketPrice>[]);
+        await forceRefreshLatestCurrencies(ref);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 4),
@@ -393,8 +394,7 @@ class _CommoditiesTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(latestCommoditiesProvider);
-        await ref.read(latestCommoditiesProvider.future).catchError((_) => <MarketPrice>[]);
+        await forceRefreshLatestCommodities(ref);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 5),
@@ -557,9 +557,8 @@ class _BondsTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(latestBondsProvider);
         ref.invalidate(marketScoresProvider);
-        await ref.read(latestBondsProvider.future).catchError((_) => <MarketPrice>[]);
+        await forceRefreshLatestBonds(ref);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 3),
@@ -981,8 +980,7 @@ class _CryptoTab extends ConsumerWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        ref.invalidate(latestCryptoProvider);
-        await ref.read(latestCryptoProvider.future).catchError((_) => <MarketPrice>[]);
+        await forceRefreshLatestCrypto(ref);
       },
       child: pricesAsync.when(
         loading: () => const ShimmerList(itemCount: 6),
@@ -1611,9 +1609,6 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(latestMarketPricesProvider);
-          ref.invalidate(latestCommoditiesProvider);
-          ref.invalidate(latestCryptoProvider);
           ref.invalidate(marketStoryProvider(
               (asset: widget.asset, instrumentType: instType)));
           // Always invalidate intraday + current history range
@@ -1634,16 +1629,29 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
               ref.invalidate(marketHistoryRangeProvider(historyKey));
             }
           }
-          // Wait for the primary data to arrive so the spinner stays visible
-          await Future.wait([
-            ref.read(latestMarketPricesProvider.future).catchError((_) => <MarketPrice>[]),
-            if (isCommodity)
-              ref.read(commodityIntradayProvider(widget.asset).future).catchError((_) => const IntradayResponse(prices: []))
-            else if (isCrypto)
-              ref.read(cryptoIntradayProvider(widget.asset).future).catchError((_) => const IntradayResponse(prices: []))
-            else
-              ref.read(marketIntradayProvider((asset: widget.asset, instrumentType: instType)).future).catchError((_) => const IntradayResponse(prices: [])),
-          ]);
+          // Wait for the primary data to arrive so the spinner stays
+          // visible. Use forceRefresh helpers for the cached-return
+          // providers (latest market / commodities / crypto) and a
+          // raw await for the intraday provider (which fetches fresh
+          // every time and has no cache short-circuit).
+          try {
+            await Future.wait([
+              if (isCommodity)
+                forceRefreshLatestCommodities(ref)
+              else if (isCrypto)
+                forceRefreshLatestCrypto(ref)
+              else
+                forceRefreshLatestMarketPrices(ref),
+              if (isCommodity)
+                ref.read(commodityIntradayProvider(widget.asset).future)
+              else if (isCrypto)
+                ref.read(cryptoIntradayProvider(widget.asset).future)
+              else
+                ref.read(marketIntradayProvider(
+                  (asset: widget.asset, instrumentType: instType),
+                ).future),
+            ]);
+          } catch (_) {}
         },
         child: ListView(
           padding: const EdgeInsets.all(16),

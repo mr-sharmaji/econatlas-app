@@ -176,7 +176,10 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen>
             IconButton(
               tooltip: 'Refresh rates',
               icon: const Icon(Icons.refresh_rounded),
-              onPressed: () => ref.invalidate(brokerChargesProvider),
+              // forceRefreshBrokerCharges clears the cache key so the
+              // provider re-runs against the network instead of
+              // returning cached data instantly.
+              onPressed: () => forceRefreshBrokerCharges(ref),
             ),
           ],
         ),
@@ -187,7 +190,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen>
           ),
           error: (err, _) => ErrorView(
             message: friendlyErrorMessage(err),
-            onRetry: () => ref.invalidate(brokerChargesProvider),
+            onRetry: () => forceRefreshBrokerCharges(ref),
           ),
           data: (data) => _buildBody(theme, data),
         ),
