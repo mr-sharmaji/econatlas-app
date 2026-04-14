@@ -20,7 +20,7 @@ class TdsScreen extends ConsumerStatefulWidget {
 }
 
 class _TdsScreenState extends ConsumerState<TdsScreen>
-    {
+    with WidgetsBindingObserver, KeyboardDismissMixin<TdsScreen> {
   final TextEditingController _amountController = TextEditingController();
 
   _TdsPerspective _perspective = _TdsPerspective.receiver;
@@ -78,7 +78,8 @@ class _TdsScreenState extends ConsumerState<TdsScreen>
     final configAsync = ref.watch(taxConfigProvider);
     final selectedFy = ref.watch(selectedTaxFyProvider);
 
-    return Scaffold(
+    return DismissKeyboardOnTap(
+      child: Scaffold(
       appBar: AppBar(title: const Text('TDS Calculator')),
       body: configAsync.when(
         loading: () => const Center(child: ShimmerCard(height: 240)),
@@ -431,6 +432,7 @@ class _TdsScreenState extends ConsumerState<TdsScreen>
           );
         },
       ),
+    ),
     );
   }
 

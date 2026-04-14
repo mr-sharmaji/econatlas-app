@@ -20,16 +20,18 @@ class CurrencyConverterScreen extends ConsumerStatefulWidget {
       _CurrencyConverterScreenState();
 }
 
-class _CurrencyConverterScreenState
-    extends ConsumerState<CurrencyConverterScreen> with WidgetsBindingObserver {
+class _CurrencyConverterScreenState extends ConsumerState<CurrencyConverterScreen>
+    with
+        WidgetsBindingObserver,
+        KeyboardDismissMixin<CurrencyConverterScreen> {
   final TextEditingController _amountController = TextEditingController();
   Timer? _autoRefreshTimer;
   AppLifecycleState _lifecycleState = AppLifecycleState.resumed;
 
   @override
   void initState() {
+    // KeyboardDismissMixin handles addObserver(this) for us.
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     final prefs = ref.read(sharedPreferencesProvider);
     final saved = prefs.getString(AppConstants.prefConverterAmount) ?? '1';
     _amountController.text = saved;
@@ -49,7 +51,7 @@ class _CurrencyConverterScreenState
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    // KeyboardDismissMixin handles removeObserver(this) for us.
     _autoRefreshTimer?.cancel();
     _amountController.dispose();
     super.dispose();
@@ -65,7 +67,8 @@ class _CurrencyConverterScreenState
     final cachedState = _cachedStateFromPrefs();
     final effectiveState = data ?? cachedState;
 
-    return Scaffold(
+    return DismissKeyboardOnTap(
+      child: Scaffold(
       appBar: AppBar(
         title: const Text('Currency Converter'),
         actions: [
@@ -170,6 +173,7 @@ class _CurrencyConverterScreenState
             ),
         ],
       ),
+    ),
     );
   }
 

@@ -17,7 +17,7 @@ class CapitalGainsScreen extends ConsumerStatefulWidget {
 }
 
 class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
-    {
+    with WidgetsBindingObserver, KeyboardDismissMixin<CapitalGainsScreen> {
   final TextEditingController _buyValueController = TextEditingController();
   final TextEditingController _sellValueController = TextEditingController();
 
@@ -63,7 +63,8 @@ class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
     final configAsync = ref.watch(taxConfigProvider);
     final selectedFy = ref.watch(selectedTaxFyProvider);
 
-    return Scaffold(
+    return DismissKeyboardOnTap(
+      child: Scaffold(
       appBar: AppBar(title: const Text('Capital Gains')),
       body: configAsync.when(
         loading: () => const Center(child: ShimmerCard(height: 220)),
@@ -330,6 +331,7 @@ class _CapitalGainsScreenState extends ConsumerState<CapitalGainsScreen>
           );
         },
       ),
+    ),
     );
   }
 

@@ -38,7 +38,8 @@ class TradeChargesScreen extends ConsumerStatefulWidget {
   ConsumerState<TradeChargesScreen> createState() => _TradeChargesScreenState();
 }
 
-class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
+class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen>
+    with WidgetsBindingObserver, KeyboardDismissMixin<TradeChargesScreen> {
   final _buyController = TextEditingController();
   final _sellController = TextEditingController();
   final _qtyController = TextEditingController();
@@ -165,19 +166,9 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     final theme = Theme.of(context);
     final chargesAsync = ref.watch(brokerChargesProvider);
 
-    // Wrap the whole Scaffold in a GestureDetector so tapping any empty
-    // area dismisses the keyboard AND clears focus from the TextField.
-    // TextField / dropdown / button taps are consumed by their widgets
-    // first and don't reach this handler.
-    //
-    // NB: we deliberately use this tap-outside pattern instead of
-    // WidgetsBindingObserver.didChangeMetrics — the other tool screens
-    // in this app removed didChangeMetrics because viewInsets.bottom
-    // drops to 0 transiently during the keyboard OPEN animation, which
-    // caused premature unfocus and made it impossible to type.
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => FocusScope.of(context).unfocus(),
+    // Tap-outside dismisses the keyboard + clears focus.
+    // KeyboardDismissMixin (above) handles the back-button dismiss case.
+    return DismissKeyboardOnTap(
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Trade Charges'),

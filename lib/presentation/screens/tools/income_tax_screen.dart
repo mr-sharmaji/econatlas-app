@@ -18,7 +18,7 @@ class IncomeTaxScreen extends ConsumerStatefulWidget {
 }
 
 class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
-    {
+    with WidgetsBindingObserver, KeyboardDismissMixin<IncomeTaxScreen> {
   final TextEditingController _salaryController = TextEditingController();
   final TextEditingController _deductionController = TextEditingController();
 
@@ -79,7 +79,8 @@ class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlay,
-      child: Scaffold(
+      child: DismissKeyboardOnTap(
+        child: Scaffold(
         appBar: AppBar(title: const Text('Income Tax')),
         body: configAsync.when(
           loading: () => const Center(child: ShimmerCard(height: 240)),
@@ -435,6 +436,7 @@ class _IncomeTaxScreenState extends ConsumerState<IncomeTaxScreen>
             );
           },
         ),
+      ),
       ),
     );
   }

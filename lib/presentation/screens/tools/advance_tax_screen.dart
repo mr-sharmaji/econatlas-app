@@ -17,7 +17,7 @@ class AdvanceTaxScreen extends ConsumerStatefulWidget {
 }
 
 class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
-    {
+    with WidgetsBindingObserver, KeyboardDismissMixin<AdvanceTaxScreen> {
   final TextEditingController _liabilityController = TextEditingController();
   final TextEditingController _paidController = TextEditingController();
   DateTime _paymentDateIst =
@@ -63,7 +63,8 @@ class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
     final configAsync = ref.watch(taxConfigProvider);
     final selectedFy = ref.watch(selectedTaxFyProvider);
 
-    return Scaffold(
+    return DismissKeyboardOnTap(
+      child: Scaffold(
       appBar: AppBar(title: const Text('Advance Tax')),
       body: configAsync.when(
         loading: () => const Center(child: ShimmerCard(height: 220)),
@@ -373,6 +374,7 @@ class _AdvanceTaxScreenState extends ConsumerState<AdvanceTaxScreen>
           );
         },
       ),
+    ),
     );
   }
 
