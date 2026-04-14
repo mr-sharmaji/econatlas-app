@@ -44,6 +44,15 @@ class BrokerPreset {
   final double dpCharge;
   final bool dpIncludesGst;
   final double amcYearly;
+
+  /// One-line AMC headline (e.g. "₹0 – ₹354/yr depending on account type").
+  /// Empty when the backend hasn't populated it for this broker.
+  final String amcNote;
+
+  /// Full AMC rules (BSDA tiers, non-BSDA, first-year-free etc.) as a
+  /// pre-split list — each entry renders as a bullet in the UI.
+  final List<String> amcRules;
+
   final double accountOpeningFee;
   final double callTradeFee;
   final Map<String, BrokerSegmentRate> segments;
@@ -55,6 +64,8 @@ class BrokerPreset {
     required this.dpCharge,
     required this.dpIncludesGst,
     required this.amcYearly,
+    required this.amcNote,
+    required this.amcRules,
     required this.accountOpeningFee,
     required this.callTradeFee,
     required this.segments,
@@ -67,6 +78,13 @@ class BrokerPreset {
       segs[entry.key] =
           BrokerSegmentRate.fromJson(entry.value as Map<String, dynamic>);
     }
+    final rules = <String>[];
+    final rawRules = json['amc_rules'];
+    if (rawRules is List) {
+      for (final r in rawRules) {
+        if (r is String && r.trim().isNotEmpty) rules.add(r);
+      }
+    }
     return BrokerPreset(
       id: id,
       name: json['name'] as String? ?? id,
@@ -74,6 +92,8 @@ class BrokerPreset {
       dpCharge: (json['dp_charge'] as num?)?.toDouble() ?? 0,
       dpIncludesGst: json['dp_includes_gst'] as bool? ?? false,
       amcYearly: (json['amc_yearly'] as num?)?.toDouble() ?? 0,
+      amcNote: json['amc_note'] as String? ?? '',
+      amcRules: rules,
       accountOpeningFee:
           (json['account_opening_fee'] as num?)?.toDouble() ?? 0,
       callTradeFee: (json['call_trade_fee'] as num?)?.toDouble() ?? 0,
@@ -87,6 +107,8 @@ class BrokerPreset {
         'dp_charge': dpCharge,
         'dp_includes_gst': dpIncludesGst,
         'amc_yearly': amcYearly,
+        'amc_note': amcNote,
+        'amc_rules': amcRules,
         'account_opening_fee': accountOpeningFee,
         'call_trade_fee': callTradeFee,
         'segments':

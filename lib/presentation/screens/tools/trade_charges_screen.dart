@@ -693,10 +693,6 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
       chips.add(_infoChip(theme, Icons.savings_rounded, 'DP',
           '\u20b9${broker.dpChargePerSellTransaction.toStringAsFixed(2)}'));
     }
-    if (broker.amcYearly > 0) {
-      chips.add(_infoChip(theme, Icons.event_repeat_rounded, 'AMC/yr',
-          '\u20b9${broker.amcYearly.toStringAsFixed(0)}'));
-    }
     if (broker.callTradeFee > 0) {
       chips.add(_infoChip(theme, Icons.call_rounded, 'Call trade',
           '\u20b9${broker.callTradeFee.toStringAsFixed(0)}'));
@@ -715,7 +711,95 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: chips),
         ],
+        if (broker.amcRules.isNotEmpty || broker.amcNote.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _amcDetailsBlock(theme, broker),
+        ],
       ],
+    );
+  }
+
+  Widget _amcDetailsBlock(ThemeData theme, _ResolvedBroker broker) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.primary.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.white.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary.withValues(alpha: 0.22),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Icon(
+                  Icons.event_repeat_rounded,
+                  size: 14,
+                  color: Colors.white.withValues(alpha: 0.9),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Annual Maintenance Charge',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.2,
+                ),
+              ),
+            ],
+          ),
+          if (broker.amcNote.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              broker.amcNote,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+          if (broker.amcRules.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...broker.amcRules.map(
+              (rule) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Icon(
+                        Icons.circle,
+                        size: 5,
+                        color: Colors.white.withValues(alpha: 0.55),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        rule,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.8),
+                          height: 1.35,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -1113,6 +1197,8 @@ class _ResolvedBroker {
   final double dpChargePerSellTransaction;
   final bool dpChargeIncludesGst;
   final double amcYearly;
+  final String amcNote;
+  final List<String> amcRules;
   final double callTradeFee;
   final Map<String, _BrokerageRule> _rules;
 
@@ -1122,6 +1208,8 @@ class _ResolvedBroker {
     required this.dpChargePerSellTransaction,
     required this.dpChargeIncludesGst,
     required this.amcYearly,
+    required this.amcNote,
+    required this.amcRules,
     required this.callTradeFee,
     required Map<String, _BrokerageRule> rules,
   }) : _rules = rules;
@@ -1137,6 +1225,8 @@ class _ResolvedBroker {
       dpChargePerSellTransaction: preset.dpCharge,
       dpChargeIncludesGst: preset.dpIncludesGst,
       amcYearly: preset.amcYearly,
+      amcNote: preset.amcNote,
+      amcRules: preset.amcRules,
       callTradeFee: preset.callTradeFee,
       rules: rules,
     );
@@ -1156,6 +1246,8 @@ class _ResolvedBroker {
       dpChargePerSellTransaction: 15.93,
       dpChargeIncludesGst: true,
       amcYearly: 0,
+      amcNote: '',
+      amcRules: const [],
       callTradeFee: 0,
       rules: {
         'equity_delivery': pctRule,
