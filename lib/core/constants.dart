@@ -172,6 +172,10 @@ class AppConstants {
   static const String prefChargesBuyPrice = 'charges_buy_price';
   static const String prefChargesSellPrice = 'charges_sell_price';
   static const String prefChargesQuantity = 'charges_quantity';
+
+  // Broker charges API cache
+  static const String prefCacheBrokerCharges = 'cache_broker_charges';
+  static const String prefCacheBrokerChargesTs = 'cache_broker_charges_ts';
 }
 
 /// Chart axis timezone for 1D intraday labels. Device local is default.

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants.dart';
 import '../../../core/utils.dart';
+import '../../../data/models/broker_charges.dart';
 import '../../providers/providers.dart';
 import '../../widgets/widgets.dart';
 
@@ -37,7 +38,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
 
   TradeSegment _segment = TradeSegment.equityDelivery;
   TradeExchange _exchange = TradeExchange.nse;
-  String _broker = 'Zerodha';
+  String _broker = 'zerodha';
 
   bool _custom = false;
   final _customBrokeragePctController = TextEditingController(text: '0.03');
@@ -54,7 +55,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
         prefs.getString(AppConstants.prefChargesSellPrice) ?? '102';
     _qtyController.text =
         prefs.getString(AppConstants.prefChargesQuantity) ?? '100';
-    _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'Zerodha';
+    _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'zerodha';
     _segment = TradeSegment.values.elementAt(
       (prefs.getInt(AppConstants.prefChargesSegment) ?? 0)
           .clamp(0, TradeSegment.values.length - 1),
@@ -85,15 +86,68 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final chargesAsync = ref.watch(brokerChargesProvider);
+
+    return chargesAsync.when(
+      loading: () => Scaffold(
+        appBar: AppBar(title: const Text('Trade Charges')),
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (err, _) => Scaffold(
+        appBar: AppBar(title: const Text('Trade Charges')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.cloud_off_rounded, size: 48,
+                    color: Colors.white38),
+                const SizedBox(height: 12),
+                Text(
+                  'Could not load broker charges',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  err.toString(),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Colors.white54),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () =>
+                      ref.invalidate(brokerChargesProvider),
+                  icon: const Icon(Icons.refresh_rounded),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+      data: (data) => _buildBody(data),
+    );
+  }
+
+  Widget _buildBody(BrokerChargesResponse data) {
     final theme = Theme.of(context);
-    final breakdown = _calculate();
-    final broker = _selectedBroker();
+
+    // Ensure selected broker exists in API data
+    if (!_custom && !data.brokers.containsKey(_broker)) {
+      _broker = data.brokers.keys.firstOrNull ?? 'zerodha';
+    }
+
+    final broker = _selectedBroker(data);
+    final breakdown = _calculate(data, broker);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Trade Charges')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 100),
         children: [
+          // ── Header card ──
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -119,10 +173,20 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                   style: theme.textTheme.bodyMedium
                       ?.copyWith(color: Colors.white70),
                 ),
+                if (data.lastUpdated.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    'Rates updated: ${_formatDate(data.lastUpdated)}',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: Colors.white38),
+                  ),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 10),
+
+          // ── Trade setup card ──
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -200,7 +264,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                     ],
                     decoration: const InputDecoration(
-                      labelText: 'Buy price (₹)',
+                      labelText: 'Buy price (\u20b9)',
                       prefixIcon: Icon(Icons.south_rounded),
                     ),
                     onChanged: (v) {
@@ -220,7 +284,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                     ],
                     decoration: const InputDecoration(
-                      labelText: 'Sell price (₹)',
+                      labelText: 'Sell price (\u20b9)',
                       prefixIcon: Icon(Icons.north_rounded),
                     ),
                     onChanged: (v) {
@@ -256,6 +320,8 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
             ),
           ),
           const SizedBox(height: 10),
+
+          // ── Broker plan card ──
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -293,11 +359,11 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                         labelText: 'Broker',
                         prefixIcon: Icon(Icons.apartment_rounded),
                       ),
-                      options: _brokerPresets.keys
+                      options: data.brokers.entries
                           .map(
-                            (b) => AdaptiveSelectOption(
-                              value: b,
-                              label: b,
+                            (e) => AdaptiveSelectOption(
+                              value: e.key,
+                              label: e.value.name,
                             ),
                           )
                           .toList(growable: false),
@@ -317,6 +383,34 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       style: theme.textTheme.bodySmall
                           ?.copyWith(color: Colors.white70),
                     ),
+                    // Broker meta details
+                    if (broker.amcYearly > 0 ||
+                        broker.callTradeFee > 0 ||
+                        broker.dpChargePerSellTransaction > 0)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: Wrap(
+                          spacing: 12,
+                          runSpacing: 4,
+                          children: [
+                            if (broker.dpChargePerSellTransaction > 0)
+                              _metaChip(
+                                'DP',
+                                '\u20b9${broker.dpChargePerSellTransaction.toStringAsFixed(2)}',
+                              ),
+                            if (broker.amcYearly > 0)
+                              _metaChip(
+                                'AMC/yr',
+                                '\u20b9${broker.amcYearly.toStringAsFixed(0)}',
+                              ),
+                            if (broker.callTradeFee > 0)
+                              _metaChip(
+                                'Call trade',
+                                '\u20b9${broker.callTradeFee.toStringAsFixed(0)}',
+                              ),
+                          ],
+                        ),
+                      ),
                   ] else ...[
                     const SizedBox(height: 8),
                     TextField(
@@ -347,7 +441,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                       ],
                       decoration: const InputDecoration(
-                        labelText: 'Cap per order (₹)',
+                        labelText: 'Cap per order (\u20b9)',
                       ),
                       onChanged: (v) {
                         ref.read(sharedPreferencesProvider).setString(
@@ -367,7 +461,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                       ],
                       decoration: const InputDecoration(
                         labelText:
-                            'Flat fee per executed order (₹) for options',
+                            'Flat fee per executed order (\u20b9) for options',
                       ),
                       onChanged: (_) => setState(() {}),
                     ),
@@ -377,6 +471,8 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
             ),
           ),
           const SizedBox(height: 10),
+
+          // ── Charges breakdown card ──
           Card(
             margin: EdgeInsets.zero,
             child: Padding(
@@ -444,7 +540,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Total charges: ₹ ${Formatters.fullPrice(breakdown.totalCharges)}',
+                  'Total charges: \u20b9 ${Formatters.fullPrice(breakdown.totalCharges)}',
                   style: theme.textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w800,
                     fontFeatures: const [FontFeature.tabularFigures()],
@@ -452,7 +548,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Net P&L after charges: ₹ ${Formatters.fullPrice(breakdown.netPnl)}',
+                  'Net P&L after charges: \u20b9 ${Formatters.fullPrice(breakdown.netPnl)}',
                   style: theme.textTheme.bodyMedium?.copyWith(
                     color: breakdown.netPnl >= 0
                         ? const Color(0xFF32D583)
@@ -462,7 +558,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Break-even move: ₹ ${Formatters.fullPrice(breakdown.breakEven)} per unit',
+                  'Break-even move: \u20b9 ${Formatters.fullPrice(breakdown.breakEven)} per unit',
                   style: theme.textTheme.bodySmall
                       ?.copyWith(color: Colors.white54),
                 ),
@@ -470,6 +566,20 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _metaChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        '$label $value',
+        style: const TextStyle(fontSize: 11, color: Colors.white54),
       ),
     );
   }
@@ -487,7 +597,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
             ),
           ),
           Text(
-            '₹ ${Formatters.fullPrice(amount)}',
+            '\u20b9 ${Formatters.fullPrice(amount)}',
             style: TextStyle(
               fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -553,7 +663,39 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     }
   }
 
-  _BrokerPreset _selectedBroker() {
+  static String _segmentKey(TradeSegment segment) {
+    switch (segment) {
+      case TradeSegment.equityDelivery:
+        return 'equity_delivery';
+      case TradeSegment.equityIntraday:
+        return 'equity_intraday';
+      case TradeSegment.equityFutures:
+        return 'equity_futures';
+      case TradeSegment.equityOptions:
+        return 'equity_options';
+      case TradeSegment.currencyFutures:
+        return 'currency_futures';
+      case TradeSegment.currencyOptions:
+        return 'currency_options';
+      case TradeSegment.commodityFutures:
+        return 'commodity_futures';
+      case TradeSegment.commodityOptions:
+        return 'commodity_options';
+    }
+  }
+
+  static String _exchangeKey(TradeExchange exchange) {
+    switch (exchange) {
+      case TradeExchange.nse:
+        return 'nse';
+      case TradeExchange.bse:
+        return 'bse';
+      case TradeExchange.mcx:
+        return 'mcx';
+    }
+  }
+
+  _ResolvedBroker _selectedBroker(BrokerChargesResponse data) {
     if (_custom) {
       final pct = math.max(
               0.0,
@@ -564,16 +706,24 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
           0.0, double.tryParse(_customCapController.text.trim()) ?? 0.0);
       final flat = math.max(
           0.0, double.tryParse(_customFlatController.text.trim()) ?? 0.0);
-      return _BrokerPreset.custom(
+      return _ResolvedBroker.custom(
         pctPerSide: pct,
         capPerOrder: cap,
         flatPerOrder: flat,
       );
     }
-    return _brokerPresets[_broker] ?? _brokerPresets.values.first;
+
+    final preset = data.brokers[_broker];
+    if (preset == null) {
+      return _ResolvedBroker.custom(
+          pctPerSide: 0, capPerOrder: 20, flatPerOrder: 20);
+    }
+
+    return _ResolvedBroker.fromPreset(preset);
   }
 
-  _ChargeResult _calculate() {
+  _ChargeResult _calculate(
+      BrokerChargesResponse data, _ResolvedBroker broker) {
     final buy =
         math.max(0.0, double.tryParse(_buyController.text.trim()) ?? 0.0);
     final sell =
@@ -586,21 +736,26 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     final turnover = buyValue + sellValue;
     final grossPnl = (sell - buy) * qty;
 
-    final broker = _selectedBroker();
-    final rates = _statutoryRates(segment: _segment, exchange: _exchange);
+    final segKey = _segmentKey(_segment);
+    final exchKey = _exchangeKey(_exchange);
 
-    final brokerage = _brokerage(
-      broker: broker,
-      segment: _segment,
-      buyValue: buyValue,
-      sellValue: sellValue,
-    );
-    final sttOrCtt =
-        (buyValue * rates.sttBuyRate) + (sellValue * rates.sttSellRate);
-    final exchangeTxn = turnover * rates.exchangeTxnRate;
-    final sebi = turnover * 0.000001; // 10 per crore.
-    final stampDuty = buyValue * rates.stampDutyBuyRate;
-    final ipft = turnover * rates.ipftRate;
+    // Get statutory rates from API data
+    final statRate = data.statutory[segKey]?[exchKey];
+    final sttBuyRate = statRate?.sttBuyRate ?? 0;
+    final sttSellRate = statRate?.sttSellRate ?? 0;
+    final exchangeTxnRate = statRate?.exchangeTxnRate ?? 0;
+    final stampDutyBuyRate = statRate?.stampDutyBuyRate ?? 0;
+    final ipftRate = statRate?.ipftRate ?? 0;
+    final sebiFeeRate = statRate?.sebiFeeRate ?? 0.000001;
+
+    final rule = broker.ruleForSegment(segKey);
+    final brokerage = rule.sideCharge(buyValue) + rule.sideCharge(sellValue);
+
+    final sttOrCtt = (buyValue * sttBuyRate) + (sellValue * sttSellRate);
+    final exchangeTxn = turnover * exchangeTxnRate;
+    final sebi = turnover * sebiFeeRate;
+    final stampDuty = buyValue * stampDutyBuyRate;
+    final ipft = turnover * ipftRate;
 
     final dpCharge = _segment == TradeSegment.equityDelivery
         ? broker.dpChargePerSellTransaction
@@ -642,99 +797,16 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     );
   }
 
-  double _brokerage({
-    required _BrokerPreset broker,
-    required TradeSegment segment,
-    required double buyValue,
-    required double sellValue,
-  }) {
-    final rule = broker.rules[segment] ?? const _BrokerageRule.free();
-    return rule.sideCharge(buyValue) + rule.sideCharge(sellValue);
-  }
-
-  // Statutory rates updated 2025-26. Key revisions:
-  // - STT on equity options: 0.0625% → 0.1% (Oct 1, 2024)
-  // - STT on equity futures: 0.0125% → 0.02% (Oct 1, 2024)
-  // - NSE equity options txn: slab-based → flat 0.03553% (Oct 1, 2024)
-  // - SEBI fee: ₹10/Cr (18% GST applicable from Apr 2025)
-  // - IPFT: ₹10/Cr equity, ₹50/Cr options premium, ₹5/Cr currency
-  _StatutoryRates _statutoryRates({
-    required TradeSegment segment,
-    required TradeExchange exchange,
-  }) {
-    switch (segment) {
-      case TradeSegment.equityDelivery:
-        return _StatutoryRates(
-          sttBuyRate: 0.001,        // 0.1% both sides
-          sttSellRate: 0.001,
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0000375 : 0.0000307,
-          stampDutyBuyRate: 0.00015, // ₹1500/Cr
-          ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
-        );
-      case TradeSegment.equityIntraday:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.00025,     // 0.025% sell side
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0000375 : 0.0000307,
-          stampDutyBuyRate: 0.00003, // ₹300/Cr
-          ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
-        );
-      case TradeSegment.equityFutures:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.0002,      // 0.02% sell side (revised Oct 2024)
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0 : 0.0000183,
-          stampDutyBuyRate: 0.00002, // ₹200/Cr
-          ipftRate: exchange == TradeExchange.nse ? 0.000001 : 0.0,
-        );
-      case TradeSegment.equityOptions:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.001,       // 0.1% sell side on premium (revised Oct 2024)
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.000325 : 0.0003553,
-          stampDutyBuyRate: 0.00003, // ₹300/Cr
-          ipftRate: exchange == TradeExchange.nse ? 0.000005 : 0.0, // ₹50/Cr premium
-        );
-      case TradeSegment.currencyFutures:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.0,         // No STT on currency
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.0000045 : 0.0000035,
-          stampDutyBuyRate: 0.000001, // ₹10/Cr
-          ipftRate: exchange == TradeExchange.nse ? 0.0000005 : 0.0, // ₹5/Cr
-        );
-      case TradeSegment.currencyOptions:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.0,
-          exchangeTxnRate:
-              exchange == TradeExchange.bse ? 0.00001 : 0.000311,
-          stampDutyBuyRate: 0.000001,
-          ipftRate: 0.0,
-        );
-      case TradeSegment.commodityFutures:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.0001,      // 0.01% CTT sell side (non-agri)
-          exchangeTxnRate:
-              exchange == TradeExchange.mcx ? 0.000021 : 0.000001,
-          stampDutyBuyRate: 0.00002, // ₹200/Cr
-          ipftRate: 0.0,
-        );
-      case TradeSegment.commodityOptions:
-        return _StatutoryRates(
-          sttBuyRate: 0.0,
-          sttSellRate: 0.0005,      // 0.05% CTT sell side
-          exchangeTxnRate:
-              exchange == TradeExchange.mcx ? 0.000418 : 0.000001,
-          stampDutyBuyRate: 0.00003,
-          ipftRate: 0.0,
-        );
+  String _formatDate(String isoDate) {
+    try {
+      final dt = DateTime.parse(isoDate);
+      final months = [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      return '${dt.day} ${months[dt.month]} ${dt.year}';
+    } catch (_) {
+      return isoDate;
     }
   }
 
@@ -746,7 +818,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
         prefs.getString(AppConstants.prefChargesSellPrice) ?? '102';
     _qtyController.text =
         prefs.getString(AppConstants.prefChargesQuantity) ?? '100';
-    _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'Zerodha';
+    _broker = prefs.getString(AppConstants.prefChargesBroker) ?? 'zerodha';
     _segment = TradeSegment.values.elementAt(
       (prefs.getInt(AppConstants.prefChargesSegment) ?? 0)
           .clamp(0, TradeSegment.values.length - 1),
@@ -770,7 +842,7 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
     _qtyController.text = '100';
     _segment = TradeSegment.equityDelivery;
     _exchange = TradeExchange.nse;
-    _broker = 'Zerodha';
+    _broker = 'zerodha';
     _custom = false;
     _customBrokeragePctController.text = '0.03';
     _customCapController.text = '20';
@@ -790,6 +862,8 @@ class _TradeChargesScreenState extends ConsumerState<TradeChargesScreen> {
   }
 }
 
+// ── Internal models ──────────────────────────────────────────────────
+
 enum _BrokerageMode { free, percentCap, flat }
 
 class _BrokerageRule {
@@ -797,7 +871,6 @@ class _BrokerageRule {
   final double pct;
   final double cap;
   final double minCharge;
-  final double minChargePercentCap;
   final double flatPerOrder;
 
   const _BrokerageRule.free()
@@ -805,14 +878,12 @@ class _BrokerageRule {
         pct = 0.0,
         cap = 0.0,
         minCharge = 0.0,
-        minChargePercentCap = 0.0,
         flatPerOrder = 0.0;
 
   const _BrokerageRule.percentCap({
     required this.pct,
     required this.cap,
     this.minCharge = 0.0,
-    this.minChargePercentCap = 0.0,
   })  : mode = _BrokerageMode.percentCap,
         flatPerOrder = 0.0;
 
@@ -820,8 +891,24 @@ class _BrokerageRule {
       : mode = _BrokerageMode.flat,
         pct = 0.0,
         cap = 0.0,
-        minCharge = 0.0,
-        minChargePercentCap = 0.0;
+        minCharge = 0.0;
+
+  factory _BrokerageRule.fromRate(BrokerSegmentRate rate) {
+    switch (rate.mode) {
+      case 'free':
+        return const _BrokerageRule.free();
+      case 'percent_cap':
+        return _BrokerageRule.percentCap(
+          pct: rate.pct,
+          cap: rate.cap,
+          minCharge: rate.minCharge,
+        );
+      case 'flat':
+        return _BrokerageRule.flat(rate.flat);
+      default:
+        return _BrokerageRule.flat(rate.flat > 0 ? rate.flat : 20);
+    }
+  }
 
   double sideCharge(double sideValue) {
     if (sideValue <= 0) return 0.0;
@@ -836,168 +923,78 @@ class _BrokerageRule {
           charge = math.min(charge, cap);
         }
         if (minCharge > 0) {
-          var minAllowed = minCharge;
-          if (minChargePercentCap > 0) {
-            minAllowed = math.min(minAllowed, sideValue * minChargePercentCap);
-          }
-          charge = math.max(charge, minAllowed);
+          charge = math.max(charge, minCharge);
         }
         return charge;
     }
   }
 }
 
-class _BrokerPreset {
+class _ResolvedBroker {
   final String name;
   final String tagline;
   final double dpChargePerSellTransaction;
   final bool dpChargeIncludesGst;
-  final Map<TradeSegment, _BrokerageRule> rules;
+  final double amcYearly;
+  final double callTradeFee;
+  final Map<String, _BrokerageRule> _rules;
 
-  const _BrokerPreset({
+  _ResolvedBroker({
     required this.name,
     required this.tagline,
     required this.dpChargePerSellTransaction,
     required this.dpChargeIncludesGst,
-    required this.rules,
-  });
+    required this.amcYearly,
+    required this.callTradeFee,
+    required Map<String, _BrokerageRule> rules,
+  }) : _rules = rules;
 
-  factory _BrokerPreset.custom({
+  factory _ResolvedBroker.fromPreset(BrokerPreset preset) {
+    final rules = <String, _BrokerageRule>{};
+    for (final entry in preset.segments.entries) {
+      rules[entry.key] = _BrokerageRule.fromRate(entry.value);
+    }
+    return _ResolvedBroker(
+      name: preset.name,
+      tagline: preset.tagline,
+      dpChargePerSellTransaction: preset.dpCharge,
+      dpChargeIncludesGst: preset.dpIncludesGst,
+      amcYearly: preset.amcYearly,
+      callTradeFee: preset.callTradeFee,
+      rules: rules,
+    );
+  }
+
+  factory _ResolvedBroker.custom({
     required double pctPerSide,
     required double capPerOrder,
     required double flatPerOrder,
   }) {
-    return _BrokerPreset(
+    final pctRule = _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder);
+    final flatRule = _BrokerageRule.flat(flatPerOrder);
+    return _ResolvedBroker(
       name: 'Custom',
       tagline: 'Custom pricing model',
       dpChargePerSellTransaction: 15.93,
       dpChargeIncludesGst: true,
+      amcYearly: 0,
+      callTradeFee: 0,
       rules: {
-        TradeSegment.equityDelivery:
-            _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder),
-        TradeSegment.equityIntraday:
-            _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder),
-        TradeSegment.equityFutures:
-            _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder),
-        TradeSegment.currencyFutures:
-            _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder),
-        TradeSegment.commodityFutures:
-            _BrokerageRule.percentCap(pct: pctPerSide, cap: capPerOrder),
-        TradeSegment.equityOptions: _BrokerageRule.flat(flatPerOrder),
-        TradeSegment.currencyOptions: _BrokerageRule.flat(flatPerOrder),
-        TradeSegment.commodityOptions: _BrokerageRule.flat(flatPerOrder),
+        'equity_delivery': pctRule,
+        'equity_intraday': pctRule,
+        'equity_futures': pctRule,
+        'currency_futures': pctRule,
+        'commodity_futures': pctRule,
+        'equity_options': flatRule,
+        'currency_options': flatRule,
+        'commodity_options': flatRule,
       },
     );
   }
-}
 
-// Broker charges updated 2025-26 from official pricing pages.
-// Sources: zerodha.com/charges, upstox.com/brokerage-charges,
-// groww.in/pricing, angelone.in/exchange-transaction-charges
-const Map<String, _BrokerPreset> _brokerPresets = {
-  'Zerodha': _BrokerPreset(
-    name: 'Zerodha',
-    tagline: 'Delivery free · 0.05%/₹20 intraday/F&O · AMC free',
-    dpChargePerSellTransaction: 15.34,
-    dpChargeIncludesGst: false,
-    rules: {
-      TradeSegment.equityDelivery: _BrokerageRule.free(),
-      TradeSegment.equityIntraday:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.equityFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.currencyFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.commodityFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.equityOptions: _BrokerageRule.flat(20),
-      TradeSegment.currencyOptions: _BrokerageRule.flat(20),
-      TradeSegment.commodityOptions: _BrokerageRule.flat(20),
-    },
-  ),
-  'Upstox': _BrokerPreset(
-    name: 'Upstox',
-    tagline: '₹20 delivery · 0.05% intraday/futures · AMC ₹150+GST/yr',
-    dpChargePerSellTransaction: 18.50,
-    dpChargeIncludesGst: false,
-    rules: {
-      TradeSegment.equityDelivery: _BrokerageRule.flat(20),
-      TradeSegment.equityIntraday:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.equityFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.currencyFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.commodityFutures:
-          _BrokerageRule.percentCap(pct: 0.0005, cap: 20),
-      TradeSegment.equityOptions: _BrokerageRule.flat(20),
-      TradeSegment.currencyOptions: _BrokerageRule.flat(20),
-      TradeSegment.commodityOptions: _BrokerageRule.flat(20),
-    },
-  ),
-  'Groww': _BrokerPreset(
-    name: 'Groww',
-    tagline: '0.1%/₹20 equity · ₹20 flat F&O · Min ₹5 · AMC free',
-    dpChargePerSellTransaction: 20.0,
-    dpChargeIncludesGst: false,
-    rules: {
-      TradeSegment.equityDelivery: _BrokerageRule.percentCap(
-        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
-      ),
-      TradeSegment.equityIntraday: _BrokerageRule.percentCap(
-        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
-      ),
-      TradeSegment.equityFutures: _BrokerageRule.percentCap(
-        pct: 0.0005, cap: 20, minCharge: 5,
-      ),
-      TradeSegment.currencyFutures: _BrokerageRule.percentCap(
-        pct: 0.0005, cap: 20, minCharge: 5,
-      ),
-      TradeSegment.commodityFutures: _BrokerageRule.percentCap(
-        pct: 0.0005, cap: 20, minCharge: 5,
-      ),
-      TradeSegment.equityOptions: _BrokerageRule.flat(20),
-      TradeSegment.currencyOptions: _BrokerageRule.flat(20),
-      TradeSegment.commodityOptions: _BrokerageRule.flat(20),
-    },
-  ),
-  'Angel One': _BrokerPreset(
-    name: 'Angel One',
-    tagline: '0.1%/₹20 equity · ₹20 flat F&O · Min ₹5 · AMC ₹240+GST/yr',
-    dpChargePerSellTransaction: 25.50, // ₹20 + CDSL ₹5.50
-    dpChargeIncludesGst: false,
-    rules: {
-      // Revised Nov 17, 2025: delivery was free → now 0.1%/₹20
-      TradeSegment.equityDelivery: _BrokerageRule.percentCap(
-        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
-      ),
-      TradeSegment.equityIntraday: _BrokerageRule.percentCap(
-        pct: 0.001, cap: 20, minCharge: 5, minChargePercentCap: 0.025,
-      ),
-      TradeSegment.equityFutures: _BrokerageRule.flat(20),
-      TradeSegment.currencyFutures: _BrokerageRule.flat(20),
-      TradeSegment.commodityFutures: _BrokerageRule.flat(20),
-      TradeSegment.equityOptions: _BrokerageRule.flat(20),
-      TradeSegment.currencyOptions: _BrokerageRule.flat(20),
-      TradeSegment.commodityOptions: _BrokerageRule.flat(20),
-    },
-  ),
-};
-
-class _StatutoryRates {
-  final double sttBuyRate;
-  final double sttSellRate;
-  final double exchangeTxnRate;
-  final double stampDutyBuyRate;
-  final double ipftRate;
-
-  const _StatutoryRates({
-    required this.sttBuyRate,
-    required this.sttSellRate,
-    required this.exchangeTxnRate,
-    required this.stampDutyBuyRate,
-    required this.ipftRate,
-  });
+  _BrokerageRule ruleForSegment(String segmentKey) {
+    return _rules[segmentKey] ?? const _BrokerageRule.free();
+  }
 }
 
 class _ChargeResult {

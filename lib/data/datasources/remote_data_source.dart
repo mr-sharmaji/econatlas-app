@@ -845,4 +845,10 @@ class RemoteDataSource {
       'platform': platform,
     });
   }
+
+  Future<BrokerChargesResponse> getBrokerCharges() async {
+    final response = await _dio.get('/broker-charges');
+    return BrokerChargesResponse.fromJson(
+        response.data as Map<String, dynamic>);
+  }
 }
