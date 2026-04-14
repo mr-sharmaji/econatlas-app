@@ -60,6 +60,11 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     (label: '1Y', days: 365),
     (label: '3Y', days: 1095),
     (label: '5Y', days: 1825),
+    (label: '10Y', days: 3650),
+    // "All" — backend /stocks/history caps at 20000 days (~55y),
+    // which easily covers full listing history for every NSE stock
+    // after the discover_stock_price_backfill has run.
+    (label: 'All', days: 20000),
   ];
 
   @override

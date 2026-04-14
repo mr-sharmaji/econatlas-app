@@ -8,6 +8,7 @@ enum ChartRange {
   oneYear,
   threeYears,
   fiveYears,
+  tenYears,
   all,
 }
 
@@ -30,6 +31,8 @@ extension ChartRangeExtension on ChartRange {
         return '3Y';
       case ChartRange.fiveYears:
         return '5Y';
+      case ChartRange.tenYears:
+        return '10Y';
       case ChartRange.all:
         return 'All';
     }
@@ -53,8 +56,13 @@ extension ChartRangeExtension on ChartRange {
         return const Duration(days: 1095);
       case ChartRange.fiveYears:
         return const Duration(days: 365 * 5);
+      case ChartRange.tenYears:
+        return const Duration(days: 365 * 10);
+      // "All" maps to the backend's upper cap (20000 days / ~55y on
+      // stock & MF history; 25000 on market_prices), which is well
+      // beyond the oldest data point in any table (S&P500 = 1976).
       case ChartRange.all:
-        return const Duration(days: 365 * 50);
+        return const Duration(days: 365 * 55);
     }
   }
 

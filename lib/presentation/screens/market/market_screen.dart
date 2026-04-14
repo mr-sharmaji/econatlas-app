@@ -2245,9 +2245,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: ChartRange.values
-            .where((r) => r != ChartRange.all)
-            .map((r) {
+        children: ChartRange.values.map((r) {
           final isSelected = r == _chartRange;
           final label = r == ChartRange.oneDay ? oneDayLabel : r.label;
           return Padding(

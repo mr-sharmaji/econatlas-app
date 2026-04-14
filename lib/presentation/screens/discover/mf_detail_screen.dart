@@ -47,6 +47,11 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     (label: '1Y', days: 365),
     (label: '3Y', days: 1095),
     (label: '5Y', days: 1825),
+    (label: '10Y', days: 3650),
+    // "All" — backend /mutual-funds/history caps at 20000 days
+    // (~55y). After discover_mf_nav_backfill runs with the
+    // inception window, funds return their full history here.
+    (label: 'All', days: 20000),
   ];
 
   late DiscoverMutualFundItem item;
