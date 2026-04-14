@@ -837,13 +837,18 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     //
     // Sub-1Y cells are absolute %; 1Y/3Y/5Y are CAGR (annualized).
     // For 1Y, CAGR == absolute by construction.
+    // Long-term CAGR only — short-period absolute returns are
+    // covered by the top period badge (which has its own
+    // 1W/1M/3M/6M selector above the chart). Prefer the backend's
+    // history-anchored cagr_Xy fields; fall back to the DB columns
+    // which hold the same values after recompute_mf_returns_all.
+    // cagr10y is null for funds younger than 10 years — the column
+    // hides gracefully via the non-null filter below.
     final ptp = item.pointToPointReturns;
-    final r1m = ptp?.return1m ?? item.returns1m;
-    final r3m = ptp?.return3m ?? item.returns3m;
-    final r6m = ptp?.return6m ?? item.returns6m;
     final r1y = ptp?.cagr1y ?? item.returns1y;
     final r3y = ptp?.cagr3y ?? item.returns3y;
     final r5y = ptp?.cagr5y ?? item.returns5y;
+    final r10y = ptp?.cagr10y ?? item.returns10y;
 
     return Card(
       margin: EdgeInsets.zero,
@@ -852,24 +857,22 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Returns', style: theme.textTheme.titleSmall),
+            Text('Returns (CAGR)', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Row(
               children: [
                 for (final entry in [
-                  ('1M', r1m),
-                  ('3M', r3m),
-                  ('6M', r6m),
                   ('1Y', r1y),
                   ('3Y', r3y),
                   ('5Y', r5y),
+                  ('10Y', r10y),
                 ])
                   if (entry.$2 != null)
                     Expanded(
                       child: _returnColumn(theme, entry.$1, entry.$2),
                     ),
                 // If no returns at all, show a placeholder
-                if ([r1m, r3m, r6m, r1y, r3y, r5y].every((v) => v == null))
+                if ([r1y, r3y, r5y, r10y].every((v) => v == null))
                   Expanded(
                     child: _returnColumn(theme, '1Y', null),
                   ),

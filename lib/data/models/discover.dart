@@ -820,9 +820,11 @@ class MfPointToPointReturns {
   // CAGR counterparts for ≥1Y — used by the Returns card. Shares the
   // same anchor NAV as the absolute values above, so every number on
   // the detail screen reconciles to one source of truth.
+  // cagr10y is null for funds younger than 10 years.
   final double? cagr1y;
   final double? cagr3y;
   final double? cagr5y;
+  final double? cagr10y;
   final String? asOf;
 
   const MfPointToPointReturns({
@@ -836,6 +838,7 @@ class MfPointToPointReturns {
     this.cagr1y,
     this.cagr3y,
     this.cagr5y,
+    this.cagr10y,
     this.asOf,
   });
 
@@ -851,6 +854,7 @@ class MfPointToPointReturns {
         cagr1y: (json['cagr_1y'] as num?)?.toDouble(),
         cagr3y: (json['cagr_3y'] as num?)?.toDouble(),
         cagr5y: (json['cagr_5y'] as num?)?.toDouble(),
+        cagr10y: (json['cagr_10y'] as num?)?.toDouble(),
         asOf: json['as_of'] as String?,
       );
 }
@@ -898,6 +902,7 @@ class DiscoverMutualFundItem {
   final double? returns1y;
   final double? returns3y;
   final double? returns5y;
+  final double? returns10y;
   final double? stdDev;
   final double? sharpe;
   final double? sortino;
@@ -965,6 +970,7 @@ class DiscoverMutualFundItem {
     required this.returns1y,
     required this.returns3y,
     required this.returns5y,
+    this.returns10y,
     required this.stdDev,
     required this.sharpe,
     required this.sortino,
@@ -1034,6 +1040,7 @@ class DiscoverMutualFundItem {
       returns1y: (json['returns_1y'] as num?)?.toDouble(),
       returns3y: (json['returns_3y'] as num?)?.toDouble(),
       returns5y: (json['returns_5y'] as num?)?.toDouble(),
+      returns10y: (json['returns_10y'] as num?)?.toDouble(),
       stdDev: (json['std_dev'] as num?)?.toDouble(),
       sharpe: (json['sharpe'] as num?)?.toDouble(),
       sortino: (json['sortino'] as num?)?.toDouble(),
