@@ -187,7 +187,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
             _buildHeader(theme),
             const SizedBox(height: 8),
 
-            // 3. NAV Price + Period Change
+            // 3. NAV Price + Period Change + 1D
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
@@ -216,6 +216,23 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                   ),
               ],
             ),
+            // 1D change (previous trading day → latest NAV). Rendered
+            // as a small line under the NAV row, Groww-style.
+            if (item.pointToPointReturns?.return1d != null) ...[
+              const SizedBox(height: 4),
+              Builder(builder: (_) {
+                final d = item.pointToPointReturns!.return1d!;
+                final up = d >= 0;
+                final c = up ? AppTheme.accentGreen : AppTheme.accentRed;
+                return Text(
+                  '${up ? "+" : ""}${d.toStringAsFixed(2)}%  1D',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: c,
+                    fontWeight: FontWeight.w600,
+                  ),
+                );
+              }),
+            ],
             const SizedBox(height: 12),
 
             // 4. Period Selector + Chart (C3)
@@ -799,6 +816,26 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
   // -- Returns Card (CAGR only) --
 
   Widget _buildReturnsCard(ThemeData theme) {
+    // Single source of truth for every return figure on this screen:
+    // backend-computed, history-anchored values from
+    // `point_to_point_returns`. This eliminates the anchor-date drift
+    // between the top period badge and this card that previously
+    // confused users (ETMoney cached numbers with SEBI-style "last
+    // trading day ≤ target" anchors, while the chart endpoint uses
+    // "first trading day ≥ target"). ETMoney values on item.returns*
+    // remain as a fallback for older backends that don't ship the
+    // new field yet, and continue to feed scoring/ranking internally.
+    //
+    // Sub-1Y cells are absolute %; 1Y/3Y/5Y are CAGR (annualized).
+    // For 1Y, CAGR == absolute by construction.
+    final ptp = item.pointToPointReturns;
+    final r1m = ptp?.return1m ?? item.returns1m;
+    final r3m = ptp?.return3m ?? item.returns3m;
+    final r6m = ptp?.return6m ?? item.returns6m;
+    final r1y = ptp?.cagr1y ?? item.returns1y;
+    final r3y = ptp?.cagr3y ?? item.returns3y;
+    final r5y = ptp?.cagr5y ?? item.returns5y;
+
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -806,31 +843,24 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Returns (CAGR)', style: theme.textTheme.titleSmall),
+            Text('Returns', style: theme.textTheme.titleSmall),
             const SizedBox(height: 8),
             Row(
               children: [
                 for (final entry in [
-                  ('1M', item.returns1m),
-                  ('3M', item.returns3m),
-                  ('6M', item.returns6m),
-                  ('1Y', item.returns1y),
-                  ('3Y', item.returns3y),
-                  ('5Y', item.returns5y),
+                  ('1M', r1m),
+                  ('3M', r3m),
+                  ('6M', r6m),
+                  ('1Y', r1y),
+                  ('3Y', r3y),
+                  ('5Y', r5y),
                 ])
                   if (entry.$2 != null)
                     Expanded(
                       child: _returnColumn(theme, entry.$1, entry.$2),
                     ),
                 // If no returns at all, show a placeholder
-                if ([
-                  item.returns1m,
-                  item.returns3m,
-                  item.returns6m,
-                  item.returns1y,
-                  item.returns3y,
-                  item.returns5y
-                ].every((v) => v == null))
+                if ([r1m, r3m, r6m, r1y, r3y, r5y].every((v) => v == null))
                   Expanded(
                     child: _returnColumn(theme, '1Y', null),
                   ),

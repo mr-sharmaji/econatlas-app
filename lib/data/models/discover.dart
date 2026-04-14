@@ -798,6 +798,63 @@ class MfSectorAlloc {
   );
 }
 
+/// History-anchored point-to-point % returns computed by the backend
+/// from the NAV history table. See econatlas-backend:
+/// `discover_service.get_mf_point_to_point_returns`.
+///
+/// All values are simple (end/start − 1) %, NOT CAGR/XIRR — so the
+/// detail screen's period badge and Returns card agree.
+@immutable
+class MfPointToPointReturns {
+  final double? return1d;
+  final double? return1m;
+  final double? return3m;
+  final double? return6m;
+  // Absolute (simple) % returns — used by the period badge at the
+  // top of the detail screen. For 1Y these collapse to the same
+  // number as cagr1y, but for 3Y/5Y they're the total move, not
+  // annualized.
+  final double? return1y;
+  final double? return3y;
+  final double? return5y;
+  // CAGR counterparts for ≥1Y — used by the Returns card. Shares the
+  // same anchor NAV as the absolute values above, so every number on
+  // the detail screen reconciles to one source of truth.
+  final double? cagr1y;
+  final double? cagr3y;
+  final double? cagr5y;
+  final String? asOf;
+
+  const MfPointToPointReturns({
+    this.return1d,
+    this.return1m,
+    this.return3m,
+    this.return6m,
+    this.return1y,
+    this.return3y,
+    this.return5y,
+    this.cagr1y,
+    this.cagr3y,
+    this.cagr5y,
+    this.asOf,
+  });
+
+  factory MfPointToPointReturns.fromJson(Map<String, dynamic> json) =>
+      MfPointToPointReturns(
+        return1d: (json['return_1d'] as num?)?.toDouble(),
+        return1m: (json['return_1m'] as num?)?.toDouble(),
+        return3m: (json['return_3m'] as num?)?.toDouble(),
+        return6m: (json['return_6m'] as num?)?.toDouble(),
+        return1y: (json['return_1y'] as num?)?.toDouble(),
+        return3y: (json['return_3y'] as num?)?.toDouble(),
+        return5y: (json['return_5y'] as num?)?.toDouble(),
+        cagr1y: (json['cagr_1y'] as num?)?.toDouble(),
+        cagr3y: (json['cagr_3y'] as num?)?.toDouble(),
+        cagr5y: (json['cagr_5y'] as num?)?.toDouble(),
+        asOf: json['as_of'] as String?,
+      );
+}
+
 @immutable
 class MfAssetAllocation {
   final double equity;
@@ -886,6 +943,7 @@ class DiscoverMutualFundItem {
   final List<MfSectorAlloc>? sectorAllocation;
   final MfAssetAllocation? assetAllocation;
   final String? holdingsAsOf;
+  final MfPointToPointReturns? pointToPointReturns;
 
   const DiscoverMutualFundItem({
     required this.schemeCode,
@@ -950,6 +1008,7 @@ class DiscoverMutualFundItem {
     this.sectorAllocation,
     this.assetAllocation,
     this.holdingsAsOf,
+    this.pointToPointReturns,
   });
 
   factory DiscoverMutualFundItem.fromJson(Map<String, dynamic> json) {
@@ -1044,6 +1103,11 @@ class DiscoverMutualFundItem {
           ? MfAssetAllocation.fromJson(json['asset_allocation'] as Map<String, dynamic>)
           : null,
       holdingsAsOf: json['holdings_as_of'] as String?,
+      pointToPointReturns: json['point_to_point_returns'] != null
+          ? MfPointToPointReturns.fromJson(
+              json['point_to_point_returns'] as Map<String, dynamic>,
+            )
+          : null,
     );
   }
 }
