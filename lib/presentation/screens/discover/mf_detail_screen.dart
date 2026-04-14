@@ -158,12 +158,6 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
     final isPositive = (_periodChange ?? 0) >= 0;
     final changeColor = isPositive ? AppTheme.accentGreen : AppTheme.accentRed;
 
-    // Determine period label for badge
-    final periodLabel = _periodOptions
-        .firstWhere((o) => o.days == _selectedDays,
-            orElse: () => (label: '', days: 0))
-        .label;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(item.displayName ?? item.schemeName),
@@ -213,7 +207,7 @@ class _MfDetailScreenState extends ConsumerState<MfDetailScreen> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '$periodLabel ${isPositive ? "+" : ""}${_periodChange!.toStringAsFixed(2)}%',
+                      '${isPositive ? "+" : ""}${_periodChange!.toStringAsFixed(2)}%',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: changeColor,
                         fontWeight: FontWeight.w600,
