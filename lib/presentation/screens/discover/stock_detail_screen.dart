@@ -43,9 +43,9 @@ class StockDetailScreen extends ConsumerStatefulWidget {
 class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
     with SingleTickerProviderStateMixin {
   late int _selectedDays = widget.initialDays;
-  double? _periodChange;
   late final TabController _tabController;
   int _tabIndex = 0;
+  double? _periodChange;
 
   // days = 0 is a sentinel for "1D intraday" → triggers a call to the
   // new `/screener/stocks/{symbol}/intraday` endpoint that returns
@@ -385,31 +385,6 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                         minLabel: '\u20B9${Formatters.price(item.low52w!)}',
                         maxLabel: '\u20B9${Formatters.price(item.high52w!)}',
                       ),
-                      Builder(builder: (context) {
-                        final range = item.high52w! - item.low52w!;
-                        if (range <= 0) return const SizedBox.shrink();
-                        final pct = (item.lastPrice - item.low52w!) / range;
-                        if (pct >= 0.95) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('Near 52W High',
-                                style: TextStyle(
-                                    color: AppTheme.accentGreen,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600)),
-                          );
-                        } else if (pct <= 0.05) {
-                          return Padding(
-                            padding: const EdgeInsets.only(top: 4),
-                            child: Text('Near 52W Low',
-                                style: TextStyle(
-                                    color: AppTheme.accentRed,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600)),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      }),
                     ],
                   ),
                 ),
@@ -1952,7 +1927,7 @@ class _StockDetailScreenState extends ConsumerState<StockDetailScreen>
                     style: headerStyle, textAlign: TextAlign.right)),
             SizedBox(
                 width: 52,
-                child: Text('3M %',
+                child: Text('1D %',
                     style: headerStyle, textAlign: TextAlign.right)),
           ],
         ),

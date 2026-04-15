@@ -70,6 +70,13 @@ class _ShellScreenState extends ConsumerState<ShellScreen>
     ref.invalidate(economicEventsProvider);
     ref.invalidate(institutionalFlowsOverviewProvider);
     ref.invalidate(newsProvider);
+    // Watchlist live quotes — the dashboard "Stocks" and "Mutual
+    // Funds" sub-tabs read from these providers, and without
+    // invalidation here the 30s auto-refresh ticker silently
+    // skipped the watchlist tab. Users had to pull-to-refresh
+    // every time, even though every other tab was updating.
+    ref.invalidate(starredStockLiveQuotesProvider);
+    ref.invalidate(starredMfLiveQuotesProvider);
     final shouldRefreshDiscover = _lastDiscoverRefreshAt == null ||
         now.difference(_lastDiscoverRefreshAt!) >= const Duration(hours: 1);
     if (shouldRefreshDiscover) {
