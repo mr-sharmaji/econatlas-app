@@ -167,6 +167,10 @@ enum DiscoverMutualFundPreset {
   focused,
   sectoral,
   international,
+  // Equity / Index sub-categories (added 2026-04 after backend
+  // taxonomy split — Smart Beta and International Index are new
+  // sub-buckets carved out of the old generic "Index Funds" group).
+  smartBetaIndex,
   // Debt sub-categories
   liquid,
   overnight,
@@ -175,9 +179,12 @@ enum DiscoverMutualFundPreset {
   shortDuration,
   lowDuration,
   mediumDuration,
+  mediumLongDuration,
+  longDuration,
   corporateBond,
   bankingPsu,
   gilt,
+  giltConstant10y,
   dynamicBond,
   floater,
   targetMaturity,
@@ -190,6 +197,7 @@ enum DiscoverMutualFundPreset {
   dynamicAssetAllocation,
   multiAsset,
   equitySavings,
+  retirementSolutions,
   // Other sub-categories
   fofDomestic,
   fofOverseas,
@@ -237,6 +245,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'sectoral';
       case DiscoverMutualFundPreset.international:
         return 'international';
+      case DiscoverMutualFundPreset.smartBetaIndex:
+        return 'smart-beta-index';
       case DiscoverMutualFundPreset.liquid:
         return 'liquid';
       case DiscoverMutualFundPreset.overnight:
@@ -251,12 +261,18 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'low-duration';
       case DiscoverMutualFundPreset.mediumDuration:
         return 'medium-duration';
+      case DiscoverMutualFundPreset.mediumLongDuration:
+        return 'medium-long-duration';
+      case DiscoverMutualFundPreset.longDuration:
+        return 'long-duration';
       case DiscoverMutualFundPreset.corporateBond:
         return 'corporate-bond';
       case DiscoverMutualFundPreset.bankingPsu:
         return 'banking-psu';
       case DiscoverMutualFundPreset.gilt:
         return 'gilt';
+      case DiscoverMutualFundPreset.giltConstant10y:
+        return 'gilt-10yr';
       case DiscoverMutualFundPreset.dynamicBond:
         return 'dynamic-bond';
       case DiscoverMutualFundPreset.floater:
@@ -279,6 +295,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'multi-asset';
       case DiscoverMutualFundPreset.equitySavings:
         return 'equity-savings';
+      case DiscoverMutualFundPreset.retirementSolutions:
+        return 'retirement-solutions';
       case DiscoverMutualFundPreset.fofDomestic:
         return 'fof-domestic';
       case DiscoverMutualFundPreset.fofOverseas:
@@ -330,6 +348,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Sectoral & Thematic';
       case DiscoverMutualFundPreset.international:
         return 'International';
+      case DiscoverMutualFundPreset.smartBetaIndex:
+        return 'Smart Beta';
       case DiscoverMutualFundPreset.liquid:
         return 'Liquid';
       case DiscoverMutualFundPreset.overnight:
@@ -344,12 +364,18 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Low Duration';
       case DiscoverMutualFundPreset.mediumDuration:
         return 'Medium Duration';
+      case DiscoverMutualFundPreset.mediumLongDuration:
+        return 'Medium-Long Dur.';
+      case DiscoverMutualFundPreset.longDuration:
+        return 'Long Duration';
       case DiscoverMutualFundPreset.corporateBond:
         return 'Corporate Bond';
       case DiscoverMutualFundPreset.bankingPsu:
         return 'Banking & PSU';
       case DiscoverMutualFundPreset.gilt:
         return 'Gilt';
+      case DiscoverMutualFundPreset.giltConstant10y:
+        return 'Gilt 10Y';
       case DiscoverMutualFundPreset.dynamicBond:
         return 'Dynamic Bond';
       case DiscoverMutualFundPreset.floater:
@@ -372,6 +398,8 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return 'Multi Asset';
       case DiscoverMutualFundPreset.equitySavings:
         return 'Equity Savings';
+      case DiscoverMutualFundPreset.retirementSolutions:
+        return 'Retirement';
       case DiscoverMutualFundPreset.fofDomestic:
         return 'FoF Domestic';
       case DiscoverMutualFundPreset.fofOverseas:
@@ -407,20 +435,25 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.valueMf,
         DiscoverMutualFundPreset.focused,
         DiscoverMutualFundPreset.sectoral,
+        DiscoverMutualFundPreset.smartBetaIndex,
         DiscoverMutualFundPreset.international,
       ];
 
   static List<DiscoverMutualFundPreset> get debtSubCategories => [
+        // Duration-sorted: shortest → longest, then specialty buckets.
         DiscoverMutualFundPreset.liquid,
         DiscoverMutualFundPreset.overnight,
         DiscoverMutualFundPreset.moneyMarket,
         DiscoverMutualFundPreset.ultraShort,
-        DiscoverMutualFundPreset.shortDuration,
         DiscoverMutualFundPreset.lowDuration,
+        DiscoverMutualFundPreset.shortDuration,
         DiscoverMutualFundPreset.mediumDuration,
+        DiscoverMutualFundPreset.mediumLongDuration,
+        DiscoverMutualFundPreset.longDuration,
         DiscoverMutualFundPreset.corporateBond,
         DiscoverMutualFundPreset.bankingPsu,
         DiscoverMutualFundPreset.gilt,
+        DiscoverMutualFundPreset.giltConstant10y,
         DiscoverMutualFundPreset.dynamicBond,
         DiscoverMutualFundPreset.floater,
         DiscoverMutualFundPreset.targetMaturity,
@@ -435,6 +468,7 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         DiscoverMutualFundPreset.dynamicAssetAllocation,
         DiscoverMutualFundPreset.multiAsset,
         DiscoverMutualFundPreset.equitySavings,
+        DiscoverMutualFundPreset.retirementSolutions,
       ];
 
   static List<DiscoverMutualFundPreset> get otherSubCategories => [
@@ -525,12 +559,22 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
         return DiscoverMutualFundPreset.lowDuration;
       case 'medium-duration':
         return DiscoverMutualFundPreset.mediumDuration;
+      case 'medium-long-duration':
+        return DiscoverMutualFundPreset.mediumLongDuration;
+      case 'long-duration':
+        return DiscoverMutualFundPreset.longDuration;
+      case 'gilt-10yr':
+        return DiscoverMutualFundPreset.giltConstant10y;
       case 'floater':
         return DiscoverMutualFundPreset.floater;
       case 'target-maturity':
         return DiscoverMutualFundPreset.targetMaturity;
       case 'credit-risk':
         return DiscoverMutualFundPreset.creditRisk;
+      case 'smart-beta-index':
+        return DiscoverMutualFundPreset.smartBetaIndex;
+      case 'retirement-solutions':
+        return DiscoverMutualFundPreset.retirementSolutions;
       case 'low-risk':
         return DiscoverMutualFundPreset.lowRisk;
       case 'all':
