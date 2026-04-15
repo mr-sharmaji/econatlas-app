@@ -365,7 +365,7 @@ extension DiscoverMutualFundPresetX on DiscoverMutualFundPreset {
       case DiscoverMutualFundPreset.mediumDuration:
         return 'Medium Duration';
       case DiscoverMutualFundPreset.mediumLongDuration:
-        return 'Medium-Long Dur.';
+        return 'Medium-Long Duration';
       case DiscoverMutualFundPreset.longDuration:
         return 'Long Duration';
       case DiscoverMutualFundPreset.corporateBond:
