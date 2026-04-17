@@ -58,7 +58,7 @@ For unfamiliar endpoints, curl `https://api.velqon.xyz/openapi.json` and `jq '.p
 - Never edit `graphify-out/` — it's a generated artifact.
 
 ## Planning gate (cuts rework)
-For any change touching >1 file or >50 lines: state the approach as 3–5 bullets and wait for "go" before editing. Saves the "wrong logic, redo" loop.
+Before any edit, state the approach as 3–5 bullets and wait for "go" before editing. Applies to every change, no matter how small. Saves the "wrong logic, redo" loop.
 
 ## Backend debugging from this repo
 If a bug looks backend-originated, don't grep Flutter files — query the backend directly:
