@@ -33,7 +33,35 @@ Graph lives at `graphify-out/graph.json` (not committed — regenerate with `gra
 
 Prefer `graphify query` over wide `grep` / reading many screens. Fall back to Read only for the specific files the graph points to.
 
+## Backend API (EconAtlas v0.2.2, 84 endpoints)
+Base: `https://api.velqon.xyz` · Full spec: `/openapi.json` · Swagger: `/docs`
+
+Route groups:
+- `/assets` — asset catalog
+- `/brief` — post-market, movers, most-active, sectors
+- `/broker-charges`
+- `/chat` — streaming chat, sessions, feedback, greeting, suggestions, autocomplete
+- `/commodities`, `/crypto`, `/market` — ingest + list + intraday + latest
+- `/events`, `/feedback`, `/news`
+- `/ipos` — list, alerts, device registration
+- `/macro` — indicators, flows, forecasts, calendar, regime, linkages, summary
+- `/market/scores`, `/market/story`, `/market/status`
+- `/ops` — admin: job trigger/abort/rescore, tables CRUD, logs, metrics
+- `/screener` — overview, search, stocks/mutual-funds list + detail + history + intraday + sparklines + peers + story + score-history
+- `/health`
+
+For unfamiliar endpoints, curl `https://api.velqon.xyz/openapi.json` and `jq '.paths["/path"]'` rather than reading backend source.
+
 ## Conventions
 - Riverpod: `ref.watch` in build, `ref.read` in callbacks.
 - INR conversion for commodity/crypto: use `usdInrRateProvider` + `assetDisplayValue` in `core/utils.dart`.
 - Never edit `graphify-out/` — it's a generated artifact.
+
+## graphify
+
+This project has a graphify knowledge graph at graphify-out/.
+
+Rules:
+- Before answering architecture or codebase questions, read graphify-out/GRAPH_REPORT.md for god nodes and community structure
+- If graphify-out/wiki/index.md exists, navigate it instead of reading raw files
+- After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
