@@ -1351,7 +1351,7 @@ class MarketDetailScreen extends ConsumerStatefulWidget {
   // crypto). Used when [initialPrice] is null (e.g. home-screen
   // widget deep links which don't carry a MarketPrice in the state
   // extra) so the detail screen knows whether to fetch commodity
-  // history and render INR units instead of raw USD/barrel.
+  // / crypto history and render INR units instead of raw USD prices.
   final String? instrumentTypeHint;
 
   const MarketDetailScreen({
@@ -1531,20 +1531,17 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 ?.where((p) => p.asset == widget.asset)
                 .firstOrNull;
     final currentPrice = latestResolvedPrice ?? widget.initialPrice;
-    final usdInrRate = latestMarketAsync.valueOrNull
-        ?.where((p) => p.asset == 'USD/INR')
-        .map((p) => p.price)
-        .firstOrNull;
-    final effectiveUsdInrRate = usdInrRate ?? 1.0;
+    final usdInrRate = ref.watch(usdInrRateProvider);
+    final effectiveUsdInrRate = usdInrRate ?? 83.0;
     final useIndian = unitSystem == UnitSystem.indian;
-    final useIndianCommodityUnits =
-        useIndian && isCommodity && usdInrRate != null && usdInrRate > 0;
+    final useIndianConvertedUnits =
+        useIndian && (isCommodity || isCrypto) && effectiveUsdInrRate > 0;
     final instType = currentPrice?.instrumentType ?? initialInstType;
     final display = currentPrice != null
         ? assetDisplayPriceAndUnit(
             asset: widget.asset,
             rawPrice: currentPrice.price,
-            useIndianUnits: useIndianCommodityUnits,
+            useIndianUnits: useIndianConvertedUnits,
             usdInrRate: effectiveUsdInrRate,
             instrumentType: instType,
             sourceUnit: currentPrice.unit,
@@ -1702,7 +1699,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 priceForTop: currentPrice,
                 intradayFor1D: intradayChartList,
                 asset: widget.asset,
-                useIndianCommodityUnits: useIndianCommodityUnits,
+                useIndianConvertedUnits: useIndianConvertedUnits,
                 usdInrRate: effectiveUsdInrRate,
                 phase: phase,
                 showTickAge: hasAuthoritativeTick,
@@ -1756,14 +1753,14 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                 List<double> statsPrices;
 
                 if (useIntraday) {
-                  chartPrices = useIndianCommodityUnits
+                  chartPrices = useIndianConvertedUnits
                       ? intradayChartList
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
                                 usdInrRate: effectiveUsdInrRate,
-                                instrumentType: 'commodity',
+                                instrumentType: instType,
                               ))
                           .toList()
                       : intradayChartList.map((p) => p.price).toList();
@@ -1772,24 +1769,24 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                   final intradayStatsSource = intradayStatsList.isNotEmpty
                       ? intradayStatsList
                       : intradayChartList;
-                  statsPrices = useIndianCommodityUnits
+                  statsPrices = useIndianConvertedUnits
                       ? intradayStatsSource
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
                                 usdInrRate: effectiveUsdInrRate,
-                                instrumentType: 'commodity',
+                                instrumentType: instType,
                               ))
                           .toList()
                       : intradayStatsSource.map((p) => p.price).toList();
                   isIntradayChart = true;
-                  chartUnit = useIndianCommodityUnits
+                  chartUnit = useIndianConvertedUnits
                       ? null
                       : (isCurrency ? 'inr' : displayUnit);
-                  prefix = useIndianCommodityUnits || isCurrency ? '₹ ' : null;
+                  prefix = useIndianConvertedUnits || isCurrency ? '₹ ' : null;
                   chartUnitHint =
-                      (useIndianCommodityUnits && displayUnit != null)
+                      (useIndianConvertedUnits && displayUnit != null)
                           ? '₹$displayUnit'
                           : null;
                 } else {
@@ -1815,26 +1812,26 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
                       ),
                     );
                   }
-                  chartPrices = useIndianCommodityUnits
+                  chartPrices = useIndianConvertedUnits
                       ? filtered
                           .map((p) => assetDisplayValue(
                                 asset: widget.asset,
                                 rawPrice: p.price,
                                 useIndianUnits: true,
                                 usdInrRate: effectiveUsdInrRate,
-                                instrumentType: 'commodity',
+                                instrumentType: instType,
                               ))
                           .toList()
                       : filtered.map((p) => p.price).toList();
                   chartTimestamps = filtered.map((p) => p.timestamp).toList();
                   statsPrices = chartPrices;
                   isIntradayChart = false;
-                  chartUnit = useIndianCommodityUnits
+                  chartUnit = useIndianConvertedUnits
                       ? null
                       : (isCurrency ? 'inr' : filtered.first.unit);
-                  prefix = useIndianCommodityUnits || isCurrency ? '₹ ' : null;
+                  prefix = useIndianConvertedUnits || isCurrency ? '₹ ' : null;
                   chartUnitHint =
-                      (useIndianCommodityUnits && displayUnit != null)
+                      (useIndianConvertedUnits && displayUnit != null)
                           ? '₹$displayUnit'
                           : (chartUnit == 'percent' ? 'Yield %' : chartUnit);
                 }
@@ -2105,7 +2102,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     required MarketPrice priceForTop,
     List<IntradayPoint>? intradayFor1D,
     required String asset,
-    required bool useIndianCommodityUnits,
+    required bool useIndianConvertedUnits,
     required double usdInrRate,
     String phase = 'closed',
     bool showTickAge = true,
@@ -2113,7 +2110,7 @@ class _MarketDetailScreenState extends ConsumerState<MarketDetailScreen> {
     double toDisplayValue(double raw) => assetDisplayValue(
           asset: asset,
           rawPrice: raw,
-          useIndianUnits: useIndianCommodityUnits,
+          useIndianUnits: useIndianConvertedUnits,
           usdInrRate: usdInrRate,
           instrumentType: priceForTop.instrumentType,
         );
