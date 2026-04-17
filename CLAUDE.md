@@ -60,6 +60,9 @@ For unfamiliar endpoints, curl `https://api.velqon.xyz/openapi.json` and `jq '.p
 ## Planning gate (cuts rework)
 Before any edit, state the approach as 3–5 bullets and wait for "go" before editing. Applies to every change, no matter how small. Saves the "wrong logic, redo" loop.
 
+## Comment discipline
+Keep comments minimal. Default to none. Only add one when the *why* is non-obvious — a hidden constraint, subtle invariant, or workaround for a known bug. Never comment what the code does (good names suffice). Never reference the current task, fix, or PR.
+
 ## Backend debugging from this repo
 If a bug looks backend-originated, don't grep Flutter files — query the backend directly:
 - Logs: `curl 'https://api.velqon.xyz/ops/logs?level=error&since=1h&limit=200'`
