@@ -57,6 +57,15 @@ For unfamiliar endpoints, curl `https://api.velqon.xyz/openapi.json` and `jq '.p
 - INR conversion for commodity/crypto: use `usdInrRateProvider` + `assetDisplayValue` in `core/utils.dart`.
 - Never edit `graphify-out/` — it's a generated artifact.
 
+## Planning gate (cuts rework)
+For any change touching >1 file or >50 lines: state the approach as 3–5 bullets and wait for "go" before editing. Saves the "wrong logic, redo" loop.
+
+## Backend debugging from this repo
+If a bug looks backend-originated, don't grep Flutter files — query the backend directly:
+- Logs: `curl 'https://api.velqon.xyz/ops/logs?level=error&since=1h&limit=200'`
+- DB: `curl -X POST https://api.velqon.xyz/ops/sql -d '{"query":"SELECT ... LIMIT 50"}' -H 'Content-Type: application/json'`
+- Schema snapshot: `../econatlas-backend/docs/db_schema.md`
+
 ## graphify
 
 This project has a graphify knowledge graph at graphify-out/.
